@@ -67,6 +67,12 @@
             cursor: pointer;
             margin-top: 10px;
         }
+        /* ブラウザ標準のパスワード表示ボタンを非表示にする */
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none;
+        }
+
         button:hover {
             background: #1d4ed8;
         }

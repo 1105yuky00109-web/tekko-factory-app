@@ -24,6 +24,12 @@ body.dark-theme {
 
 body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
 
+/* Edge/IE等のブラウザ標準のパスワード表示・非表示ボタンを非表示にする */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
 /* 共通ユーティリティ */
 .hidden { display: none !important; }
 
