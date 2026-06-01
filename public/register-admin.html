@@ -95,9 +95,7 @@
 <body>
     <div class="card">
         <h2>🏗️ 工事管理アプリ 初期アカウント登録</h2>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px; line-height: 1.5;">
-            新しいFirebase環境（tekko-factory-app）に最初の会社データと管理者ユーザーを設定します。Stripe決済をバイパスして、直接管理者アカウントを作成できます。
-        </p>
+        
         <form id="setup-form">
             <div class="form-group">
                 <label for="company-name">会社名</label>
@@ -113,7 +111,19 @@
             </div>
             <div class="form-group">
                 <label for="admin-password">管理者パスワード（6文字以上）</label>
-                <input type="password" id="admin-password" minlength="6" required>
+                <div style="position:relative;display:flex;align-items:center;">
+                    <input type="password" id="admin-password" minlength="6" required style="padding-right:45px;">
+                    <button type="button" class="toggle-password-btn" data-target="admin-password" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;color:#64748b;outline:none;">
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="admin-password-confirm">管理者パスワード（確認）</label>
+                <div style="position:relative;display:flex;align-items:center;">
+                    <input type="password" id="admin-password-confirm" minlength="6" required style="padding-right:45px;">
+                    <button type="button" class="toggle-password-btn" data-target="admin-password-confirm" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;color:#64748b;outline:none;">
+                    </button>
+                </div>
             </div>
             <button type="submit">管理者アカウントを作成する</button>
         </form>
@@ -144,6 +154,27 @@
         const form = document.getElementById('setup-form');
         const msg = document.getElementById('msg');
 
+        // パスワードの表示・非表示切り替え
+        const eyeSvg = `<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 22px; height: 22px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>`;
+        const eyeSlashSvg = `<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 22px; height: 22px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.388 4.17 5.322 7.178 9.963 7.178.892 0 1.761-.137 2.585-.395m6-.046c.118-.119.231-.242.34-.368a10.457 10.457 0 0 0 2.045-3.777c-1.388-4.17-5.322-7.178-9.963-7.178-.925 0-1.82.146-2.665.418m11.233 11.233-18-18" /><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 8.684A3 3 0 1 0 12.32 12.32" /></svg>`;
+
+        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+            btn.innerHTML = eyeSvg;
+            btn.onclick = () => {
+                const targetId = btn.dataset.target;
+                const input = document.getElementById(targetId);
+                if (input) {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        btn.innerHTML = eyeSlashSvg;
+                    } else {
+                        input.type = 'password';
+                        btn.innerHTML = eyeSvg;
+                    }
+                }
+            };
+        });
+
         form.onsubmit = async (e) => {
             e.preventDefault();
             msg.className = 'message';
@@ -154,6 +185,13 @@
             const adminName = document.getElementById('admin-name').value.trim();
             const email = document.getElementById('admin-email').value.trim();
             const password = document.getElementById('admin-password').value;
+            const passwordConfirm = document.getElementById('admin-password-confirm').value;
+
+            if (password !== passwordConfirm) {
+                msg.className = 'message error';
+                msg.textContent = 'パスワードと確認用パスワードが一致しません。';
+                return;
+            }
 
             try {
                 // 1. Authユーザー作成
