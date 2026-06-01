@@ -163,7 +163,7 @@
         };
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const app = initializeApp(firebaseConfig);
@@ -242,8 +242,13 @@
 
                 await setDoc(doc(db, "companies", companyId), companyData);
 
+                // 4. メールアドレス確認メールの送信 (確認後はアプリのトップページへ遷移)
+                await sendEmailVerification(user, {
+                    url: 'https://tekko-factory-app.web.app/'
+                });
+
                 msg.className = 'message success';
-                msg.textContent = '管理者アカウントと会社データの登録が成功しました！';
+                msg.textContent = '管理者アカウントの登録を受け付けました！管理者メールアドレス宛に登録完了案内メールを送信しました。メール内のリンク（URL）をクリックしてアカウントを有効化した後、ログインしてください。';
                 form.reset();
             } catch (err) {
                 console.error(err);

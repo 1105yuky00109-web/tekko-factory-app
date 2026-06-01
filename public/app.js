@@ -76,6 +76,24 @@ onAuthStateChanged(auth, async (user) => {
             try { await user.reload(); user = auth.currentUser; } catch(e) {}
         }
 
+        // メールアドレス確認が完了しているかチェック（特定のテスト用・管理者アドレスはバイパス）
+        const isBypassEmail = user.email.includes('oowada') || 
+                              user.email.includes('dai-wada') || 
+                              user.email.includes('daiwada') || 
+                              user.email === '1105yuky00109@gmail.com' ||
+                              user.email === '1105yuky00109-web@github.com';
+                              
+        if (!user.emailVerified && !isBypassEmail) {
+            console.log("User email is not verified. Logging out.");
+            await signOut(auth);
+            const errorMsg = document.getElementById('login-error');
+            if (errorMsg) {
+                errorMsg.classList.remove('hidden');
+                errorMsg.textContent = 'メールアドレスの確認が完了していません。登録時に送信された案内メールのリンクをクリックしてアカウントを有効化した後、ログインしてください。';
+            }
+            return;
+        }
+
         // ログイン成功時
         currentUser = auth.currentUser;
         document.getElementById('current-user-email').textContent = currentUser.email;
