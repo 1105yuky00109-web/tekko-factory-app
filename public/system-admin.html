@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>開発者専用 システム管理パネル</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --background: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ログイン画面 */
+    .login-wrapper {
+      min-height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 30px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+      text-align: center;
+      color: var(--primary);
+    }
+
+    .login-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 5px;
+      color: var(--text-muted);
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      outline: none;
+      font-size: 0.9rem;
+    }
+
+    .input-text:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .message.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* 管理ダッシュボード */
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 6px 12px;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .control-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+
+    .control-title {
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    select.btn-select {
+      background: #1e3a8a;
+      color: #fff;
+      border: 1px solid #3b82f6;
+      border-radius: 6px;
+      padding: 10px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* 会社サマリーカード */
+    .company-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .company-card {
+      border-radius: 12px;
+      padding: 20px;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .company-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    /* データテーブル */
+    .data-table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 25px;
+    }
+
+    .table-header {
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-header h3 {
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px 15px;
+      color: var(--text-muted);
+      font-weight: bold;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-company {
+      background: #1e3a8a;
+      color: #93c5fd;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .badge-status {
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+
+    .badge-status.approved {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-status.confirmed {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-status.plan {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- 1. ログイン画面 -->
+  <div id="login-container" class="login-wrapper">
+    <div class="login-card">
+      <h2>システム管理 ログイン</h2>
+      <p>※開発元専用の管理パネルです。</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">メールアドレス</label>
+          <input type="email" id="login-email" required class="input-text" placeholder="name@example.com" />
+        </div>
+        <div class="form-group">
+          <label for="login-password">パスワード</label>
+          <input type="password" id="login-password" required class="input-text" />
+        </div>
+        <button type="submit" class="btn btn-primary">管理者ログイン</button>
+        <div id="login-error" class="message error hidden"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. ダッシュボード画面（ログイン後） -->
+  <div id="app-container" class="dashboard-container hidden">
+    <header>
+      <h1>🔧 開発元 システム管理ダッシュボード</h1>
+      <div class="user-info">
+        <span id="current-user-email" style="font-weight: bold; color: var(--primary);"></span>
+        <button id="btn-logout" class="btn btn-secondary">ログアウト</button>
+      </div>
+    </header>
+
+    <!-- コントロールパネル -->
+    <section class="control-panel">
+      <div class="control-title">
+        <span>⚙️</span>
+        <h2>全体コントロール</h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">本番環境のデータベース（Firestore）から全体の稼働状況を監視します。</p>
+      
+      <div class="control-actions">
+        <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
+        <button id="admin-view-all-btn" class="btn" style="background:#059669; color:#fff;">🌐 全社データ表示</button>
+        <select id="admin-company-filter" class="btn-select">
+          <option value="">🏢 会社を選択して絞り込み...</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- 会社別サマリーカード -->
+    <section id="admin-company-cards" class="company-cards">
+      <div style="text-align:center; padding:40px; color: var(--text-muted); grid-column: 1 / -1;">
+        データを読み込んでください。
+      </div>
+    </section>
+
+    <!-- 週報一覧テーブル -->
+    <section class="data-table-card">
+      <div class="table-header">
+        <h3 id="admin-table-title">全社 週報データ一覧</h3>
+        <span id="admin-record-count" style="font-size:0.85rem; color:var(--text-muted);">全 0 件</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>🏢 会社ID / 会社名</th>
+              <th>👤 担当者</th>
+              <th>📅 対象月</th>
+              <th style="text-align:center;">ステータス</th>
+              <th>🕒 送信日時</th>
+            </tr>
+          </thead>
+          <tbody id="admin-reports-tbody">
+            <tr>
+              <td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">
+                「本番データ再読み込み」ボタンを押すと読み込まれます。
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- system-admin.jsを読み込む -->
+  <script type="module" src="system-admin.js"></script>
+</body>
+</html>

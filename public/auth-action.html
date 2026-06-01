@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>パスワードの再設定 | 工事・日報管理システム</title>
+    <style>
+        /* ============================
+           基本スタイル
+        ============================ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        .system-name {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 28px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        /* ============================
+           フォーム
+        ============================ */
+        .form-group {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 44px 12px 14px;
+            font-size: 1rem;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+            color: #1e293b;
+            background: #f8fafc;
+        }
+
+        input[type="password"]:focus,
+        input[type="text"]:focus {
+            border-color: #2563eb;
+            background: #fff;
+        }
+
+        .toggle-pass {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            padding: 0;
+            outline: none;
+        }
+        .toggle-pass:hover { color: #2563eb; }
+        .toggle-pass svg { width: 20px; height: 20px; }
+
+        /* Edge等のブラウザ標準のパスワード表示・消去ボタンを非表示にする */
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 6px;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-back {
+            display: inline-block;
+            margin-top: 18px;
+            font-size: 0.9rem;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .btn-back:hover { text-decoration: underline; }
+
+        /* ============================
+           メッセージ表示
+        ============================ */
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-top: 16px;
+            text-align: left;
+            line-height: 1.5;
+        }
+        .message.error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .message.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .message.info    { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .hidden { display: none !important; }
+
+        /* 完了画面アイコン */
+        .success-icon {
+            font-size: 3.5rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* スピナー */
+        .spinner-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 20px 0;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(37, 99, 235, 0.15);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 480px) {
+            .card { padding: 30px 22px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="main-card">
+        <!-- ロゴ・システム名 -->
+        <div class="logo">🏗️</div>
+        <div class="system-name">工事・日報管理システム</div>
+
+        <!-- 読み込み中 -->
+        <div id="view-loading">
+            <div class="spinner-wrap">
+                <div class="spinner"></div>
+                <p style="color:#64748b; font-size:0.95rem;">認証情報を確認しています...</p>
+            </div>
+        </div>
+
+        <!-- パスワード再設定フォーム -->
+        <div id="view-reset-form" class="hidden">
+            <h1>🔑 パスワードの再設定</h1>
+            <p class="subtitle">新しいパスワードを入力してください。<br>半角英数字6文字以上で設定してください。</p>
+
+            <form id="reset-form">
+                <div class="form-group">
+                    <label for="new-pass">新しいパスワード</label>
+                    <div class="input-wrap">
+                        <input type="password" id="new-pass" required minlength="6" placeholder="新しいパスワード（6文字以上）">
+                        <button type="button" class="toggle-pass" data-target="new-pass">
+                            <!-- 目のアイコン（表示） -->
+                            <svg id="eye-new-pass" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="confirm-pass">新しいパスワード（確認用）</label>
+                    <div class="input-wrap">
+                        <input type="password" id="confirm-pass" required minlength="6" placeholder="もう一度入力してください">
+                        <button type="button" class="toggle-pass" data-target="confirm-pass">
+                            <svg id="eye-confirm-pass" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="form-error" class="message error hidden"></div>
+                <button type="submit" id="btn-submit" class="btn-primary">パスワードを変更する</button>
+            </form>
+        </div>
+
+        <!-- 完了画面 -->
+        <div id="view-success" class="hidden">
+            <span class="success-icon">✅</span>
+            <h1>パスワードを変更しました</h1>
+            <p class="subtitle" style="margin-top:12px;">新しいパスワードで<br>ログインできます。</p>
+            <a href="/" class="btn-back">ログイン画面へ戻る →</a>
+        </div>
+
+        <!-- エラー画面（リンク切れ等） -->
+        <div id="view-error" class="hidden">
+            <span class="success-icon">⚠️</span>
+            <h1 style="color:#dc2626;">リンクが無効です</h1>
+            <p class="subtitle" style="margin-top:12px;" id="error-detail">パスワード再設定リンクの有効期限が切れているか、すでに使用済みです。再度パスワードリセットをお試しください。</p>
+            <a href="/" class="btn-back">ログイン画面へ戻る →</a>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import {
+            getAuth,
+            verifyPasswordResetCode,
+            confirmPasswordReset,
+            applyActionCode
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // Firebaseの設定（app.jsと同じ値）
+        const firebaseConfig = {
+    apiKey: "AIzaSyBero5buqjW670UPObtf4QiVX-rkhhFfPs",
+    authDomain: "weekly-report-93e5f.firebaseapp.com",
+    projectId: "weekly-report-93e5f",
+    storageBucket: "weekly-report-93e5f.firebasestorage.app",
+    messagingSenderId: "905872831436",
+    appId: "1:905872831436:web:1367ad0b1d54d9bba7a369"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // URLパラメータを取得
+        const params = new URLSearchParams(window.location.search);
+        const mode    = params.get('mode');
+        const oobCode = params.get('oobCode');
+
+        // 表示切り替えヘルパー
+        const show = (id) => {
+            ['view-loading','view-reset-form','view-success','view-error'].forEach(v => {
+                document.getElementById(v).classList.toggle('hidden', v !== id);
+            });
+        };
+
+        // ============================
+        // パスワードリセット処理
+        // ============================
+        async function handlePasswordReset() {
+            if (!oobCode) {
+                show('view-error');
+                return;
+            }
+            try {
+                // コードの有効性を検証
+                await verifyPasswordResetCode(auth, oobCode);
+                show('view-reset-form');
+            } catch (e) {
+                console.error('verifyPasswordResetCode error:', e);
+                document.getElementById('error-detail').textContent =
+                    'パスワード再設定リンクの有効期限が切れているか、すでに使用済みです。再度パスワードリセットをお試しください。';
+                show('view-error');
+            }
+        }
+
+        // メール確認処理（email verify）
+        async function handleVerifyEmail() {
+            if (!oobCode) {
+                show('view-error');
+                return;
+            }
+            try {
+                await applyActionCode(auth, oobCode);
+                // 完了を表示してログイン画面へ誘導
+                document.getElementById('view-success').querySelector('h1').textContent = 'メールアドレスを確認しました';
+                document.getElementById('view-success').querySelector('.subtitle').innerHTML =
+                    'メールアドレスの確認が完了しました。<br>引き続きログインしてご利用ください。';
+                show('view-success');
+            } catch (e) {
+                console.error('applyActionCode error:', e);
+                show('view-error');
+            }
+        }
+
+        // ============================
+        // フォーム送信処理
+        // ============================
+        document.getElementById('reset-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPass     = document.getElementById('new-pass').value;
+            const confirmPass = document.getElementById('confirm-pass').value;
+            const errEl       = document.getElementById('form-error');
+            const submitBtn   = document.getElementById('btn-submit');
+
+            errEl.classList.add('hidden');
+
+            if (newPass !== confirmPass) {
+                errEl.textContent = '入力した2つのパスワードが一致しません。';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (newPass.length < 6) {
+                errEl.textContent = 'パスワードは6文字以上で設定してください。';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '変更中...';
+
+            try {
+                await confirmPasswordReset(auth, oobCode, newPass);
+                localStorage.setItem('password_reset_just_done', 'true');
+                show('view-success');
+            } catch (e) {
+                console.error('confirmPasswordReset error:', e);
+                let msg = 'パスワードの変更に失敗しました。リンクの有効期限が切れている可能性があります。';
+                if (e.code === 'auth/weak-password') {
+                    msg = 'パスワードが短すぎます。6文字以上で入力してください。';
+                } else if (e.code === 'auth/expired-action-code') {
+                    msg = 'リンクの有効期限が切れています。再度パスワードリセットをお試しください。';
+                } else if (e.code === 'auth/invalid-action-code') {
+                    msg = 'このリンクはすでに使用済みか無効です。再度パスワードリセットをお試しください。';
+                }
+                errEl.textContent = msg;
+                errEl.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'パスワードを変更する';
+            }
+        });
+
+        // ============================
+        // パスワードの表示・非表示トグル
+        // ============================
+        document.querySelectorAll('.toggle-pass').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const isHidden = input.type === 'password';
+                input.type = isHidden ? 'text' : 'password';
+                // アイコン切り替え（斜線追加）
+                const svg = btn.querySelector('svg');
+                if (isHidden) {
+                    // 非表示アイコン（斜線入り）
+                    svg.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />`;
+                } else {
+                    // 表示アイコン（通常）
+                    svg.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />`;
+                }
+            });
+        });
+
+        // ============================
+        // モード別エントリーポイント
+        // ============================
+        (async () => {
+            switch (mode) {
+                case 'resetPassword':
+                    await handlePasswordReset();
+                    break;
+                case 'verifyEmail':
+                    await handleVerifyEmail();
+                    break;
+                default:
+                    document.getElementById('error-detail').textContent =
+                        '無効なリンクです。再度お試しください。';
+                    show('view-error');
+            }
+        })();
+    </script>
+</body>
+</html>

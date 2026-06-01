@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>新規ご契約・アカウント登録</title>
+  <script src="https://js.stripe.com/v3/" defer></script>
+  <script src="onboarding.js?v=20260531" defer></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --background: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --border-focus: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onboarding-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 580px;
+      padding: 40px;
+      transition: all 0.3s ease;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      .onboarding-card {
+        padding: 24px;
+        border-radius: 12px;
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group label.field-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-text:focus {
+      background: #fff;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    }
+
+    .input-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    /* プランカードスタイル */
+    .plan-cards-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 480px) {
+      .plan-cards-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+
+    .plan-card-option {
+      cursor: pointer;
+      display: block;
+      position: relative;
+    }
+
+    .plan-card-body {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      transition: all 0.2s ease;
+      background: #f8fafc;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .plan-card-option input:checked + .plan-card-body {
+      border-color: var(--primary);
+      background-color: #eff6ff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    }
+
+    .plan-card-option:hover .plan-card-body {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+      border-color: #cbd5e1;
+    }
+
+    .plan-card-option input:checked:hover .plan-card-body {
+      border-color: var(--primary);
+    }
+
+    .plan-badge {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);
+    }
+
+    .plan-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 4px;
+    }
+
+    .plan-price {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text);
+      margin: 8px 0;
+    }
+
+    .plan-price span {
+      font-size: 0.8rem;
+      font-weight: normal;
+      color: var(--text-muted);
+    }
+
+    .plan-limit {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* パスワード入力エリア */
+    .password-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .password-wrapper input {
+      padding-right: 45px;
+    }
+
+    /* Edge/IE等のブラウザ標準のパスワード表示・非表示ボタンを非表示にする */
+    .password-wrapper input::-ms-reveal,
+    .password-wrapper input::-ms-clear {
+      display: none;
+    }
+
+    .toggle-password-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      outline: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      transition: color 0.2s ease;
+    }
+
+    .toggle-password-btn:hover {
+      color: var(--text);
+    }
+
+    /* ボタン */
+    .primary-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.15), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+      transition: all 0.2s ease;
+      margin-top: 32px;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2), 0 4px 6px -2px rgba(37, 99, 235, 0.15);
+    }
+
+    .primary-btn:active {
+      transform: translateY(1px);
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      text-align: center;
+      display: none;
+    }
+
+    .message.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fee2e2;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <main class="onboarding-card">
+    <div class="header">
+      <h1>新規ご契約・アカウント登録</h1>
+      <p>ご契約後、即時アカウントが発行され利用可能になります。</p>
+    </div>
+
+    <form id="onboarding-form">
+      <div class="form-group">
+        <label for="companyName" class="field-label">会社名</label>
+        <input type="text" id="companyName" name="companyName" class="input-text" placeholder="例: 株式会社大和田建設" required />
+      </div>
+
+
+
+      <div class="form-group">
+        <label class="field-label">お選びいただくプラン</label>
+        <div class="plan-cards-container">
+          <label class="plan-card-option">
+            <input type="radio" name="plan" value="price_1TaP0sJdCQkwItViebEBEhJa" style="display:none;" />
+            <div class="plan-card-body">
+              <div class="plan-badge">人気</div>
+              <div class="plan-name">スタータープラン</div>
+              <div class="plan-price">¥9,800<span>/月</span></div>
+              <div class="plan-limit">ユーザー数: 20名まで</div>
+            </div>
+          </label>
+          <label class="plan-card-option">
+            <input type="radio" name="plan" value="price_1TaP6jJdCQkwItViM7RoBetq" style="display:none;" />
+            <div class="plan-card-body">
+              <div class="plan-name" style="margin-top: 14px;">スタンダードプラン</div>
+              <div class="plan-price">¥24,800<span>/月</span></div>
+              <div class="plan-limit">ユーザー数: 100名まで</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="adminName" class="field-label">管理者氏名</label>
+        <input type="text" id="adminName" name="adminName" class="input-text" placeholder="例: 大和田 太郎" required />
+      </div>
+
+      <div class="form-group">
+        <label for="adminEmail" class="field-label">管理者メールアドレス</label>
+        <input type="email" id="adminEmail" name="adminEmail" class="input-text" placeholder="name@company.com" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="field-label">管理者ログイン用パスワード（半角英数字6文字以上）</label>
+        <p class="input-desc" style="margin-bottom: 6px;">
+            ※本システム（日報アプリ）にログインするための専用のパスワードです（Googleやメールアドレス自体のパスワードではありません）。ご自身で任意のパスワードを決めて入力してください。
+        </p>
+        <div class="password-wrapper">
+          <input type="password" id="password" name="password" class="input-text" required minlength="6" pattern="[a-zA-Z0-9]+" title="半角英数字6文字以上で入力してください。" />
+          <button type="button" class="toggle-password-btn" data-target="password" style="display: flex; align-items: center; justify-content: center;">
+            <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 20px; height: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="primary-btn">支払いに進む</button>
+    </form>
+    <div id="message" class="message"></div>
+  </main>
+</body>
+</html>

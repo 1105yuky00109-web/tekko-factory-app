@@ -1,0 +1,21 @@
+{
+  "short_name": "鉄骨日報",
+  "name": "鉄骨日報管理システム (tekko-factory-app)",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary"
+}

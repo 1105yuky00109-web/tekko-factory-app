@@ -1,0 +1,1908 @@
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #16a34a;
+    --success-hover: #15803d;
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --bg-color: #f1f5f9;
+    --card-bg: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #cbd5e1;
+}
+
+body.dark-theme {
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
+
+/* 共通ユーティリティ */
+.hidden { display: none !important; }
+
+/* ログイン画面のスタイル */
+.login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+.login-card { background: var(--card-bg); padding: 40px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+.login-card h2 { margin-bottom: 10px; color: var(--primary); }
+.login-card p { margin-bottom: 30px; font-size: 0.9rem; color: var(--text-muted); }
+.login-card .form-group { text-align: left; }
+
+.app-container { max-width: 1300px; margin: 0 auto; padding: 20px; }
+
+header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid var(--border); }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+h1 { font-size: 1.5rem; }
+.user-info { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; font-weight: bold; }
+
+/* タブをスマホで横スクロール可能に */
+.tabs { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; }
+.tabs::-webkit-scrollbar { height: 4px; }
+.tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.tab-btn { padding: 10px 16px; border: 1px solid #e2e8f0; background: transparent; font-weight: bold; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
+.tab-btn:hover { background: #f1f5f9; }
+
+/* グループ1: 日報入力 (青系) */
+.tab-btn.tab-group-input {
+    border: 1px solid #bfdbfe; /* Blue 200 */
+    color: #2563eb; /* Blue 600 */
+}
+.tab-btn.tab-group-input:hover {
+    background-color: #eff6ff; /* Blue 50 */
+}
+.tab-btn.tab-group-input.active {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    color: white !important;
+}
+
+/* グループ2: 工事別関連 (緑系) */
+.tab-btn.tab-group-history {
+    border: 1px solid #a7f3d0; /* Emerald 200 */
+    color: #059669; /* Emerald 600 */
+}
+.tab-btn.tab-group-history:hover {
+    background-color: #ecfdf5; /* Emerald 50 */
+}
+.tab-btn.tab-group-history.active {
+    background-color: #059669 !important;
+    border-color: #059669 !important;
+    color: white !important;
+}
+
+/* グループ3: 工程管理表・工事登録 (アンバー系) */
+.tab-btn.tab-group-schedule {
+    border: 1px solid #fde68a; /* Amber 200 */
+    color: #d97706; /* Amber 600 */
+}
+.tab-btn.tab-group-schedule:hover {
+    background-color: #fffbeb; /* Amber 50 */
+}
+.tab-btn.tab-group-schedule.active {
+    background-color: #d97706 !important;
+    border-color: #d97706 !important;
+    color: white !important;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* フォームのスタイル */
+.form-card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 850px; margin: 0 auto; }
+.form-card h2 { margin-bottom: 20px; font-size: 1.3rem; border-bottom: 2px solid var(--primary); display: inline-block; padding-bottom: 5px; }
+.form-row { display: flex; gap: 15px; margin-bottom: 20px; }
+.form-row .form-group { flex: 1; margin-bottom: 0; }
+.form-group { margin-bottom: 20px; }
+label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.95rem; }
+
+input[type="text"], input[type="week"], input[type="date"], input[type="month"], input[type="email"], input[type="password"], textarea, select {
+    width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; outline: none; background: #fff;
+    /* スマホでズームされないための工夫 (フォント16px) */
+    font-size: 16px;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--primary); }
+input[readonly] { background: #f1f5f9; cursor: not-allowed; color: var(--text-muted); }
+textarea { resize: vertical; }
+
+/* Edge/IE等のブラウザ標準のパスワード表示・非表示ボタンを非表示にする */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
+/* 日別入力エリア (スマホ最適化) */
+.days-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; }
+.day-card { border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; overflow: hidden; }
+.day-header { background: #e2e8f0; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; }
+.day-body { padding: 15px; }
+.task-list { display: flex; flex-direction: column; gap: 10px; }
+.task-row { display: flex; gap: 8px; align-items: center; background: #fff; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; }
+
+/* スマホ用の行レイアウト */
+@media (max-width: 600px) {
+    .task-row { flex-wrap: wrap; }
+    .task-project { width: 100%; flex: none; margin-bottom: 5px; }
+    .task-detail { width: calc(100% - 100px); flex: none; }
+    .task-hours { width: 80px; flex: none; }
+    .remove-task-btn { width: 100%; margin-top: 5px; background: #fee2e2 !important; color: var(--danger) !important; border: 1px dashed var(--danger) !important; }
+}
+@media (min-width: 601px) {
+    .task-project { flex: 2; }
+    .task-detail { flex: 3; }
+    .task-hours { flex: 1; min-width: 90px; }
+}
+
+.btn.btn-add-task { margin-top: 10px; font-size: 0.9rem; padding: 8px 12px; background: #fff; border: 1px solid var(--primary); color: var(--primary); width: 100%; }
+
+.summary-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+.summary-section h3 { margin-bottom: 15px; font-size: 1.1rem; }
+
+/* ガントチャートのスタイル */
+.gantt-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.gantt-container {
+    background: var(--card-bg); border-radius: 8px; padding: 20px; min-width: 1000px;
+}
+.gantt-grid {
+    display: grid;
+    grid-template-columns: 150px 100px repeat(31, minmax(25px, 1fr));
+    border-top: 1px solid var(--border); border-left: 1px solid var(--border);
+}
+.gantt-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 4px; font-size: 0.8rem; text-align: center; }
+.gantt-header-cell { background: #e2e8f0; font-weight: bold; }
+.gantt-proj-cell { text-align: left; font-weight: bold; padding-left: 10px; background: #f8fafc; }
+.gantt-author-cell { background: #f8fafc; }
+.gantt-bar {
+    background: var(--primary); border-radius: 4px; color: white; font-size: 0.75rem;
+    display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;
+}
+.gantt-bar-bg-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); height: 100%; }
+
+/* ボタン類 */
+.btn { padding: 12px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; transition: 0.2s; }
+.btn:hover { opacity: 0.9; }
+.btn-primary { background: var(--primary); }
+.btn-large { width: 100%; padding: 15px; font-size: 1.1rem; }
+.btn-small { padding: 8px 12px; font-size: 0.85rem; }
+.btn-success { background: var(--success); }
+.btn-secondary { background: #64748b; }
+.btn-danger { background: var(--danger); }
+.btn-icon { width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+.message { margin-top: 15px; padding: 12px; border-radius: 6px; text-align: center; background: #dcfce7; color: #166534; }
+.message.error { background: #fee2e2; color: #b91c1c; }
+
+/* 一覧画面 */
+.list-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--card-bg); padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px; }
+.filters { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.table-container { background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; min-width: 800px; } /* スマホ対応：テーブルは横スクロール */
+th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background-color: #f1f5f9; font-weight: 600; white-space: nowrap; }
+
+/* モバイル用レスポンシブ（600px以下） */
+@media (max-width: 600px) {
+    .form-row { flex-direction: column; gap: 0; }
+    .header-top { flex-direction: column; align-items: flex-start; }
+    .list-controls { flex-direction: column; align-items: stretch; }
+    .actions .btn { flex: 1; }
+    .date-shortcuts { flex-direction: column; }
+    .date-shortcuts .btn-date-shortcut { width: 100%; }
+}
+
+/* iPad用（768px〜1024px）および中画面デバイスの微調整 */
+@media (min-width: 601px) and (max-width: 1024px) {
+    .app-container { padding: 15px; }
+    .form-card { padding: 20px; max-width: 100%; }
+    .tab-btn { padding: 8px 12px; font-size: 0.9rem; }
+    .header-top { flex-wrap: wrap; }
+    .list-controls { flex-wrap: wrap; }
+    .gantt-container { padding: 10px; }
+}
+
+.only-print { display: none; }
+
+/* 通常画面表示時は、印刷用一時エリアを完全に非表示にする */
+#print-active-area {
+    display: none !important;
+}
+
+/* --- 印刷用スタイル --- */
+@media print {
+    /* html, body を紙の横幅100%に強制し、横幅が半分に縮むのを防止する */
+    html, body {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* 印刷時は強制的にライトテーマ用の配色変数にリセットし、ダークテーマでの印刷バグを防止する */
+    :root, body, body.dark-theme {
+        --bg-color: #ffffff !important;
+        --card-bg: #ffffff !important;
+        --text-main: #1e293b !important;
+        --text-muted: #64748b !important;
+        --border: #cbd5e1 !important;
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+    }
+
+    /* 印刷時に不要なコンテナを個別に非表示にする（body > *:notセレクタによる白紙バグの回避） */
+    /* かつ、非表示要素の巨大な横幅がブラウザの印刷自動縮小スケール計算に悪影響を及ぼさないよう、サイズを強制的に0にする */
+    #app-container,
+    #login-container,
+    #loading-container,
+    .no-print {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+    }
+    
+    #print-active-area {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        background: white !important;
+        color: black !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Hiragino Kaku Gothic ProN", "MS Gothic", sans-serif;
+    }
+    #print-active-area.print-landscape-gantt {
+        width: max-content !important;
+    }
+    
+    /* 印刷時の背景色強制適用（土日の背景色やセルの色などを印刷に反映させる） */
+    #print-active-area th,
+    #print-active-area td,
+    #print-active-area tr,
+    #print-active-area div {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* ガントチャート印刷時のレイアウト崩れ（詳細列の潰れ）防止強制スタイル */
+    #print-active-area #gantt-container,
+    #print-active-area .gantt-container {
+        width: max-content !important;
+        min-width: max-content !important;
+        overflow: visible !important;
+        display: block !important;
+    }
+    #print-active-area .gantt-grid {
+        /* カレンダー各日の列幅を3pxの固定幅にして、A3横の1ページ内に1年間（365日）が美しく収まるようにする */
+        grid-template-columns: 100px 80px 80px 70px 45px 45px 45px 45px 60px 45px repeat(366, 3px) !important;
+        width: max-content !important;
+        display: grid !important;
+    }
+    #print-active-area .gantt-grid > div {
+        position: static !important;
+        z-index: auto !important;
+    }
+    /* バーの中のテキストが極小の列幅を押し広げて比率を崩すのを完全に防ぐ */
+    #print-active-area .gantt-bar {
+        min-width: 0 !important;
+        color: transparent !important;
+        text-shadow: none !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    body.print-weekly-mode #print-weekly-action-container {
+        display: block !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+    body.print-weekly-mode #print-active-area {
+        display: none !important;
+    }
+    body.print-weekly-mode .weekly-print-wrapper {
+        width: calc(100% - 4px) !important;
+        max-width: calc(100% - 4px) !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+    }
+    body.print-weekly-mode .approval-table {
+        width: 126px !important;
+        min-width: 126px !important;
+        max-width: 126px !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+    }
+    body.print-weekly-mode .approval-table th,
+    body.print-weekly-mode .approval-table td {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        box-sizing: border-box !important;
+    }
+    .print-report-card { border: 2px solid #000; margin-bottom: 20px; page-break-inside: avoid; }
+    .print-report-header { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 10px; font-weight: bold; border-bottom: 2px solid #000; font-size: 1.1rem; }
+    .print-report-body { padding: 15px; font-size: 10pt; }
+    .print-task-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
+    .print-task-table th, .print-task-table td { border: 1px solid #000; padding: 6px; font-size: 9pt; }
+    .print-task-table th { background-color: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .weekly-print-wrapper {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .weekly-print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        width: 100%;
+        margin-bottom: 4px;
+        height: 90px;
+        box-sizing: border-box;
+    }
+    .weekly-print-title {
+        font-size: 13pt;
+        font-weight: bold;
+        text-align: center;
+        letter-spacing: 2px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        margin: 0;
+        padding-bottom: 2px;
+        white-space: nowrap;
+    }
+    .approval-table {
+        border-collapse: collapse;
+    }
+    .approval-table th {
+        font-size: 7.5pt;
+        font-weight: bold;
+        color: #000 !important;
+        padding: 2px 3px;
+        border: 1px solid #000;
+        background: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        text-align: center;
+        width: 42px;
+        white-space: nowrap;
+    }
+    .approval-table td {
+        border: 1px solid #000;
+        width: 42px;
+        height: 44px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 7.5pt;
+        position: relative;
+        padding: 0;
+    }
+    .weekly-print-subheader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 7.8pt;
+        margin-bottom: 3px;
+        font-weight: bold;
+    }
+    .legend-box {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .legend-color {
+        width: 12px;
+        height: 12px;
+        border: 1px solid #000;
+        display: inline-block;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .print-day-block {
+        border: 1px solid #000;
+        margin-bottom: 7px;
+        page-break-inside: avoid;
+    }
+    .print-day-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: none !important;
+    }
+    .print-day-table th, .print-day-table td {
+        border: 1px solid #000;
+        padding: 3px 5px;
+        font-size: 8.5pt;
+        vertical-align: middle;
+        height: 25px;
+    }
+    .print-day-table tr th:first-child,
+    .print-day-table tr td:first-child {
+        border-left: none !important;
+    }
+    .print-day-table tr th:last-child,
+    .print-day-table tr td:last-child {
+        border-right: none !important;
+    }
+    .print-day-table thead tr:first-child th {
+        border-top: none !important;
+    }
+    .print-day-table th {
+        background: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: bold;
+        text-align: center;
+    }
+    .col-date { width: 12%; text-align: center; font-weight: bold; }
+    .col-project { width: 22%; }
+    .col-time { width: 12%; text-align: center; }
+    .col-direct { width: 12%; text-align: center; }
+    .col-detail { width: 42%; }
+
+    .print-timeline-row {
+        display: flex;
+        align-items: center;
+        border-top: none !important;
+        background: #fff;
+        height: 30px;
+        box-sizing: border-box;
+    }
+    .print-timeline-label {
+        width: 12%;
+        font-size: 7.5pt;
+        text-align: center;
+        font-weight: bold;
+        border-right: 1px solid #000;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        box-sizing: border-box;
+    }
+    .print-timeline-hours {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border-right: 1px solid #000;
+        box-sizing: border-box;
+    }
+    .print-timeline-header-cells {
+        display: flex;
+        justify-content: space-between;
+        font-size: 5.5pt;
+        height: 10px;
+        line-height: 10px;
+        border-bottom: 1px solid #000;
+        box-sizing: border-box;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+    .print-timeline-hour-cell {
+        width: 0;
+        overflow: visible;
+        display: flex;
+        justify-content: center;
+        font-size: 5.5pt;
+        white-space: nowrap;
+        border-right: none;
+    }
+    .print-timeline-hour-cell:last-child {
+        border-right: none;
+    }
+    .print-timeline-grid-cells {
+        display: grid;
+        grid-template-columns: repeat(48, 1fr);
+        height: 18px;
+        box-sizing: border-box;
+    }
+    .print-timeline-cell {
+        border-right: 1px dashed #ccc;
+        height: 100%;
+    }
+    .print-timeline-cell:nth-child(2n) {
+        border-right: 1px solid #000;
+    }
+    .print-timeline-cell:last-child {
+        border-right: none;
+    }
+    .print-timeline-cell[data-state="0"] { background: #fff !important; }
+    .print-timeline-cell[data-state="1"] { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-timeline-cell[data-state="2"] { background: #ef4444 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-timeline-cell[data-state="3"] { background: #16a34a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-timeline-cell[data-state="4"] { background: #94a3b8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-timeline-cell[data-state="5"] { background: #2563eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    
+    .print-timeline-total {
+        width: 15%;
+        font-size: 7.2pt;
+        text-align: center;
+        font-weight: bold;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        box-sizing: border-box;
+        line-height: 1.2;
+    }
+
+    /* 週間行動予定表（A4縦）の単一テーブルスタイル */
+    .print-weekly-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 15px;
+        border: 2px solid #000;
+    }
+    .print-weekly-table th, .print-weekly-table td {
+        border: 1px solid #000;
+        padding: 4px 6px;
+        font-size: 8.5pt;
+        box-sizing: border-box;
+    }
+    .print-weekly-table th {
+        background-color: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: bold;
+        text-align: center;
+        height: 25px;
+    }
+    .print-weekly-table td.col-date {
+        font-weight: bold;
+        text-align: center;
+        width: 12%;
+        background-color: #fff !important;
+        vertical-align: middle;
+    }
+    .print-weekly-table td.col-project {
+        width: 15%;
+        text-align: left;
+        font-weight: bold;
+    }
+    .print-weekly-table td.col-time {
+        width: 10%;
+        text-align: center;
+    }
+    .print-weekly-table td.col-direct {
+        width: 10%;
+        text-align: center;
+    }
+    .print-weekly-table td.col-detail {
+        text-align: left;
+    }
+    
+    /* タイムライン行用スタイル */
+    .timeline-label {
+        font-weight: bold;
+        font-size: 7.5pt;
+        text-align: center;
+        background-color: #f8fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        vertical-align: middle;
+    }
+    
+    .timeline-content-project, .timeline-content-time {
+        background-color: #fff !important;
+        vertical-align: middle;
+    }
+
+    /* 訪問先バー */
+    .print-project-bar-wrapper {
+        display: flex;
+        width: 100%;
+        height: 18px;
+        box-sizing: border-box;
+        align-items: center;
+        border: 1px solid #000;
+        background-color: #f8fafc;
+    }
+    .print-project-bar-cell {
+        height: 100%;
+        font-size: 7pt;
+        text-align: center;
+        line-height: 16px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        box-sizing: border-box;
+    }
+}
+
+/* A3横印刷（ガントチャート用） */
+
+
+/* ダークテーマ用の追加スタイル */
+body.dark-theme input[type="text"], 
+body.dark-theme input[type="week"], 
+body.dark-theme input[type="date"], 
+body.dark-theme input[type="month"], 
+body.dark-theme input[type="email"], 
+body.dark-theme input[type="password"], 
+body.dark-theme textarea, 
+body.dark-theme select {
+    background: #0f172a;
+    color: #f8fafc;
+    border-color: #334155;
+}
+body.dark-theme input[readonly] {
+    background: #1e293b;
+    color: #94a3b8;
+}
+body.dark-theme .day-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+body.dark-theme .day-header {
+    background: #334155;
+    color: #f8fafc;
+}
+body.dark-theme .task-row {
+    background: #0f172a;
+    border-color: #334155;
+}
+body.dark-theme .btn.btn-add-task {
+    background: #1e293b;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+body.dark-theme .tab-btn:hover {
+    background: #334155;
+}
+body.dark-theme th {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border-bottom: 2px solid #334155;
+}
+body.dark-theme td {
+    border-bottom: 1px solid #334155;
+}
+body.dark-theme .copy-past-section {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+body.dark-theme .gantt-proj-cell, 
+body.dark-theme .gantt-author-cell {
+    background: #1e293b;
+}
+
+/* スムーズスクロールとスクロールバー（iPad/iOS対応用） */
+.gantt-wrapper, .table-container, .tabs {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 工事別集計カレンダーのスタイル微調整 */
+#summary-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+#summary-table th, #summary-table td {
+    padding: 6px 4px;
+    font-size: 0.85rem;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+#summary-table th {
+    background: #f1f5f9;
+    font-weight: bold;
+    text-align: center;
+    border-top: 1px solid var(--border);
+}
+#summary-table td:first-child,
+#summary-table th:first-child {
+    border-left: 1px solid var(--border);
+}
+#summary-table tr:hover td {
+    background-color: #f8fafc;
+}
+/* ダークテーマ時の調整 */
+body.dark-theme #summary-table th {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+body.dark-theme #summary-table td {
+    background: #0f172a;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+body.dark-theme #summary-table td[style*="background-color"] {
+    background-color: #064e3b !important; /* ダークテーマ時の作業日ハイライト */
+    color: #34d399 !important;
+}
+body.dark-theme #summary-table td[style*="background: #f8fafc"],
+body.dark-theme #summary-table td[style*="background: rgb(248, 250, 252)"] {
+    background: #1e293b !important;
+}
+
+/* 実績タイムライン用スタイル */
+.timeline-task-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+.task-row-top {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+}
+.task-row-bottom {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    width: 100%;
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+.timeline-palette {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.palette-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+.palette-btn:hover {
+    background: #f1f5f9;
+}
+.palette-btn.active {
+    border-color: var(--primary);
+    background: #eff6ff;
+    color: var(--primary);
+}
+.color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.timeline-container-scroll {
+    flex: 1;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #ffffff;
+    -webkit-overflow-scrolling: touch;
+}
+.timeline-bar-wrapper {
+    min-width: 600px; /* 横スクロール可能にするために最小幅を確保 */
+    padding: 5px;
+}
+.timeline-hours-header {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    font-size: 0.7rem;
+    color: #475569;
+    margin-bottom: 2px;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 2px;
+}
+.timeline-hour-label {
+    grid-column: span 1;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+.timeline-cells-grid {
+    display: grid;
+    grid-template-columns: repeat(48, 1fr);
+    height: 25px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    background: #fff;
+    overflow: hidden;
+}
+.timeline-cell {
+    border-right: 1px dashed #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.1s;
+}
+.timeline-cell:last-child {
+    border-right: none;
+}
+/* 1時間ごとの区切り線を実線にする */
+.timeline-cell:nth-child(2n) {
+    border-right: 1px solid #cbd5e1;
+}
+.timeline-cell:last-child {
+    border-right: none;
+}
+/* 各セルの状態色 */
+.timeline-cell[data-state="0"] { background: #ffffff !important; }
+.timeline-cell[data-state="1"] { background: #000000 !important; } /* 作業 */
+.timeline-cell[data-state="2"] { background: #ef4444 !important; } /* 休憩 */
+.timeline-cell[data-state="3"] { background: #16a34a !important; } /* 移動 */
+.timeline-cell[data-state="4"] { background: #94a3b8 !important; } /* 有休 */
+.timeline-cell[data-state="5"] { background: #2563eb !important; } /* 現場管理以外の業務 */
+
+.timeline-summary {
+    font-size: 1.1rem;
+    font-weight: bold;
+    width: 70px;
+    text-align: right;
+    flex-shrink: 0;
+    color: var(--text);
+}
+.timeline-hours-total {
+    color: var(--primary);
+    margin-right: 2px;
+}
+
+/* 有給・欠勤・休日行のグレーアウト用 */
+.timeline-task-row.leave-row {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    opacity: 0.75;
+}
+body.dark-theme .timeline-task-row.leave-row {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    opacity: 0.65;
+}
+.timeline-task-row.leave-row input:disabled {
+    background: #e2e8f0 !important;
+    color: #64748b !important;
+}
+body.dark-theme .timeline-task-row.leave-row input:disabled {
+    background: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+/* --- 追加カスタムスタイル --- */
+
+/* タブのグループ別初期スタイル (枠線と薄い背景) */
+.tab-btn.tab-gantt {
+    border: 2px solid #93c5fd; /* 薄い青の枠線 */
+    background: #eff6ff;      /* 非常に薄い青の背景 */
+    color: #1e3a8a;           /* 濃い青のテキスト */
+}
+.tab-btn.tab-gantt:hover {
+    background: #dbeafe;      /* ホバー時に少し濃く */
+    border-color: #60a5fa;
+}
+.tab-btn.tab-gantt.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+}
+
+.tab-btn.tab-weekly {
+    border: 2px solid #a7f3d0; /* 薄い緑の枠線 */
+    background: #ecfdf5;      /* 非常に薄い緑の背景 */
+    color: #064e3b;           /* 濃い緑のテキスト */
+}
+.tab-btn.tab-weekly:hover {
+    background: #d1fae5;      /* ホバー時に少し濃く */
+    border-color: #34d399;
+}
+.tab-btn.tab-weekly.active {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: white !important;
+}
+
+/* ダークテーマ用のタブボタン調整 */
+body.dark-theme .tab-btn.tab-gantt {
+    border-color: #1e3a8a;
+    background: #172554;
+    color: #93c5fd;
+}
+body.dark-theme .tab-btn.tab-gantt:hover {
+    background: #1e3a8a;
+    border-color: #3b82f6;
+}
+body.dark-theme .tab-btn.tab-gantt.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+}
+
+body.dark-theme .tab-btn.tab-weekly {
+    border-color: #064e3b;
+    background: #022c22;
+    color: #a7f3d0;
+}
+body.dark-theme .tab-btn.tab-weekly:hover {
+    background: #064e3b;
+    border-color: #10b981;
+}
+body.dark-theme .tab-btn.tab-weekly.active {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: white !important;
+}
+
+/* ステータスバッジ */
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+.status-badge.status-none {
+    background-color: #cbd5e1;
+    color: #334155;
+}
+.status-badge.status-plan {
+    background-color: #ffedd5;
+    color: #d97706;
+    border: 1px solid #fbd38d;
+}
+.status-badge.status-confirmed {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+body.dark-theme .status-badge.status-none {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+body.dark-theme .status-badge.status-plan {
+    background-color: #431407;
+    color: #fdba74;
+    border-color: #9a3412;
+}
+body.dark-theme .status-badge.status-confirmed {
+    background-color: #064e3b;
+    color: #6ee7b7;
+    border-color: #047857;
+}
+.status-badge.status-approved {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+body.dark-theme .status-badge.status-approved {
+    background-color: #172554;
+    color: #93c5fd;
+    border-color: #1e3a8a;
+}
+
+/* 日報フォーム下部アクションボタン */
+.report-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+.report-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* 画面・印刷共通の承認印（ハンコ）スタイル */
+.stamp-approved {
+    border: 2px solid #ef4444;
+    color: #ef4444;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 7.5pt;
+    font-weight: bold;
+    line-height: 1.1;
+    margin: auto;
+}
+.timeline-cell {
+    border-right: 1px dashed #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.1s;
+}
+.timeline-cell:last-child {
+    border-right: none;
+}
+/* 1時間ごとの区切り線を実線にする */
+.timeline-cell:nth-child(2n) {
+    border-right: 1px solid #cbd5e1;
+}
+.timeline-cell:last-child {
+    border-right: none;
+}
+/* 各セルの状態色 */
+.timeline-cell[data-state="0"] { background: #ffffff !important; }
+.timeline-cell[data-state="1"] { background: #000000 !important; } /* 作業 */
+.timeline-cell[data-state="2"] { background: #ef4444 !important; } /* 休憩 */
+.timeline-cell[data-state="3"] { background: #16a34a !important; } /* 移動 */
+.timeline-cell[data-state="4"] { background: #94a3b8 !important; } /* 有休 */
+.timeline-cell[data-state="5"] { background: #2563eb !important; } /* 現場管理以外の業務 */
+
+.timeline-summary {
+    font-size: 1.1rem;
+    font-weight: bold;
+    width: 70px;
+    text-align: right;
+    flex-shrink: 0;
+    color: var(--text);
+}
+.timeline-hours-total {
+    color: var(--primary);
+    margin-right: 2px;
+}
+
+/* 有給・欠勤・休日行のグレーアウト用 */
+.timeline-task-row.leave-row {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    opacity: 0.75;
+}
+body.dark-theme .timeline-task-row.leave-row {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    opacity: 0.65;
+}
+.timeline-task-row.leave-row input:disabled {
+    background: #e2e8f0 !important;
+    color: #64748b !important;
+}
+body.dark-theme .timeline-task-row.leave-row input:disabled {
+    background: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+/* --- 追加カスタムスタイル --- */
+
+/* タブのグループ別初期スタイル (枠線と薄い背景) */
+.tab-btn.tab-gantt {
+    border: 2px solid #93c5fd; /* 薄い青の枠線 */
+    background: #eff6ff;      /* 非常に薄い青の背景 */
+    color: #1e3a8a;           /* 濃い青のテキスト */
+}
+.tab-btn.tab-gantt:hover {
+    background: #dbeafe;      /* ホバー時に少し濃く */
+    border-color: #60a5fa;
+}
+.tab-btn.tab-gantt.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+}
+
+.tab-btn.tab-weekly {
+    border: 2px solid #a7f3d0; /* 薄い緑の枠線 */
+    background: #ecfdf5;      /* 非常に薄い緑の背景 */
+    color: #064e3b;           /* 濃い緑のテキスト */
+}
+.tab-btn.tab-weekly:hover {
+    background: #d1fae5;      /* ホバー時に少し濃く */
+    border-color: #34d399;
+}
+.tab-btn.tab-weekly.active {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: white !important;
+}
+
+/* ダークテーマ用のタブボタン調整 */
+body.dark-theme .tab-btn.tab-gantt {
+    border-color: #1e3a8a;
+    background: #172554;
+    color: #93c5fd;
+}
+body.dark-theme .tab-btn.tab-gantt:hover {
+    background: #1e3a8a;
+    border-color: #3b82f6;
+}
+body.dark-theme .tab-btn.tab-gantt.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+}
+
+body.dark-theme .tab-btn.tab-weekly {
+    border-color: #064e3b;
+    background: #022c22;
+    color: #a7f3d0;
+}
+body.dark-theme .tab-btn.tab-weekly:hover {
+    background: #064e3b;
+    border-color: #10b981;
+}
+body.dark-theme .tab-btn.tab-weekly.active {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: white !important;
+}
+
+/* ステータスバッジ */
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+.status-badge.status-none {
+    background-color: #cbd5e1;
+    color: #334155;
+}
+.status-badge.status-plan {
+    background-color: #ffedd5;
+    color: #d97706;
+    border: 1px solid #fbd38d;
+}
+.status-badge.status-confirmed {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+body.dark-theme .status-badge.status-none {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+body.dark-theme .status-badge.status-plan {
+    background-color: #431407;
+    color: #fdba74;
+    border-color: #9a3412;
+}
+body.dark-theme .status-badge.status-confirmed {
+    background-color: #064e3b;
+    color: #6ee7b7;
+    border-color: #047857;
+}
+.status-badge.status-approved {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+body.dark-theme .status-badge.status-approved {
+    background-color: #172554;
+    color: #93c5fd;
+    border-color: #1e3a8a;
+}
+
+/* 日報フォーム下部アクションボタン */
+.report-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+.report-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* 画面・印刷共通の承認印（ハンコ）スタイル */
+.stamp-approved {
+    border: 2px solid #ef4444;
+    color: #ef4444;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 7.5pt;
+    font-weight: bold;
+    line-height: 1.1;
+    margin: auto;
+    transform: rotate(-10deg);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: transparent;
+}
+.stamp-approved span {
+    font-size: 6.5pt;
+}
+
+/* ============================================================
+   工程管理表 (年度ガントチャート) 用のスタイル
+   ============================================================ */
+.gantt-grid {
+    display: grid;
+    /* 列定義は JS 側で grid-template-columns を動的に生成します */
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    background-color: var(--card-bg);
+}
+
+.gantt-cell {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 4px;
+    font-size: 0.8rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 40px;
+}
+
+.gantt-header-cell {
+    background: #f1f5f9;
+    font-weight: bold;
+    color: #1e293b;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+.gantt-proj-cell {
+    text-align: left;
+    justify-content: flex-start;
+    font-weight: bold;
+    padding-left: 8px;
+    background: var(--card-bg);
+}
+
+.gantt-text-cell {
+    text-align: left;
+    justify-content: flex-start;
+    padding-left: 6px;
+    font-size: 0.75rem;
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+.gantt-bar-bg-cell {
+    border-right: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border);
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* 土日背景色 */
+.gantt-bar-bg-cell.weekend-sat {
+    background-color: rgba(59, 130, 246, 0.08) !important; /* 薄い青 */
+}
+.gantt-bar-bg-cell.weekend-sun {
+    background-color: rgba(239, 68, 68, 0.08) !important; /* 薄い赤 */
+}
+
+/* 月の境界の太線 */
+.gantt-bar-bg-cell.month-boundary,
+.gantt-cell.month-boundary {
+    border-right: 2px solid #475569 !important;
+}
+
+/* 工程バー */
+.gantt-bar {
+    border-radius: 4px;
+    color: white;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    z-index: 10;
+    font-weight: bold;
+    height: 28px;
+    margin: 6px 0;
+    transition: transform 0.1s, box-shadow 0.1s;
+    user-select: none;
+}
+.gantt-bar:hover {
+    transform: scaleY(1.05);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.25);
+    filter: brightness(1.1);
+}
+
+/* ストライプパターン */
+.gantt-bar.pattern-stripe {
+    background-image: repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.75),
+        rgba(255, 255, 255, 0.75) 12px,
+        transparent 12px,
+        transparent 24px
+    );
+}
+
+/* 完了工程の表示 (薄くする、取り消し線) */
+.gantt-bar.completed-bar {
+    opacity: 0.55;
+    text-decoration: line-through;
+}
+
+/* ダークテーマ用の追加調整 */
+body.dark-theme .gantt-header-cell {
+    background: #1e293b;
+    color: #f8fafc;
+    border-bottom: 2px solid #334155;
+}
+body.dark-theme .gantt-bar-bg-cell {
+    border-right: 1px solid #1e293b;
+}
+body.dark-theme .gantt-bar-bg-cell.weekend-sat {
+    background-color: rgba(59, 130, 246, 0.18) !important;
+}
+body.dark-theme .gantt-bar-bg-cell.weekend-sun {
+    background-color: rgba(239, 68, 68, 0.18) !important;
+}
+body.dark-theme .gantt-bar-bg-cell.month-boundary,
+body.dark-theme .gantt-cell.month-boundary {
+    border-right: 2px solid #94a3b8 !important;
+}
+
+/* ============================================================
+   🏅 資格・担当者管理画面用のスタイル
+   ============================================================ */
+.qual-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-main);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.qual-summary-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.qual-summary-badge .badge-count {
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    margin-left: 8px;
+    font-weight: 800;
+}
+
+body.dark-theme .qual-summary-badge {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+body.dark-theme .qual-summary-badge .badge-count {
+    background: #3b82f6;
+}
+
+/* ============================================================
+   工事詳細カード (横スクロールなしの折りたたみセル用)
+   ============================================================ */
+.gantt-proj-card-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--card-bg);
+    border-right: 2px solid var(--border) !important;
+    text-align: left;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.proj-card-row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+.proj-card-project {
+    font-weight: bold;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    margin-right: 5px;
+}
+.proj-card-client {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 0.75rem;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.proj-card-completed-badge {
+    background: #dcfce7;
+    color: #15803d;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.proj-card-row2 {
+    display: flex;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+}
+.proj-card-address, .proj-card-qty {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.proj-card-address { flex: 1.5; }
+.proj-card-qty { flex: 1; font-weight: 600; text-align: right; }
+
+.proj-card-row3 {
+    display: flex;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: #475569;
+    margin-bottom: 2px;
+}
+.proj-card-supplier {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1.5;
+}
+.proj-card-subcon {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    text-align: right;
+}
+
+.proj-card-row4 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    border-top: 1px dotted var(--border);
+    padding-top: 2px;
+    margin-top: 1px;
+}
+.proj-card-reps {
+    color: #0f172a;
+    font-weight: 600;
+}
+.proj-card-assign-badge {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+.proj-card-assign-badge.dedicated {
+    background: #fef3c7;
+    color: #d97706;
+}
+.proj-card-assign-badge.non-dedicated {
+    background: #f1f5f9;
+    color: #475569;
+}
+body.dark-theme .proj-card-reps {
+    color: #cbd5e1;
+}
+body.dark-theme .proj-card-assign-badge.non-dedicated {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+/* ==========================================
+   ログインボタン用ローディングスピナー
+   ========================================== */
+.login-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: btn-spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================
+   ガントチャート上部 資格保有者サマリーパネル
+   ========================================== */
+.gantt-qual-panel {
+    background-color: #d9e1f2;
+    border: 1px solid #8ea9db;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 0.72rem;
+    color: #1f4e79;
+    line-height: 1.6;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.gantt-qual-panel strong {
+    color: #1f4e79;
+}
+body.dark-theme .gantt-qual-panel {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: #93c5fd;
+}
+body.dark-theme .gantt-qual-panel strong {
+    color: #93c5fd;
+}
+
+@media print {
+    .gantt-qual-panel {
+        background-color: #d9e1f2 !important;
+        border: 1px solid #8ea9db !important;
+        color: #1f4e79 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .gantt-qual-panel strong {
+        color: #1f4e79 !important;
+    }
+}
+
+/* Edge等のブラウザが自動表示するパスワード表示 of 目のマークを非表示にする */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
+/* 無効化されたボタン(disabled)のスタイル */
+.btn:disabled,
+button:disabled {
+    background: #cbd5e1 !important;
+    color: #94a3b8 !important;
+    border-color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    opacity: 0.6;
+}
+body.dark-theme .btn:disabled,
+body.dark-theme button:disabled {
+    background: #334155 !important;
+    color: #64748b !important;
+    border-color: #334155 !important;
+    opacity: 0.6;
+}
+
+/* ==========================================
+   週報入力画面のロック（グレーアウト）表示
+   ========================================== */
+#report-form.form-locked #days-container,
+#report-form.form-locked #copy-past-report-select,
+#report-form.form-locked #btn-copy-past-report {
+    opacity: 0.6;
+    pointer-events: none;
+    filter: grayscale(30%);
+}
+
+/* ==========================================
+   鉄骨日報：ボタン型チェックボックス (スマホ最適化)
+   ========================================== */
+.btn-checkbox-label {
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    width: 100%;
+}
+
+.btn-checkbox-input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.btn-checkbox-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-card, #ffffff);
+    color: var(--text-main, #1e293b);
+    border: 2px solid var(--border, #cbd5e1);
+    border-radius: 8px;
+    padding: 12px 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.2s ease;
+    min-height: 48px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.btn-checkbox-label:hover .btn-checkbox-text {
+    border-color: var(--primary-color, #2563eb);
+    background-color: var(--bg-muted, #f8fafc);
+}
+
+.btn-checkbox-input:checked + .btn-checkbox-text {
+    background-color: var(--primary-color, #2563eb);
+    color: #ffffff;
+    border-color: var(--primary-color, #2563eb);
+    box-shadow: 0 4px 6px -1px rgba(37,99,235,0.2), 0 2px 4px -1px rgba(37,99,235,0.1);
+}
+
+/* ダークモード対応 */
+body.dark-theme .btn-checkbox-text {
+    background-color: #1e293b;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+body.dark-theme .btn-checkbox-label:hover .btn-checkbox-text {
+    border-color: #3b82f6;
+    background-color: #1e293b;
+}
+body.dark-theme .btn-checkbox-input:checked + .btn-checkbox-text {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+/* 工数カウンター入力欄のスタイル */
+#report-hours {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: 2px solid var(--border, #cbd5e1);
+    border-radius: 8px;
+    background: var(--card-bg, #ffffff);
+    color: var(--text, #1e293b);
+    width: 120px !important;
+}
+body.dark-theme #report-hours {
+    border-color: #334155;
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+/* 履歴画面のカードレイアウト */
+.report-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.report-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border, #f1f5f9);
+    padding-bottom: 8px;
+    font-weight: bold;
+}
+.report-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+.report-card-tasks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+.task-badge {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+body.dark-theme .task-badge {
+    background-color: #1e293b;
+    color: #60a5fa;
+    border-color: #1e3a8a;
+}
+.report-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border, #f1f5f9);
+    padding-top: 8px;
+}
+
+/* 作業内容ボタンのグループ別色指定 */
+.btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-blue {
+    color: #2563eb !important;
+    border-color: #93c5fd !important;
+    background-color: #eff6ff !important;
+}
+.btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-green {
+    color: #16a34a !important;
+    border-color: #a7f3d0 !important;
+    background-color: #ecfdf5 !important;
+}
+.btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-black {
+    color: var(--text-main, #1e293b) !important;
+    border-color: var(--border, #cbd5e1) !important;
+    background-color: var(--card-bg, #ffffff) !important;
+}
+
+/* ダークテーマ用 */
+body.dark-theme .btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-blue {
+    color: #60a5fa !important;
+    border-color: #1e3a8a !important;
+    background-color: #172554 !important;
+}
+body.dark-theme .btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-green {
+    color: #34d399 !important;
+    border-color: #064e3b !important;
+    background-color: #022c22 !important;
+}
+body.dark-theme .btn-checkbox-input:not(:checked) + .btn-checkbox-text.task-group-black {
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+    background-color: #1e293b !important;
+}
+
+/* --- 工事集計グリッドテーブル --- */
+.grid-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    color: var(--text-main, #1e293b);
+    background-color: var(--card-bg, #ffffff);
+}
+.grid-table th, .grid-table td {
+    border: 1px solid var(--border, #cbd5e1);
+    padding: 4px 2px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.grid-table th {
+    font-weight: bold;
+    background-color: var(--bg-muted, #f1f5f9);
+}
+.grid-table td.clickable-hours-cell {
+    background-color: #f8fafc;
+    transition: background-color 0.2s;
+}
+.grid-table td.clickable-hours-cell:hover {
+    background-color: var(--primary-light, #e0f2fe) !important;
+    color: var(--primary-color, #0284c7) !important;
+}
+
+/* ダークテーマ対応 */
+body.dark-theme .grid-table {
+    color: #f1f5f9;
+    background-color: #0f172a;
+}
+body.dark-theme .grid-table th {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+body.dark-theme .grid-table td {
+    border-color: #334155;
+}
+body.dark-theme .grid-table td.clickable-hours-cell {
+    background-color: #1e293b;
+}
+body.dark-theme .grid-table td.clickable-hours-cell:hover {
+    background-color: #0c4a6e !important;
+    color: #38bdf8 !important;
+}
+
+/* ポップアップ調整 */
+#history-detail-modal-overlay {
+    backdrop-filter: blur(4px);
+}
+body.dark-theme #history-detail-modal-overlay {
+    background: rgba(0,0,0,0.8) !important;
+}
+
+/* ダークテーマ時のタブグループ配色とボーダー調整 */
+body.dark-theme .tab-btn {
+    border-color: #334155;
+}
+body.dark-theme .tab-btn:hover {
+    background-color: #1e293b;
+}
+
+body.dark-theme .tab-btn.tab-group-input {
+    border-color: #1e3a8a; /* Blue 900 */
+    color: #60a5fa; /* Blue 400 */
+}
+body.dark-theme .tab-btn.tab-group-input:hover {
+    background-color: #172554; /* Blue 950 */
+}
+body.dark-theme .tab-btn.tab-group-input.active {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .tab-btn.tab-group-history {
+    border-color: #064e3b; /* Emerald 900 */
+    color: #34d399; /* Emerald 400 */
+}
+body.dark-theme .tab-btn.tab-group-history:hover {
+    background-color: #022c22; /* Emerald 950 */
+}
+body.dark-theme .tab-btn.tab-group-history.active {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .tab-btn.tab-group-schedule {
+    border-color: #78350f; /* Amber 900 */
+    color: #fbbf24; /* Amber 400 */
+}
+body.dark-theme .tab-btn.tab-group-schedule:hover {
+    background-color: #451a03; /* Amber 950 */
+}
+body.dark-theme .tab-btn.tab-group-schedule.active {
+    background-color: #f59e0b !important;
+    border-color: #f59e0b !important;
+    color: #ffffff !important;
+}
