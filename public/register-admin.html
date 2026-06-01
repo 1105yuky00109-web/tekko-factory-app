@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【初期セットアップ】管理者・会社アカウント登録</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --background: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: sans-serif;
+            background: var(--background);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            border: 1px solid var(--border);
+        }
+        h2 {
+            margin-top: 0;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 0.95rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+        }
+        .success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🏗️ 工事管理アプリ 初期アカウント登録</h2>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px; line-height: 1.5;">
+            新しいFirebase環境（tekko-factory-app）に最初の会社データと管理者ユーザーを設定します。Stripe決済をバイパスして、直接管理者アカウントを作成できます。
+        </p>
+        <form id="setup-form">
+            <div class="form-group">
+                <label for="company-name">会社名</label>
+                <input type="text" id="company-name" placeholder="例: 最上鉄工所" required>
+            </div>
+            <div class="form-group">
+                <label for="admin-name">管理者名（氏名）</label>
+                <input type="text" id="admin-name" placeholder="例: 1105yuky00109" required>
+            </div>
+            <div class="form-group">
+                <label for="admin-email">管理者メールアドレス</label>
+                <input type="email" id="admin-email" placeholder="example@gmail.com" required>
+            </div>
+            <div class="form-group">
+                <label for="admin-password">管理者パスワード（6文字以上）</label>
+                <input type="password" id="admin-password" minlength="6" required>
+            </div>
+            <button type="submit">管理者アカウントを作成する</button>
+        </form>
+        <div id="msg" class="message"></div>
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" style="font-size: 0.9rem; color: var(--primary); text-decoration: none;">ログイン画面へ戻る</a>
+        </div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+            apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+            authDomain: "tekko-factory-app.firebaseapp.com",
+            projectId: "tekko-factory-app",
+            storageBucket: "tekko-factory-app.firebasestorage.app",
+            messagingSenderId: "354843914657",
+            appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
+        };
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const form = document.getElementById('setup-form');
+        const msg = document.getElementById('msg');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            msg.className = 'message';
+            msg.textContent = '登録中...';
+            msg.style.display = 'block';
+
+            const companyName = document.getElementById('company-name').value.trim();
+            const adminName = document.getElementById('admin-name').value.trim();
+            const email = document.getElementById('admin-email').value.trim();
+            const password = document.getElementById('admin-password').value;
+
+            try {
+                // 1. Authユーザー作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // 2. プロフィール（表示名）設定
+                await updateProfile(user, { displayName: adminName });
+
+                // 3. Firestoreに会社データ登録 (以前と同一の c_78i9f5ky を会社IDとして使用)
+                const companyId = 'c_78i9f5ky';
+                const companyData = {
+                    companyId: companyId,
+                    companyName: companyName,
+                    adminEmails: [email],
+                    memberEmails: [],
+                    employees: [
+                        {
+                            name: adminName,
+                            role: 'admin',
+                            email: email,
+                            statusClass: '該当なし',
+                            nationality: '日本',
+                            createdAt: new Date().toISOString()
+                        }
+                    ],
+                    createdAt: new Date().toISOString()
+                };
+
+                await setDoc(doc(db, "companies", companyId), companyData);
+
+                msg.className = 'message success';
+                msg.textContent = '管理者アカウントと会社データの登録が成功しました！';
+                form.reset();
+            } catch (err) {
+                console.error(err);
+                msg.className = 'message error';
+                msg.textContent = 'エラーが発生しました: ' + err.message;
+            }
+        };
+    </script>
+</body>
+</html>
