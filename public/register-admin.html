@@ -70,6 +70,25 @@
         button:hover {
             background: #1d4ed8;
         }
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none !important;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            color: #64748b;
+            outline: none;
+            width: auto;
+            margin-top: 0;
+        }
+        .toggle-password-btn:hover {
+            color: var(--primary);
+        }
         .message {
             margin-top: 15px;
             padding: 10px;
@@ -111,17 +130,17 @@
             </div>
             <div class="form-group">
                 <label for="admin-password">管理者パスワード（6文字以上）</label>
-                <div style="position:relative;display:flex;align-items:center;width:100%;">
+                <div style="position:relative;width:100%;">
                     <input type="password" id="admin-password" minlength="6" required style="padding-right:45px;width:100%;">
-                    <button type="button" class="toggle-password-btn" data-target="admin-password" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;color:#64748b;outline:none;">
+                    <button type="button" class="toggle-password-btn" data-target="admin-password">
                     </button>
                 </div>
             </div>
             <div class="form-group">
                 <label for="admin-password-confirm">管理者パスワード（確認）</label>
-                <div style="position:relative;display:flex;align-items:center;width:100%;">
+                <div style="position:relative;width:100%;">
                     <input type="password" id="admin-password-confirm" minlength="6" required style="padding-right:45px;width:100%;">
-                    <button type="button" class="toggle-password-btn" data-target="admin-password-confirm" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;color:#64748b;outline:none;">
+                    <button type="button" class="toggle-password-btn" data-target="admin-password-confirm">
                     </button>
                 </div>
             </div>
