@@ -354,18 +354,6 @@ onAuthStateChanged(auth, async (user) => {
             compLabel.textContent = compText;
         }
         
-        // 役割（管理者のみ）を示すバッジの表示制御
-        const roleBadge = document.getElementById('user-role-badge');
-        if (roleBadge) {
-            if (currentCompany && currentCompany.role === 'admin') {
-                roleBadge.textContent = '企業管理者用画面';
-                roleBadge.style.backgroundColor = '#ef4444';
-                roleBadge.style.color = '#ffffff';
-                roleBadge.style.display = 'inline-block';
-            } else {
-                roleBadge.style.display = 'none';
-            }
-        }
         
         // 担当者入力欄に表示名（氏名）を自動設定（未設定の場合はメールアドレスの@より前を使用）
         const nameDisplay = currentUser.displayName || currentUser.email.split('@')[0];
