@@ -62,11 +62,26 @@ let allDailyReports = [];
 let currentIsPlanEditable = true;
 let currentIsActualEditable = true;
 
-// ユーザーの所属する会社をFirestoreの adminEmails / memberEmails から解決する関数
-async function resolveUserCompany(email) {
-    showDebugLog("resolveUserCompany started for: " + email);
+// ユーザーの所属する会社をFirestoreから解決する関数 (ownerUid優先)
+async function resolveUserCompany(email, uid) {
+    showDebugLog("resolveUserCompany started for: " + email + ", uid: " + uid);
     try {
-        // 1. adminEmails（管理者）に含まれる会社をクエリ
+        // 1. ownerUid （会社オーナー）がログインユーザーの UID と一致する会社を検索（最優先）
+        if (uid) {
+            showDebugLog("Querying ownerUid...");
+            const qOwner = query(collection(db, "companies"), where("ownerUid", "==", uid));
+            const ownerSnapshot = await getDocs(qOwner);
+            if (!ownerSnapshot.empty) {
+                const docSnap = ownerSnapshot.docs[0];
+                const companyData = docSnap.data();
+                companyData.companyId = companyData.companyId || docSnap.id; // ドキュメントIDを会社IDとして補完
+                companyData.role = 'admin'; // 管理者権限
+                showDebugLog("Company resolved as Owner: " + (companyData.companyName || companyData.companyId));
+                return companyData;
+            }
+        }
+
+        // 2. adminEmails（管理者）に含まれる会社をクエリ
         showDebugLog("Querying adminEmails...");
         const qAdmin = query(collection(db, "companies"), where("adminEmails", "array-contains", email));
         const adminSnapshot = await getDocs(qAdmin);
@@ -79,7 +94,7 @@ async function resolveUserCompany(email) {
             return companyData;
         }
 
-        // 2. memberEmails（一般社員）に含まれる会社をクエリ
+        // 3. memberEmails（一般社員）に含まれる会社をクエリ
         showDebugLog("Querying memberEmails...");
         const qMember = query(collection(db, "companies"), where("memberEmails", "array-contains", email));
         const memberSnapshot = await getDocs(qMember);
@@ -273,7 +288,7 @@ onAuthStateChanged(auth, async (user) => {
         
         // 所属会社の解決
         showDebugLog("Resolving company for: " + currentUser.email);
-        currentCompany = await resolveUserCompany(currentUser.email);
+        currentCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
         if (!currentCompany) {
             showDebugLog("No company resolved for user. Logging out.");
             // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
@@ -617,7 +632,20 @@ function initEmployeeManagePanel() {
 
     // 登録フォームをリセットして通常モードに戻す関数
     const resetEmployeeForm = () => {
-        if (empAddForm) empAddForm.reset();
+        // form.reset() を使用すると、一部のブラウザや端末で日本語かな入力モードが英数字にリセットされてしまうため、
+        // 各入力欄の値を個別にクリアして、日本語（かな）入力の状態を維持します。
+        const nameInp = document.getElementById('emp-name');
+        const joinInp = document.getElementById('emp-join-date');
+        const ageInp = document.getElementById('emp-age');
+        const natInp = document.getElementById('emp-nationality');
+        const statusInp = document.getElementById('emp-status-class');
+
+        if (nameInp) nameInp.value = '';
+        if (joinInp) joinInp.value = '';
+        if (ageInp) ageInp.value = '';
+        if (natInp) natInp.value = '日本';
+        if (statusInp) statusInp.value = '該当なし';
+
         if (empOriginalNameInput) empOriginalNameInput.value = '';
         if (empFormTitle) empFormTitle.textContent = '新しい社員を追加';
         if (empSubmitBtn) {
@@ -626,6 +654,11 @@ function initEmployeeManagePanel() {
             empSubmitBtn.classList.add('btn-primary');
         }
         if (empCancelBtn) empCancelBtn.style.display = 'none';
+
+        // 連続入力をスムーズにするため、登録完了後に自動で氏名入力欄にフォーカスを当てます
+        if (nameInp) {
+            nameInp.focus();
+        }
     };
 
     // キャンセルボタンのクリックイベント
