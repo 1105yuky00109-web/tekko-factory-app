@@ -3,7 +3,7 @@
 <head>
   <script>
     (function() {
-      const RESET_KEY = 'sw_reset_lp_v1';
+      const RESET_KEY = 'sw_reset_lp_v2';
       if (!localStorage.getItem(RESET_KEY)) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -31,6 +31,7 @@
       }
     })();
   </script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>工事・日報管理システム | 現場と管理をつなぐクラウド日報</title>
@@ -197,8 +198,15 @@
         border-bottom: none;
         padding-bottom: 0 !important;
       }
+    }
+    @media (max-width: 1040px) {
       .nav-menu {
         display: none !important; /* タブレット・スマホは簡易表示 */
+      }
+    }
+    @media (min-width: 1041px) and (max-width: 1180px) {
+      .nav-menu {
+        gap: 20px !important;
       }
     }
 
@@ -278,7 +286,7 @@
       border-bottom: 1px solid #E5E7EB;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    @media (max-width: 900px) {
+    @media (max-width: 1040px) {
       .mobile-nav-buttons {
         display: flex !important;
       }
