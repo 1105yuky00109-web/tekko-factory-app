@@ -166,7 +166,11 @@
             <button class="tab-btn tab-group-schedule" data-target="gantt-view">工程管理表</button>
             <button class="tab-btn admin-only tab-group-schedule" data-target="schedule-input-view" style="display:none;">工事登録</button>
             <button class="tab-btn admin-only tab-group-history" data-target="summary-view" style="display:none;">日報集計</button>
-            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;margin-left:auto;">👥 社員登録</button>
+            <div id="plan-status-badge" class="admin-only" style="display:none; margin-left:auto; margin-right:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:6px 12px; border-radius:6px; font-size:0.85rem; font-weight:bold; align-items:center; gap:5px; white-space:nowrap;">
+                契約プラン: <span id="current-plan-limit">10</span>名プラン
+            </div>
+            <button id="btn-change-plan" class="tab-btn admin-only" style="display:none; background:#0284c7; color:white; margin-right:10px; font-weight:bold; white-space:nowrap;">💳 プラン変更</button>
+            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;">👥 社員登録</button>
         </nav>
     </header>
 

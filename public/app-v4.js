@@ -303,6 +303,42 @@ onAuthStateChanged(auth, async (user) => {
         }
         
         showDebugLog("Company resolved: " + currentCompany.companyId + ", role: " + currentCompany.role);
+        
+        // 役割（管理者のみ）を示すバッジの表示制御
+        const roleBadge = document.getElementById('user-role-badge');
+        if (roleBadge) {
+            if (currentCompany && currentCompany.role === 'admin') {
+                roleBadge.textContent = '企業管理者用画面';
+                roleBadge.style.backgroundColor = '#ef4444';
+                roleBadge.style.color = '#ffffff';
+                roleBadge.style.display = 'inline-block';
+            } else {
+                roleBadge.style.display = 'none';
+            }
+        }
+
+        // 契約プランバッジとプラン変更ボタンの表示制御
+        const planStatusBadge = document.getElementById('plan-status-badge');
+        const currentPlanLimit = document.getElementById('current-plan-limit');
+        const btnChangePlan = document.getElementById('btn-change-plan');
+        
+        if (currentCompany && currentCompany.role === 'admin') {
+            if (planStatusBadge && currentPlanLimit) {
+                const maxUsers = currentCompany.maxUsers || 10;
+                currentPlanLimit.textContent = maxUsers;
+                planStatusBadge.style.display = 'inline-flex';
+            }
+            if (btnChangePlan) {
+                btnChangePlan.style.display = 'inline-block';
+                btnChangePlan.onclick = () => {
+                    window.open(`/change-plan.html?cid=${currentCompany.companyId}`, '_blank');
+                };
+            }
+        } else {
+            if (planStatusBadge) planStatusBadge.style.display = 'none';
+            if (btnChangePlan) btnChangePlan.style.display = 'none';
+        }
+
         const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid || e.email === currentUser.email) : null;
         
         // ユーザー名の決定と表示

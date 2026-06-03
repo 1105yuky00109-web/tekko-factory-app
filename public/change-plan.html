@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>プラン変更・契約ライセンス追加</title>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --background: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --border-focus: #0ea5e9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .plan-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 580px;
+      padding: 40px;
+      transition: all 0.3s ease;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      .plan-card {
+        padding: 24px;
+        border-radius: 12px;
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .info-box {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group label.field-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 12px;
+    }
+
+    .plan-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .plan-option-label {
+      display: block;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .plan-option-label input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .plan-option-body {
+      background: #ffffff;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .plan-option-label input[type="radio"]:checked + .plan-option-body {
+      background: #f0f9ff;
+      border-color: var(--primary);
+    }
+
+    .option-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .option-price {
+      color: var(--primary);
+      font-weight: 800;
+    }
+
+    .option-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 12px -1px rgba(2, 132, 199, 0.3);
+    }
+
+    .submit-btn:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .message {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+
+    .message.error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #ef4444;
+    }
+
+    .message.info {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+    }
+
+    .spinner-icon {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="plan-card">
+    <div class="header">
+      <h1>契約プランの変更</h1>
+      <p>ご利用人数の追加上限枠を設定します</p>
+    </div>
+
+    <!-- 現在のご契約情報 -->
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">ご契約企業：</span>
+        <span id="company-name" class="info-value">読み込み中...</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">現在のプラン：</span>
+        <span id="current-plan-name" class="info-value">読み込み中...</span>
+      </div>
+    </div>
+
+    <form id="change-plan-form" style="display:none;">
+      <div class="form-group">
+        <label class="field-label">新しいプラン（上限人数）の選択</label>
+        <div class="plan-options" id="options-container">
+          <!-- JSで動的にオプションを描画 -->
+        </div>
+      </div>
+
+      <button type="submit" id="submit-btn" class="submit-btn">プラン変更を確定する</button>
+    </form>
+
+    <div id="message" class="message"></div>
+  </div>
+
+  <!-- Firebase CDN: 必要最小限のFirebase JS -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // アプリ初期化は firebaseConfig が注入される app-v4.js / app.js を参照する
+    // ビルドスクリプトにより firebaseConfig が自動注入されます
+    const firebaseConfig = {
+    apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+    authDomain: "tekko-factory-app.firebaseapp.com",
+    projectId: "tekko-factory-app",
+    storageBucket: "tekko-factory-app.firebasestorage.app",
+    messagingSenderId: "354843914657",
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.firebaseAuth = auth;
+    window.firebaseDb = db;
+    window.firebaseOnAuthStateChanged = onAuthStateChanged;
+    window.firebaseDoc = doc;
+    window.firebaseGetDoc = getDoc;
+  </script>
+  <script src="change-plan.js" defer></script>
+</body>
+</html>

@@ -189,6 +189,21 @@
             '<p>※ <strong>メールに記載されたログインリンク</strong>よりシステムへお進みください。</p>' +
             '<p>※ お支払いは、請求書に記載の銀行口座（バーチャル口座）へ期日までにお振込みをお願いいたします。</p>';
         }
+      } else if (method === 'change-success') {
+        const titleEl = document.querySelector('.header h1');
+        const msgEl = document.querySelector('.message');
+        const infoEl = document.querySelector('.info-box');
+        
+        if (titleEl) titleEl.textContent = 'プラン変更が完了しました！';
+        if (msgEl) {
+          msgEl.innerHTML = 'ご契約プランの変更（登録上限人数の追加）が正常に完了いたしました。<br><br>' +
+            '管理者メールアドレス宛てに、<strong>「ご契約プラン変更完了のお知らせメール」</strong>（請求書払いの場合は、Stripeの<strong>請求書URL</strong>付き）をお送りしましたのでご確認ください。';
+        }
+        if (infoEl) {
+          infoEl.innerHTML = '<p>※ 新しいプランはシステムに即座に反映されています。</p>' +
+            '<p>※ <strong>元の「工事管理システム」の画面（タブ）に戻り、ページを再読み込み（リロード）</strong>してください。プラン表示および登録上限枠が更新されます。</p>' +
+            '<p style="text-align:center;margin-top:20px;"><button class="primary-btn" onclick="window.close()" style="max-width:200px;margin:0 auto;">このタブを閉じる</button></p>';
+        }
       }
     });
   </script>

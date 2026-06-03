@@ -170,6 +170,160 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
     }
   }
 
+  // 1.8. プラン変更（登録人数の追加）API
+  if (path === '/change-plan') {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+    const { companyId, newQuantity } = req.body;
+    if (!companyId || !newQuantity) {
+      return res.status(400).json({ error: 'companyId and newQuantity are required.' });
+    }
+
+    try {
+      // 1. Firestoreから会社データを取得
+      const companyRef = db.collection('companies').doc(companyId);
+      const companyDoc = await companyRef.get();
+      if (!companyDoc.exists) {
+        return res.status(404).json({ error: 'Company not found' });
+      }
+      const companyData = companyDoc.data();
+
+      // 2. Stripe Customer ID と Subscription ID の取得
+      let stripeCustomerId = companyData.stripeCustomerId || '';
+      let subscriptionId = '';
+
+      // サブコレクション subscriptions からサブスクIDを取得
+      const subSnapshot = await companyRef.collection('subscriptions').get();
+      if (!subSnapshot.empty) {
+        subscriptionId = subSnapshot.docs[0].id;
+      }
+
+      if (!subscriptionId) {
+        return res.status(400).json({ error: 'Active subscription not found for this company.' });
+      }
+
+      // Stripe API でサブスク情報を取得して Customer ID も解決
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscriptionItemId = subscription.items.data[0].id;
+      stripeCustomerId = stripeCustomerId || subscription.customer;
+
+      // 会社ドキュメントに stripeCustomerId が欠落していた場合は保存（補完）
+      if (!companyData.stripeCustomerId) {
+        await companyRef.update({ stripeCustomerId });
+      }
+
+      console.log(`[API /change-plan] Modifying subscription ${subscriptionId} for customer ${stripeCustomerId} to quantity ${newQuantity}`);
+
+      // 3. Stripeサブスクリプションの更新（既存の決済方法をそのまま引き継ぐ）
+      const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+        items: [{
+          id: subscriptionItemId,
+          quantity: parseInt(newQuantity, 10),
+        }],
+        proration_behavior: 'always_invoice',
+      });
+
+      // 4. Firestoreの会社情報を更新
+      const maxUsers = parseInt(newQuantity, 10) * 10;
+      await companyRef.update({
+        maxUsers: maxUsers,
+        planName: `${maxUsers}名プラン`,
+      });
+
+      // 5. サブスクリプションサブコレクションも更新
+      await companyRef.collection('subscriptions').doc(subscriptionId).update({
+        status: updatedSub.status,
+        currentPeriodEnd: updatedSub.current_period_end,
+      });
+
+      // 6. メールの送付判定
+      const isInvoice = updatedSub.collection_method === 'send_invoice';
+      const adminEmail = companyData.adminEmails && companyData.adminEmails[0];
+
+      if (adminEmail) {
+        let emailText = '';
+        if (isInvoice) {
+          // 請求書払いの場合
+          const latestInvoiceId = updatedSub.latest_invoice;
+          let invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${latestInvoiceId}`;
+          
+          if (latestInvoiceId) {
+            try {
+              const latestInvoiceObj = await stripe.invoices.retrieve(latestInvoiceId);
+              invoiceLink = latestInvoiceObj.hosted_invoice_url || invoiceLink;
+            } catch (err) {
+              console.error('Failed to retrieve hosted_invoice_url', err);
+            }
+          }
+
+          emailText = `${companyData.companyName}
+御中 管理者 様
+
+平素は「工事管理システム」をご利用いただき、誠にありがとうございます。
+
+ご契約プランの変更手続きが完了いたしました。
+新しいプラン上限数が即座に適用され、引き続きシステムをご利用いただけます。
+
+----------------------------------------
+■ ご契約プラン： ${maxUsers}名プラン
+■ 最大登録社員数： ${maxUsers}名
+■ お支払い方法： 請求書払い（銀行振込）
+----------------------------------------
+
+■ お支払い口座（請求書）の確認
+今回のプラン変更に伴う追加料金の請求書は、以下のURLよりご確認および印刷いただけます。
+
+請求書確認URL：
+${invoiceLink}
+
+※ 振込手数料はお客様負担にてお願いいたします。
+※ ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+        } else {
+          // クレジットカード決済の場合
+          emailText = `${companyData.companyName}
+御中 管理者 様
+
+平素は「工事管理システム」をご利用いただき、誠にありがとうございます。
+
+ご契約プランの変更手続きが完了いたしました。
+新しいプラン上限数が即座に適用され、引き続きシステムをご利用いただけます。
+
+----------------------------------------
+■ ご契約プラン： ${maxUsers}名プラン
+■ 最大登録社員数： ${maxUsers}名
+■ お支払い方法： クレジットカード決済
+----------------------------------------
+※ 今回の追加分の日割り料金は、ご登録済みのクレジットカードより自動的に決済されます。
+
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+        }
+
+        await sendMailHelper({
+          to: adminEmail,
+          subject: `【重要】${companyData.companyName}様 ご契約プラン変更完了のお知らせ`,
+          text: emailText,
+          fromName: 'AREVA サポート窓口'
+        });
+        console.log(`[API /change-plan] Sent plan change success email to ${adminEmail}`);
+      }
+
+      return res.json({
+        success: true,
+        maxUsers,
+        paymentMethod: isInvoice ? 'invoice' : 'card'
+      });
+
+    } catch (e) {
+      console.error('/change-plan error', e);
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   // 2. 新規お申し込み（クレジットカード / 請求書払い）
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
@@ -250,6 +404,7 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
         companyName,
         planId: plan,
         planName: '10名パック追加プラン',
+        stripeCustomerId: customer.id,
         maxUsers: maxUsers,
         ownerUid: adminUid,
         adminEmails: [adminEmail],
@@ -400,6 +555,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
       companyName,
       planId,
       planName: '10名パック追加プラン',
+      stripeCustomerId: session.customer,
       maxUsers: maxUsers,
       ownerUid: adminUid,
       adminEmails: [adminEmail],
