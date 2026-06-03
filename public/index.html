@@ -3,7 +3,7 @@
 <head>
   <script>
     (function() {
-      const RESET_KEY = 'sw_reset_lp_v3';
+      const RESET_KEY = 'sw_reset_lp_v4';
       if (!localStorage.getItem(RESET_KEY)) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -267,12 +267,7 @@
         <a href="#料金" class="nav-link">料金</a>
         <a href="#導入事例" class="nav-link">導入事例</a>
         <a href="mailto:info@areva.co.jp" class="nav-link">お問い合わせ</a>
-        <a href="/app.html" class="nav-link" style="font-weight: bold; color: var(--accent); border: 1.5px solid var(--accent); padding: 6px 14px; border-radius: 6px; font-size: 13px;">ログイン</a>
         <a href="/onboarding.html" class="btn-primary" style="padding: 9px 22px; fontSize: 13px;">14日間無料トライアル</a>
-      </div>
-      <!-- モバイル用のログイン・登録簡易ボタン -->
-      <div class="mobile-nav-buttons" style="display: none; gap: 10px;">
-        <a href="/app.html" style="font-size: 13px; font-weight: bold; color: var(--accent); padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px;">ログイン</a>
       </div>
     </div>
   </nav>
@@ -313,31 +308,36 @@
           <span class="tag">建設業向けクラウド日報</span>
         </div>
         <h1 class="hero-title" style="
-          fontSize: clamp(40px, 5.5vw, 68px);
+          fontSize: clamp(44px, 6.2vw, 76px);
           fontWeight: 900;
-          lineHeight: 1.12;
-          letterSpacing: -0.03em;
+          lineHeight: 1.1;
+          letterSpacing: -0.04em;
           marginBottom: 24px;
           opacity: 0;
           transform: translateY(20px);
           animation: fadeUp 0.7s ease 0.2s forwards;
         ">
           現場の日報を、<br />
-          <span style="color: var(--accent);">もっとシンプルに。</span>
+          <span style="
+            background: linear-gradient(135deg, #0F62FE 0%, #00d6ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+          ">もっとシンプルに。</span>
         </h1>
         <p style="
           fontSize: 18px; color: var(--gray); lineHeight: 1.75; maxWidth: 540px; marginBottom: 40px;
           opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.3s forwards;
         ">
           スマートフォンから30秒で記録。管理者はリアルタイムで全現場の状況を把握。
-          建設会社のための、シンプルで使い続けられるクラウド管理システムです。
+          建設会社のための, シンプルで使い続けられるクラウド管理システムです。
         </p>
         <div class="hero-flex" style="display: flex; gap: 16px; flexWrap: wrap; opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.4s forwards;">
           <a href="/onboarding.html" class="btn-primary" style="fontSize: 16px; padding: 16px 36px;">
             14日間 無料トライアル →
           </a>
-          <a href="/app.html" class="btn-outline" style="fontSize: 16px; padding: 15px 32px;">
-            デモを見る
+          <a href="#料金" class="btn-outline" style="fontSize: 16px; padding: 15px 32px;">
+            料金プランを見る
           </a>
         </div>
         <p style="marginTop: 16px; fontSize: 12px; color: #9CA3AF; opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.5s forwards;">
