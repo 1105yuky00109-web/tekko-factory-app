@@ -24,9 +24,22 @@ let allSchedules = [];
 let allMembers = [];
 
 // ユーザーの所属する会社をFirestoreの adminEmails / memberEmails から解決する関数
-async function resolveUserCompany(email) {
+async function resolveUserCompany(email, uid) {
     try {
-        // 1. adminEmails（管理者）に含まれる会社をクエリ
+        // 1. ownerUid （会社オーナー）がログインユーザーの UID と一致する会社を検索（最優先）
+        if (uid) {
+            const qOwner = query(collection(db, "companies"), where("ownerUid", "==", uid));
+            const ownerSnapshot = await getDocs(qOwner);
+            if (!ownerSnapshot.empty) {
+                const docSnap = ownerSnapshot.docs[0];
+                const companyData = docSnap.data();
+                companyData.companyId = companyData.companyId || docSnap.id; // ドキュメントIDを会社IDとして補完
+                companyData.role = 'admin'; // 管理者権限
+                return companyData;
+            }
+        }
+
+        // 2. adminEmails（管理者）に含まれる会社をクエリ
         const qAdmin = query(collection(db, "companies"), where("adminEmails", "array-contains", email));
         const adminSnapshot = await getDocs(qAdmin);
         if (!adminSnapshot.empty) {
@@ -37,7 +50,7 @@ async function resolveUserCompany(email) {
             return companyData;
         }
 
-        // 2. memberEmails（一般社員）に含まれる会社をクエリ
+        // 3. memberEmails（一般社員）に含まれる会社をクエリ
         const qMember = query(collection(db, "companies"), where("memberEmails", "array-contains", email));
         const memberSnapshot = await getDocs(qMember);
         if (!memberSnapshot.empty) {
@@ -100,7 +113,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('current-user-email').textContent = currentUser.email;
         
         // 所属会社の解決
-        currentCompany = await resolveUserCompany(currentUser.email);
+        currentCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
         if (!currentCompany) {
             // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
             await signOut(auth);
