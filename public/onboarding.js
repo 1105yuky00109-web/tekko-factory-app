@@ -2,34 +2,95 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('onboarding-form');
   const messageDiv = document.getElementById('message');
+  const submitBtn = document.getElementById('submit-btn');
+
+  // お支払い方法のラジオボタン変更を検知してボタンテキストを動的変更
+  const paymentRadios = document.querySelectorAll('input[name="paymentMethod"]');
+
+  const syncSubmitButtonText = () => {
+    const paymentMethod = form.paymentMethod.value;
+    if (paymentMethod === 'invoice') {
+      if (submitBtn) submitBtn.textContent = '登録を完了する';
+    } else {
+      if (submitBtn) submitBtn.textContent = '支払いに進む';
+    }
+  };
+
+  // 初期ロード時・戻るボタンで戻った時の状態を同期
+  syncSubmitButtonText();
+
+  paymentRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      syncSubmitButtonText();
+    });
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    messageDiv.textContent = '決済画面へ進んでいます。少々お待ちください...';
+    
+    const paymentMethod = form.paymentMethod.value || 'card';
+
+    if (paymentMethod === 'invoice') {
+      messageDiv.textContent = 'アカウントおよび請求書のセットアップを実行しています。少々お待ちください...';
+    } else {
+      messageDiv.textContent = '決済画面へ進んでいます。少々お待ちください...';
+    }
+    
     messageDiv.className = 'message';
     messageDiv.style.color = 'var(--primary)';
     messageDiv.style.display = 'block';
 
+    // ボタンの非活性化とスピナーの表示
+    let originalBtnText = '確定する';
+    if (submitBtn) {
+      originalBtnText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-icon"></span> 処理中...';
+    }
+
     const companyName = form.companyName.value.trim();
-    const planEl = form.querySelector('input[name="plan"]:checked');
-    if (!planEl) {
+    const plan = form.plan.value; // price ID
+    if (!plan) {
       messageDiv.textContent = 'お選びいただくプランを選択してください。';
       messageDiv.className = 'message error';
       messageDiv.style.display = 'block';
+      
+      // ボタン復元
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
       return;
     }
-    const plan = planEl.value; // price ID
+    const quantity = form.quantity.value;
     const adminName = form.adminName.value.trim();
     const adminEmail = form.adminEmail.value.trim();
     const password = form.password.value;
+    const passwordConfirm = form.passwordConfirm.value;
+
+    if (password !== passwordConfirm) {
+      messageDiv.textContent = 'パスワードと確認用パスワードが一致しません。';
+      messageDiv.className = 'message error';
+      messageDiv.style.color = 'red';
+      messageDiv.style.display = 'block';
+
+      // ボタン復元
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
+      return;
+    }
 
     // 構造化したリクエストボディ
     const payload = {
       companyName,
       plan,
+      quantity,
       adminName,
       adminEmail,
       password,
+      paymentMethod,
     };
 
     try {
@@ -46,11 +107,15 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(err.error || 'サーバーエラー');
       }
       const data = await response.json();
-      // Stripe Checkout の URL へリダイレクト
-      if (data.url) {
-        window.location.href = data.url;
+
+      // 請求書払いの場合は、Stripe決済を通さずに成功画面へリダイレクト
+      if (data.paymentMethod === 'invoice') {
+        window.location.replace('onboarding-success.html?method=invoice');
+      } else if (data.url) {
+        // Stripe Checkout の URL へリダイレクト
+        window.location.replace(data.url);
       } else {
-        throw new Error('Checkout URL が取得できませんでした');
+        throw new Error('Checkout URL または完了応答が取得できませんでした');
       }
     } catch (err) {
       console.error(err);
@@ -58,6 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
       messageDiv.className = 'message error';
       messageDiv.style.color = 'red';
       messageDiv.style.display = 'block';
+
+      // エラー時にボタンを活性状態に戻す
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
     }
   });
 

@@ -9,6 +9,49 @@ const db = admin.firestore();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ------------------------------------------------------------
+// 汎用SMTPメール送信ヘルパー
+// ------------------------------------------------------------
+async function sendMailHelper({ to, subject, text, fromName = '日報アプリ管理部' }) {
+  const nodemailer = require('nodemailer');
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
+  const smtpUser = process.env.SMTP_USER || 'areva.noreply@gmail.com';
+  const smtpPass = process.env.SMTP_PASS;
+  
+  const smtpFrom = process.env.SMTP_FROM || `${fromName} <${smtpUser}>`;
+
+  if (!smtpPass) {
+    console.log('--- [SMTP_PASSが未設定のためメール送信をシミュレートしました] ---');
+    console.log('宛先:', to);
+    console.log('件名:', subject);
+    console.log('本文:\n', text);
+    console.log('------------------------------------------------------------------');
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+
+  const mailOptions = {
+    from: smtpFrom,
+    to: to,
+    subject: subject,
+    text: text,
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`[Email] Mail sent successfully to ${to}`);
+}
+
+
+// ------------------------------------------------------------
 // 1. createCheckoutSession
 // ------------------------------------------------------------
 // 重複しない会社IDを自動生成する（c_ + 8桁のランダム英数字）
@@ -31,19 +74,133 @@ async function generateUniqueCompanyId(database) {
   return companyId;
 }
 
-exports.api = functions.https.onRequest(async (req, res) => {
+exports.api = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
+  // CORSヘッダーの設定
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Methods', 'POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Max-Age', '3600');
+    return res.status(204).send('');
+  }
+
+  const path = req.path || req.url;
+  
+  // 1. 請求書詳細取得API
+  if (path === '/get-invoice-details') {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+    const { invoiceId } = req.body;
+    if (!invoiceId) {
+      return res.status(400).json({ error: 'invoiceId is required' });
+    }
+
+    // テスト用のダミーIDの場合は、モックデータを返却する
+    if (invoiceId.startsWith('in_test')) {
+      const mockData = {
+        number: 'INV-20260603-TEST',
+        date: Math.floor(Date.now() / 1000),
+        dueDate: Math.floor(Date.now() / 1000) + 30 * 86400, // 30日後
+        customerName: 'テスト企業 御中 大和田 様',
+        amountDue: 5500,
+        bankDetails: {
+          bank_name: 'ＧＭＯあおぞらネット銀行',
+          bank_code: '0310',
+          branch_name: '法人営業部支店',
+          branch_code: '101',
+          account_type: 'normal',
+          account_number: '1273942',
+          account_holder_name: 'カ）アレバ',
+        },
+      };
+      return res.json(mockData);
+    }
+
+    try {
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const customer = await stripe.customers.retrieve(invoice.customer);
+      const customerName = customer.name || customer.description || 'お客様';
+
+      const bankDetails = {
+        bank_name: 'ＧＭＯあおぞらネット銀行',
+        bank_code: '0310',
+        branch_name: '法人営業部支店',
+        branch_code: '101',
+        account_type: 'normal',
+        account_number: '1273942',
+        account_holder_name: 'カ）アレバ',
+      };
+
+      const resData = {
+        number: invoice.number,
+        date: invoice.created,
+        dueDate: invoice.due_date,
+        customerName: customerName,
+        amountDue: invoice.amount_due,
+        bankDetails: bankDetails,
+      };
+      return res.json(resData);
+    } catch (err) {
+      console.error('get-invoice-details error', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // 1.5. 【デバッグ用】ユーザー強制有効化＆パスワード強制変更API
+  if (path === '/activate-user-debug') {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+    const { email, password } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+    try {
+      const user = await admin.auth().getUserByEmail(email);
+      const updateData = { emailVerified: true };
+      if (password) {
+        updateData.password = password;
+      }
+      await admin.auth().updateUser(user.uid, updateData);
+      return res.json({ success: true, message: `Successfully updated ${email}` });
+    } catch (err) {
+      console.error('activate-user-debug error', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // 2. 新規お申し込み（クレジットカード / 請求書払い）
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }
+
   const {
     companyName,
     plan, // stripe price id
+    quantity,
     adminName,
     adminEmail,
     password,
+    paymentMethod, // 'card' or 'invoice'
   } = req.body;
-  if (!companyName || !plan || !adminEmail || !adminName) {
-    return res.status(400).json({ error: 'Missing required fields' });
+
+  // デバッグ用ログ追加
+  console.log(`[API] Received registration request. Path: ${path}, paymentMethod: ${paymentMethod}, plan: ${plan}, quantity: ${quantity}, adminEmail: ${adminEmail}`);
+
+  if (!companyName || !plan || !adminEmail || !adminName || !password) {
+    return res.status(400).json({ error: '必須入力項目が不足しています。' });
+  }
+
+  // 二重登録防止用のメールアドレス重複チェック
+  try {
+    await admin.auth().getUserByEmail(adminEmail);
+    return res.status(400).json({ error: 'このメールアドレスはすでに登録されています。' });
+  } catch (err) {
+    if (err.code !== 'auth/user-not-found') {
+      console.error('Email check error', err);
+      return res.status(500).json({ error: 'メールアドレスの重複チェック中にエラーが発生しました。' });
+    }
   }
 
   let companyId;
@@ -52,116 +209,68 @@ exports.api = functions.https.onRequest(async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-  // Create Stripe Checkout Session
+
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'subscription',
-      line_items: [{ price: plan, quantity: 1 }],
-      customer_email: adminEmail,
+    // 顧客（Customer）の作成
+    const customer = await stripe.customers.create({
+      email: adminEmail,
+      name: `${companyName} 御中 ${adminName} 様`,
       metadata: {
         companyName,
-        companyId,
         adminName,
         adminEmail,
-        password,
-        plan,
-      },
-      success_url: `${process.env.HOST_URL || 'https://weekly-report-93e5f.web.app'}/onboarding-success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.HOST_URL || 'https://weekly-report-93e5f.web.app'}/onboarding.html`,
+      }
     });
-    res.json({ url: session.url });
-  } catch (e) {
-    console.error('Stripe error', e);
-    res.status(500).json({ error: e.message });
-  }
-});
 
-// ------------------------------------------------------------
-// 2. Stripe webhook handler
-// ------------------------------------------------------------
-exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // set in .env
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
-  } catch (err) {
-    console.error('⚠️ Webhook signature verification failed.', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-  // Handle the event
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const {
-      companyName,
-      companyId,
-      adminName,
-      adminEmail,
-      password,
-    } = session.metadata;
-    // Retrieve planId from display_items or line_items or fallback
-    const planId = (session.line_items && session.line_items.data && session.line_items.data[0] && session.line_items.data[0].price && session.line_items.data[0].price.id) ||
-                   (session.display_items && session.display_items[0] && session.display_items[0].price && session.display_items[0].price.id) ||
-                   session.metadata.plan ||
-                   '';
-    // Create Firebase Auth user for admin
-    let adminUid;
-    try {
+    if (paymentMethod === 'invoice') {
+      console.log(`[API] Processing Invoice payment flow for ${adminEmail}`);
+      // 請求書払い：Stripeで直接サブスクリプションを作成（クレジットカード不要、14日間トライアル）
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: plan, quantity: parseInt(quantity) || 1 }],
+        trial_period_days: 14,
+        collection_method: 'send_invoice',
+        days_until_due: 30,
+      });
+
+      // Firebase Auth ユーザーを作成
       const userRecord = await admin.auth().createUser({
         email: adminEmail,
-        password: password || undefined,
+        password: password,
         displayName: adminName,
+        emailVerified: true,
       });
-      adminUid = userRecord.uid;
-    } catch (e) {
-      console.error('Auth user creation failed', e);
-      // If user already exists, fetch uid
-      const userRecord = await admin.auth().getUserByEmail(adminEmail);
-      adminUid = userRecord.uid;
-    }
-    // Create company document
-    const companyRef = db.collection('companies').doc(companyId);
-    const planMap = {
-      'price_1TaP0sJdCQkwItViebEBEhJa': { name: 'スタータープラン', maxUsers: 20 },
-      'price_1TaP6jJdCQkwItViM7RoBetq': { name: 'スタンダードプラン', maxUsers: 100 },
-    };
-    const planInfo = planMap[planId] || {};
-    await companyRef.set({
-      companyId,
-      companyName,
-      planId,
-      planName: planInfo.name || 'カスタム',
-      maxUsers: planInfo.maxUsers,
-      ownerUid: adminUid,
-      adminEmails: [adminEmail],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      status: 'active',
-    });
-    // Store subscription info
-    const subId = session.subscription || 'sub_default';
-    await companyRef.collection('subscriptions').doc(subId).set({
-      subscriptionId: session.subscription || null,
-      status: session.payment_status || null,
-      currentPeriodEnd: session.current_period_end || null,
-    });
-    console.log(`Company ${companyId} created for ${adminEmail}`);
+      const adminUid = userRecord.uid;
 
-    // Gmailによる登録完了メール送信処理
-    try {
-      const nodemailer = require('nodemailer');
-      const smtpUser = 'areva.noreply@gmail.com';
-      const smtpPass = process.env.SMTP_PASS;
+      // Firestore に会社データを作成
+      const companyRef = db.collection('companies').doc(companyId);
+      const maxUsers = (parseInt(quantity) || 1) * 10;
+      await companyRef.set({
+        companyId,
+        companyName,
+        planId: plan,
+        planName: '10名パック追加プラン',
+        maxUsers: maxUsers,
+        ownerUid: adminUid,
+        adminEmails: [adminEmail],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'active',
+      });
 
-      const loginUrl = `${process.env.HOST_URL || 'https://weekly-report-93e5f.web.app'}/index.html`;
+      // サブスクリプション情報の登録
+      await companyRef.collection('subscriptions').doc(subscription.id).set({
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        currentPeriodEnd: subscription.current_period_end,
+      });
 
-      const mailOptions = {
-        from: `日報アプリ管理部 <${smtpUser}>`,
-        to: adminEmail,
-        subject: `【重要】${companyName}様 アカウント登録完了のお知らせ`,
-        text: `${adminName} 様
+      // アカウント登録完了メール（有効化メール）の送信
+      const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${subscription.latest_invoice}`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
 
-この度はシステムをご契約いただき、誠にありがとうございます。
+      const emailText = `${adminName} 様
+
+この度は「工事・日報管理システム」をご契約いただき、誠にありがとうございます。
 管理者様のアカウントおよび会社データのセットアップが完了いたしました。
 
 以下のログイン情報にてシステムをご利用いただけます。
@@ -175,41 +284,322 @@ ${adminEmail}
 ----------------------------------------
 ※ パスワードは登録時にご自身で設定された任意のパスワードとなります。
 
-ログイン後、管理者メニューよりユーザー（社員）の追加や予定表の設定を行ってください。
+■ お支払い口座（請求書）の確認
+今回の契約に関するお支払い（銀行振込）情報および適格請求書は、以下のURLよりご確認および印刷いただけます。
+※現在は14日間の無料トライアル期間中のため、ご請求金額は ¥0 と表示されます。
+※トライアル期間終了後に有償期間（本契約）に移行する際、同じお振込先へのお支払い手続きをお願いいたします。
 
-本メールはシステムより自動送信されています。
-`,
-      };
+請求書確認URL：
+${invoiceLink}
 
-      if (smtpPass) {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+
+      await sendMailHelper({
+        to: adminEmail,
+        subject: `【重要】${companyName}様 アカウント登録完了のお知らせ`,
+        text: emailText,
+        fromName: 'AREVA サポート窓口'
+      });
+
+      return res.json({ success: true, paymentMethod: 'invoice', invoiceId: subscription.latest_invoice });
+
+    } else {
+      console.log(`[API] Processing Credit Card flow for ${adminEmail}, creating Checkout Session`);
+      // クレジットカード決済：Stripe Checkout Sessionを作成
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'subscription',
+        customer: customer.id,
+        line_items: [{ price: plan, quantity: parseInt(quantity) || 1 }],
+        subscription_data: {
+          trial_period_days: 14,
+        },
+        metadata: {
+          companyName,
+          companyId,
+          adminName,
+          adminEmail,
+          password,
+          plan,
+          quantity,
+        },
+        success_url: `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/onboarding-success.html?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/onboarding.html`,
+      });
+      return res.json({ url: session.url });
+    }
+  } catch (e) {
+    console.error('API processing error', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ------------------------------------------------------------
+// 2. Stripe webhook handler
+// ------------------------------------------------------------
+exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+  } catch (err) {
+    console.error('⚠️ Webhook signature verification failed.', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // 1. クレジットカード決済でのお申し込み完了時の処理
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const {
+      companyName,
+      companyId,
+      adminName,
+      adminEmail,
+      password,
+      quantity,
+    } = session.metadata;
+
+    const planId = session.metadata.plan || '';
+
+    // Firebase Auth ユーザーを作成
+    let adminUid;
+    try {
+      const userRecord = await admin.auth().createUser({
+        email: adminEmail,
+        password: password || undefined,
+        displayName: adminName,
+        emailVerified: true,
+      });
+      adminUid = userRecord.uid;
+    } catch (e) {
+      console.error('Auth user creation failed', e);
+      const userRecord = await admin.auth().getUserByEmail(adminEmail);
+      adminUid = userRecord.uid;
+    }
+
+    // Stripe 顧客の表示名をアップデート（敬称対応）
+    try {
+      if (session.customer) {
+        await stripe.customers.update(session.customer, {
+          name: `${companyName} 御中 ${adminName} 様`,
         });
-
-        await transporter.sendMail(mailOptions);
-        console.log(`[Email] 登録完了メールを ${adminEmail} 宛に送信しました。`);
-      } else {
-        console.log('--- [SMTP_PASSが未設定のためメール送信をシミュレートしました] ---');
-        console.log('宛先:', adminEmail);
-        console.log('件名:', mailOptions.subject);
-        console.log('本文:\n', mailOptions.text);
-        console.log('------------------------------------------------------------------');
       }
+    } catch (custErr) {
+      console.error('Failed to update customer name', custErr);
+    }
+
+    // Firestore に会社データを作成
+    const companyRef = db.collection('companies').doc(companyId);
+    const maxUsers = (parseInt(quantity) || 1) * 10;
+    
+    await companyRef.set({
+      companyId,
+      companyName,
+      planId,
+      planName: '10名パック追加プラン',
+      maxUsers: maxUsers,
+      ownerUid: adminUid,
+      adminEmails: [adminEmail],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'active',
+    });
+
+    // サブスクリプション情報の登録
+    const subId = session.subscription || 'sub_default';
+    await companyRef.collection('subscriptions').doc(subId).set({
+      subscriptionId: session.subscription || null,
+      status: session.payment_status || null,
+      currentPeriodEnd: session.current_period_end || null,
+    });
+
+    console.log(`Company ${companyId} created for ${adminEmail}`);
+
+    // お名前.com SMTP経由での登録完了メール送信
+    try {
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+
+      const emailText = `${adminName} 様
+
+この度は「工事・日報管理システム」をご契約いただき、誠にありがとうございます。
+管理者様のアカウントおよび会社データのセットアップが完了いたしました。
+
+以下のログイン情報にてシステムをご利用いただけます。
+
+----------------------------------------
+■ ログインURL
+${loginUrl}
+
+■ 管理者ログイン用メールアドレス
+${adminEmail}
+----------------------------------------
+※ パスワードは登録時にご自身で設定された任意のパスワードとなります。
+
+ログイン後, 管理者メニューよりユーザー（社員）の追加や予定表の設定を行ってください。
+
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+
+      await sendMailHelper({
+        to: adminEmail,
+        subject: `【重要】${companyName}様 アカウント登録完了のお知らせ`,
+        text: emailText,
+        fromName: 'AREVA サポート窓口'
+      });
+      console.log(`[Webhook] 登録完了メールを ${adminEmail} 宛に送信しました。`);
     } catch (mailErr) {
       console.error('メール送信処理中にエラーが発生しました:', mailErr);
     }
+
+  // 2. 本契約移行時（および月次更新時）の請求書確定イベントの処理
+  } else if (event.type === 'invoice.finalized') {
+    const invoice = event.data.object;
+    const customerId = invoice.customer;
+    let customerName = 'お客様';
+    let customerEmail = invoice.customer_email;
+
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      customerName = customer.name || customer.description || 'お客様';
+      customerEmail = customerEmail || customer.email;
+    } catch (custErr) {
+      console.error('Customer retrieve error', custErr);
+    }
+
+    const invoiceId = invoice.id;
+    const amountDue = invoice.amount_due;
+
+    // 無料トライアル（0円）の確定はスキップし、本課金時のみ請求メールを送る
+    if (amountDue > 0) {
+      const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${invoiceId}`;
+      const dueDateStr = invoice.due_date 
+        ? new Date(invoice.due_date * 1000).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        : '-';
+
+      const emailText = `${customerName}
+
+平素は「工事・日報管理システム」をご利用いただき、誠にありがとうございます。
+無料トライアル期間が終了し、本契約が開始されましたのでご請求書を送付いたします。
+
+以下のURLより適格請求書およびお振込先口座（GMOあおぞらネット銀行）情報をご確認の上、
+支払期限までにお手続きをお願い申し上げます。
+
+----------------------------------------
+■ ご請求金額： ¥${new Intl.NumberFormat('ja-JP').format(amountDue)}- (税込)
+■ お支払期限： ${dueDateStr}
+----------------------------------------
+
+■ 請求書URL（お振込み先口座のご確認）：
+${invoiceLink}
+
+※ 振込手数料はお客様負担にてお願いいたします。
+※ すでにお振込み手続きがお済みの場合は、行き違いですので何卒ご容赦ください。
+
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+
+      await sendMailHelper({
+        to: customerEmail,
+        subject: `【重要】本契約開始に伴うご請求書送付のお知らせ`,
+        text: emailText,
+        fromName: 'AREVA サポート窓口'
+      });
+      console.log(`[Webhook] Sent finalized invoice email to ${customerEmail} for invoice ${invoiceId}`);
+    } else {
+      console.log(`[Webhook] Invoice ${invoiceId} finalized with 0 amount, skipping email.`);
+    }
+  } else if (event.type === 'customer.subscription.trial_will_end') {
+    const subscription = event.data.object;
+    const customerId = subscription.customer;
+    let customerName = 'お客様';
+    let customerEmail = subscription.customer_email || '';
+
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      customerName = customer.name || customer.description || 'お客様';
+      customerEmail = customerEmail || customer.email;
+    } catch (custErr) {
+      console.error('Customer retrieve error in trial_will_end', custErr);
+    }
+
+    if (customerEmail) {
+      const trialEnd = subscription.trial_end;
+      const trialEndDateStr = trialEnd 
+        ? new Date(trialEnd * 1000).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        : '-';
+      const billingStartDateStr = trialEnd
+        ? new Date((trialEnd + 86400) * 1000).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        : '-';
+
+      // 会社データからプラン名やユーザー上限数を取得
+      let maxUsersText = '10名';
+      let planNameText = '10名パック追加プラン';
+      try {
+        const compSnapshot = await db.collection('companies').where('planId', '==', subscription.plan ? subscription.plan.id : '').get();
+        if (!compSnapshot.empty) {
+          const compData = compSnapshot.docs[0].data();
+          maxUsersText = `最大 ${compData.maxUsers || 10}名`;
+          planNameText = compData.planName || '10名パック追加プラン';
+        }
+      } catch (dbErr) {
+        console.error('Firestore retrieve error in trial_will_end', dbErr);
+      }
+
+      const emailText = `${customerName}
+
+平素は「工事・日報管理システム」をご利用いただき、誠にありがとうございます。
+
+現在ご利用いただいております無料トライアル期間（14日間）が、まもなく終了いたしますのでご案内申し上げます。
+
+■ トライアル終了日： ${trialEndDateStr}
+■ 本契約開始日（課金開始日）： ${billingStartDateStr}
+
+トライアル期間終了後は、自動的に有償プラン（本契約）へと移行し、初回のご請求が発生いたします。
+
+--------------------------------------------------
+■ ご契約プラン： ${planNameText}
+■ ご利用可能ユーザー数： ${maxUsersText}
+■ お支払い方法： 請求書払い（銀行振込）
+--------------------------------------------------
+
+本契約開始日にStripeより別途「適格請求書（振込口座記載）」がメールにて送付されます。請求書に記載 of 指定振込口座（GMOあおぞらネット銀行）へ、支払期限までにお振込みをお願いいたします。
+
+※ トライアル期間中（終了日前日まで）にご解約手続きを行われた場合、料金の請求は発生いたしません。
+※ 解約やプラン変更を希望される場合は、システム内「契約管理」よりお手続きをお願いいたします。
+
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+
+--------------------------------------------------
+AREVA サポート窓口
+Email: info@areva.co.jp
+URL: https://tekko-factory-app.web.app/
+--------------------------------------------------
+`;
+
+      await sendMailHelper({
+        to: customerEmail,
+        subject: `【事前案内】無料トライアル終了と本契約移行に関するお知らせ`,
+        text: emailText,
+        fromName: 'AREVA サポート窓口'
+      });
+      console.log(`[Webhook] Sent trial_will_end email to ${customerEmail}`);
+    } else {
+      console.warn(`[Webhook] trial_will_end received but customer email not found for customer: ${customerId}`);
+    }
   }
+
   res.json({ received: true });
 });
 
 // ------------------------------------------------------------
 // 3. addEmployee (管理者による社員追加API)
 // ------------------------------------------------------------
-exports.addEmployee = functions.https.onRequest(async (req, res) => {
+exports.addEmployee = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
   // CORSヘッダーの設定（ローカルエミュレータなどのクロスドメインからのリクエスト対応用）
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
@@ -271,7 +661,8 @@ exports.addEmployee = functions.https.onRequest(async (req, res) => {
       const userRecord = await admin.auth().createUser({
         email: employeeEmail,
         password: tempPassword,
-        displayName: employeeName
+        displayName: employeeName,
+        emailVerified: true,
       });
       employeeUid = userRecord.uid;
     } catch (authErr) {
@@ -295,21 +686,12 @@ exports.addEmployee = functions.https.onRequest(async (req, res) => {
     });
 
     console.log(`Employee ${employeeEmail} successfully registered for company ${companyId}`);
-
-    // 5. 社員宛ての登録案内メール自動送信
     try {
-      const nodemailer = require('nodemailer');
-      const smtpUser = 'areva.noreply@gmail.com';
-      const smtpPass = process.env.SMTP_PASS;
-      const loginUrl = `${process.env.HOST_URL || 'https://weekly-report-93e5f.web.app'}/index.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
 
-      const mailOptions = {
-        from: `週次日報アプリ管理部 <${smtpUser}>`,
-        to: employeeEmail,
-        subject: '【重要】週次日報＆予定管理システム アカウント登録完了のお知らせ',
-        text: `${employeeName} 様
+      const mailText = `${employeeName} 様
 
-いつもシステムをご利用いただき、ありがとうございます。
+いつも「工事・日報管理システム」をご利用いただき、ありがとうございます。
 管理者様により、あなたのアカウントがシステムに登録されました。
 
 以下のログイン情報および手順に従って、システムをご利用ください。
@@ -329,26 +711,15 @@ ${tempPassword}
 メールに記載された上記の仮パスワードでログインし、画面の指示に従って新しいパスワードを設定してください。
 
 本メールはシステムより自動送信されています。
-`,
-      };
+`;
 
-      if (smtpPass) {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-        });
-        await transporter.sendMail(mailOptions);
-        console.log(`[Email] 社員宛て登録案内メールを ${employeeEmail} 宛に送信しました。`);
-      } else {
-        console.log('--- [SMTP_PASSが未設定のため社員宛てメール送信をシミュレートしました] ---');
-        console.log('宛先:', employeeEmail);
-        console.log('件名:', mailOptions.subject);
-        console.log('本文:\n', mailOptions.text);
-        console.log('------------------------------------------------------------------');
-      }
+      await sendMailHelper({
+        to: employeeEmail,
+        subject: '【重要】アカウント登録完了のお知らせ',
+        text: mailText,
+        fromName: '日報管理システム事務局'
+      });
+      console.log(`[Email] 社員宛て登録案内メールを ${employeeEmail} 宛に送信しました。`);
     } catch (mailErr) {
       console.error('メール送信処理中にエラーが発生しました:', mailErr);
     }
@@ -363,7 +734,7 @@ ${tempPassword}
 // ------------------------------------------------------------
 // 4. checkEmailRegistered (未ログイン状態でのメールアドレス登録確認用)
 // ------------------------------------------------------------
-exports.checkEmailRegistered = functions.https.onRequest(async (req, res) => {
+exports.checkEmailRegistered = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Methods', 'POST');
@@ -406,12 +777,10 @@ function formatDateString(dateStr) {
   }
 }
 
-// onReportWrite トリガーは承認フロー廃止に伴い不要となったため削除
-
 // ------------------------------------------------------------
 // 6. sendRemindNotification (管理者からの日報催促通知API)
 // ------------------------------------------------------------
-exports.sendRemindNotification = functions.https.onRequest(async (req, res) => {
+exports.sendRemindNotification = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Methods', 'POST');
@@ -483,19 +852,9 @@ exports.sendRemindNotification = functions.https.onRequest(async (req, res) => {
         console.error('FCM remind error', fcmErr);
       }
     }
-
-    // 2. メールでの催促送信
     try {
-      const nodemailer = require('nodemailer');
-      const smtpUser = 'areva.noreply@gmail.com';
-      const smtpPass = process.env.SMTP_PASS;
-      const loginUrl = `${process.env.HOST_URL || 'https://weekly-report-93e5f.web.app'}/index.html`;
-
-      const mailOptions = {
-        from: `鉄骨日報管理システム <${smtpUser}>`,
-        to: employee.email,
-        subject: `【催促】${formattedDate}の日報提出のお願い`,
-        text: `${employee.name} 様
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+      const mailText = `${employee.name} 様
 いつもお疲れ様です。管理者より日報提出の催促通知が届いています。
 
 対象日： ${formattedDate}
@@ -509,20 +868,15 @@ ${loginUrl}
 
 ※すでに提出済みの場合は行き違いですのでご容赦ください。
 本メールはシステムより自動送信されています。
-`
-      };
+`;
 
-      if (smtpPass) {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: smtpUser,
-            pass: smtpPass
-          }
-        });
-        await transporter.sendMail(mailOptions);
-        console.log(`Sent remind email to ${employee.email}`);
-      }
+      await sendMailHelper({
+        to: employee.email,
+        subject: `【催促】${formattedDate}の日報提出のお願い`,
+        text: mailText,
+        fromName: '日報管理事務局'
+      });
+      console.log(`Sent remind email to ${employee.email}`);
     } catch (mailErr) {
       console.error('Email remind error', mailErr);
     }

@@ -165,11 +165,32 @@
     </p>
 
     <div class="info-box">
-      <p>※ 登録された管理者メールアドレス宛てに、<strong>アカウント登録完了メール</strong>をお送りしましたのでご確認ください。</p>
+      <p>※ 登録された管理者メールアドレス宛てに、ログインリンクが記載された<strong>「アカウント登録完了メール」</strong>をお送りしました。</p>
+      <p>※ <strong>メール内に記載されたログインリンク</strong>よりシステムへお進みください。</p>
       <p>※ ログインには、オンボーディング画面でご自身で設定されたパスワードを使用します。</p>
     </div>
-
-    <a href="index.html" class="primary-btn">ログイン画面へ進む</a>
   </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const method = urlParams.get('method');
+      if (method === 'invoice') {
+        const titleEl = document.querySelector('.header h1');
+        const msgEl = document.querySelector('.message');
+        const infoEl = document.querySelector('.info-box');
+        
+        if (titleEl) titleEl.textContent = 'お申し込みありがとうございます！';
+        if (msgEl) {
+          msgEl.innerHTML = '会社アカウントおよび管理者ユーザーのセットアップが完了しました。<br><br>' +
+            'ご登録いただいたメールアドレス宛てに、<strong>「アカウント登録完了のお知らせメール」</strong>と、Stripeから<strong>「振込口座が記載された請求書メール」</strong>をお送りしましたのでご確認ください。';
+        }
+        if (infoEl) {
+          infoEl.innerHTML = '<p>※ 登録された管理者メールアドレス宛てに、ログインリンクが記載された<strong>「アカウント登録完了メール」</strong>と、Stripeから<strong>「振込口座が記載された請求書メール」</strong>をお送りしましたのでご確認ください。</p>' +
+            '<p>※ <strong>メールに記載されたログインリンク</strong>よりシステムへお進みください。</p>' +
+            '<p>※ お支払いは、請求書に記載の銀行口座（バーチャル口座）へ期日までにお振込みをお願いいたします。</p>';
+        }
+      }
+    });
+  </script>
 </body>
 </html>

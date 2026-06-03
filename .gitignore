@@ -18,3 +18,11 @@ analyze_*.js
 search-code.js
 console.log(d.id
 
+# sensitive testing files and logs
+users.csv
+users_test.csv
+temp_logs.txt
+functions/update_stripe_webhook.js
+functions/delete_test_user.js
+functions/send_test.js
+public/invoice.html

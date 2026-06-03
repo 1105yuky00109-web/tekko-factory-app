@@ -1,10 +1,10 @@
 const firebaseConfig = {
-    apiKey: "AIzaSyBero5buqjW670UPObtf4QiVX-rkhhFfPs",
-    authDomain: "weekly-report-93e5f.firebaseapp.com",
-    projectId: "weekly-report-93e5f",
-    storageBucket: "weekly-report-93e5f.firebasestorage.app",
-    messagingSenderId: "905872831436",
-    appId: "1:905872831436:web:1367ad0b1d54d9bba7a369"
+    apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+    authDomain: "tekko-factory-app.firebaseapp.com",
+    projectId: "tekko-factory-app",
+    storageBucket: "tekko-factory-app.firebasestorage.app",
+    messagingSenderId: "354843914657",
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
 };
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -83,7 +83,8 @@ onAuthStateChanged(auth, async (user) => {
                               user.email === '1105yuky00109@gmail.com' ||
                               user.email === '1105yuky00109-web@github.com';
                               
-        if (!user.emailVerified && !isBypassEmail) {
+        // メールアドレス確認は不要のため、チェックを無効化
+        if (false) {
             console.log("User email is not verified. Logging out.");
             await signOut(auth);
             const errorMsg = document.getElementById('login-error');
@@ -298,8 +299,7 @@ if (btnSendReset) {
 
             // Firebaseのパスワード再設定メールを送信（カスタムURL付き）
             await sendPasswordResetEmail(auth, email, {
-                // auth-action.html を再設定ページとして指定
-                url: 'https://weekly-report-93e5f.web.app/',
+                url: 'https://tekko-factory-app.web.app/',
                 handleCodeInApp: false
             });
             if (resetSuccess) {
@@ -310,7 +310,7 @@ if (btnSendReset) {
         } catch (err) {
             console.error('sendPasswordResetEmail error:', err);
             if (resetError) {
-                resetError.textContent = 'メールの送信に失敗しました。しばらくしてから再度お試しください。';
+                resetError.textContent = 'メールの送信に失敗しました。詳細: ' + (err.message || err.code || err);
                 resetError.classList.remove('hidden');
             }
         } finally {

@@ -24,19 +24,23 @@
       },
       {
         "source": "/api",
-        "function": "api"
+        "function": "api",
+        "region": "asia-northeast1"
       },
       {
         "source": "/api/**",
-        "function": "api"
+        "function": "api",
+        "region": "asia-northeast1"
       },
       {
         "source": "/add-employee",
-        "function": "addEmployee"
+        "function": "addEmployee",
+        "region": "asia-northeast1"
       },
       {
         "source": "/check-email",
-        "function": "checkEmailRegistered"
+        "function": "checkEmailRegistered",
+        "region": "asia-northeast1"
       }
     ]
   },

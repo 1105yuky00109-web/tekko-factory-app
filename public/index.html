@@ -130,6 +130,7 @@
         <div style="margin-top:20px;text-align:center;border-top:1px solid var(--border);padding-top:16px;">
             <button type="button" id="btn-show-reset" style="background:none;border:none;color:#2563eb;font-size:0.9rem;cursor:pointer;text-decoration:underline;">パスワードをお忘れの方はこちら</button>
         </div>
+
         <div id="reset-password-section" style="display:none;margin-top:16px;">
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;">
                 <p style="font-size:0.9rem;color:#1d4ed8;margin-bottom:12px;font-weight:600;">🔑 パスワードの再設定</p>
@@ -165,7 +166,7 @@
             <button class="tab-btn tab-group-schedule" data-target="gantt-view">工程管理表</button>
             <button class="tab-btn admin-only tab-group-schedule" data-target="schedule-input-view" style="display:none;">工事登録</button>
             <button class="tab-btn admin-only tab-group-history" data-target="summary-view" style="display:none;">日報集計</button>
-            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;margin-left:auto;">👥 社員管理</button>
+            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;margin-left:auto;">👥 社員登録</button>
         </nav>
     </header>
 
@@ -595,9 +596,12 @@
     <!-- ======== 社員アカウント管理 ======== -->
     <main id="employee-manage-view" class="view no-print">
         <div class="form-card">
-            <h2>👥 社員アカウント管理</h2>
-            <div id="employee-quota-info" style="margin-bottom:15px;font-size:0.9rem;color:var(--text-muted);">
-                社員数: <span id="emp-count-badge">読み込み中...</span>
+            <h2>👥 社員登録</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <div id="employee-quota-info" style="font-size:0.9rem;color:var(--text-muted); margin:0;">
+                    社員数: <span id="emp-count-badge">読み込み中...</span>
+                </div>
+                <button id="btn-stripe-portal" class="btn" style="background:#0284c7; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; border:none; cursor:pointer; display:none; font-size:0.85rem;">💳 プラン・お支払い情報の変更</button>
             </div>
             <h3 id="employee-form-title">新しい社員を追加</h3>
             <form id="employee-add-form">
@@ -797,7 +801,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260601-0690"></script>
+<script type="module" src="app-v4.js?v=20260603-01"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>

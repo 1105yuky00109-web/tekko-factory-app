@@ -1,10 +1,10 @@
 const firebaseConfig = {
-    apiKey: "AIzaSyBero5buqjW670UPObtf4QiVX-rkhhFfPs",
-    authDomain: "weekly-report-93e5f.firebaseapp.com",
-    projectId: "weekly-report-93e5f",
-    storageBucket: "weekly-report-93e5f.firebasestorage.app",
-    messagingSenderId: "905872831436",
-    appId: "1:905872831436:web:1367ad0b1d54d9bba7a369"
+    apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+    authDomain: "tekko-factory-app.firebaseapp.com",
+    projectId: "tekko-factory-app",
+    storageBucket: "tekko-factory-app.firebasestorage.app",
+    messagingSenderId: "354843914657",
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
 };
 
 const showDebugLog = (msg) => {
@@ -601,6 +601,13 @@ function initEmployeeManagePanel() {
     tab.style.display = '';
 
     const empAddForm = document.getElementById('employee-add-form');
+    if (empAddForm) {
+        empAddForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+            }
+        });
+    }
     const empAddMsg = document.getElementById('emp-add-message');
     const empListTbody = document.getElementById('employee-list-tbody');
     const empCancelBtn = document.getElementById('btn-emp-cancel-edit');
@@ -782,7 +789,13 @@ function initEmployeeManagePanel() {
                         return emp;
                     });
                 } else {
-                    // 新規登録モード：重複チェック
+                    // 新規登録モード：契約上限チェック
+                    const maxUsers = currentCompany.maxUsers || 10;
+                    if (employees.length >= maxUsers) {
+                        throw new Error(`ご契約プランの上限数（最大 ${maxUsers} 名）に達しているため、新しい社員を追加できません。`);
+                    }
+
+                    // 重複チェック
                     if (employees.some(emp => emp.name === name)) {
                         throw new Error(`同名の社員「${name}」が既に登録されています。`);
                     }

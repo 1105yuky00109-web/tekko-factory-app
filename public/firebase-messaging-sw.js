@@ -4,12 +4,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 
 // 注意: この設定値は build-inject.js によって置換注入されます
 const firebaseConfig = {
-    apiKey: "AIzaSyBero5buqjW670UPObtf4QiVX-rkhhFfPs",
-    authDomain: "weekly-report-93e5f.firebaseapp.com",
-    projectId: "weekly-report-93e5f",
-    storageBucket: "weekly-report-93e5f.firebasestorage.app",
-    messagingSenderId: "905872831436",
-    appId: "1:905872831436:web:1367ad0b1d54d9bba7a369"
+    apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+    authDomain: "tekko-factory-app.firebaseapp.com",
+    projectId: "tekko-factory-app",
+    storageBucket: "tekko-factory-app.firebasestorage.app",
+    messagingSenderId: "354843914657",
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
 };
 
 firebase.initializeApp(firebaseConfig);

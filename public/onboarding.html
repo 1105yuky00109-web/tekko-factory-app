@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>新規ご契約・アカウント登録</title>
   <script src="https://js.stripe.com/v3/" defer></script>
-  <script src="onboarding.js?v=20260531" defer></script>
+  <script src="onboarding.js?v=20260602_v2" defer></script>
   <style>
     :root {
       --primary: #2563eb;
@@ -280,6 +280,20 @@
       border: 1px solid #fee2e2;
       display: block;
     }
+    .spinner-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2.5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -298,24 +312,40 @@
 
 
       <div class="form-group">
-        <label class="field-label">お選びいただくプラン</label>
-        <div class="plan-cards-container">
-          <label class="plan-card-option">
-            <input type="radio" name="plan" value="price_1TaP0sJdCQkwItViebEBEhJa" style="display:none;" />
-            <div class="plan-card-body">
-              <div class="plan-badge">人気</div>
-              <div class="plan-name">スタータープラン</div>
-              <div class="plan-price">¥9,800<span>/月</span></div>
-              <div class="plan-limit">ユーザー数: 20名まで</div>
+        <label class="field-label">ご契約プラン</label>
+        <div class="plan-cards-container" style="grid-template-columns: 1fr;">
+          <label class="plan-card-option" style="cursor: default;">
+            <input type="radio" name="plan" value="price_1TaP0sJdCQkwItViebEBEhJa" checked style="display:none;" />
+            <div class="plan-card-body" style="background-color: #eff6ff; border-color: var(--primary);">
+              <div class="plan-name">10名パック追加プラン</div>
+              <div class="plan-price">¥5,000〜<span>/月 (税別)</span></div>
+              <div class="plan-limit">基本10名まで利用可能。1口追加（10名増）ごとに +¥5,000/月 (税別) となります。</div>
             </div>
           </label>
-          <label class="plan-card-option">
-            <input type="radio" name="plan" value="price_1TaP6jJdCQkwItViM7RoBetq" style="display:none;" />
-            <div class="plan-card-body">
-              <div class="plan-name" style="margin-top: 14px;">スタンダードプラン</div>
-              <div class="plan-price">¥24,800<span>/月</span></div>
-              <div class="plan-limit">ユーザー数: 100名まで</div>
-            </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="quantity" class="field-label">ご契約口数（ユーザー上限） <span style="color:red">*</span></label>
+        <select id="quantity" name="quantity" class="input-text" style="height: 48px; background: #fff;" required>
+          <option value="1">1口 (最大 10名まで / ¥5,000/月、税込¥5,500)</option>
+          <option value="2">2口 (最大 20名まで / ¥10,000/月、税込¥11,000)</option>
+          <option value="3">3口 (最大 30名まで / ¥15,000/月、税込¥16,500)</option>
+          <option value="4">4口 (最大 40名まで / ¥20,000/月、税込¥22,000)</option>
+          <option value="5">5口 (最大 50名まで / ¥25,000/月、税込¥27,500)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">お支払い方法 <span style="color:red">*</span></label>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="paymentMethod" value="card" checked style="width: 18px; height: 18px;" />
+            <span style="font-size: 0.95rem; font-weight: 600; color: var(--text);">クレジットカード決済</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="paymentMethod" value="invoice" style="width: 18px; height: 18px;" />
+            <span style="font-size: 0.95rem; font-weight: 600; color: var(--text);">請求書払い（銀行振込・後日Stripeから自動で請求書がメールで届きます）</span>
           </label>
         </div>
       </div>
@@ -331,9 +361,9 @@
       </div>
 
       <div class="form-group">
-        <label for="password" class="field-label">管理者ログイン用パスワード（半角英数字6文字以上）</label>
+        <label for="password" class="field-label">管理者ログイン用パスワード（半角英数字6文字以上） <span style="color:red">*</span></label>
         <p class="input-desc" style="margin-bottom: 6px;">
-            ※本システム（日報アプリ）にログインするための専用のパスワードです（Googleやメールアドレス自体のパスワードではありません）。ご自身で任意のパスワードを決めて入力してください。
+            ※本システムにログインするための専用のパスワードです（Googleやメールアドレス自体のパスワードではありません）。ご自身で任意のパスワードを決めて入力してください。
         </p>
         <div class="password-wrapper">
           <input type="password" id="password" name="password" class="input-text" required minlength="6" pattern="[a-zA-Z0-9]+" title="半角英数字6文字以上で入力してください。" />
@@ -346,7 +376,20 @@
         </div>
       </div>
 
-      <button type="submit" class="primary-btn">支払いに進む</button>
+      <div class="form-group">
+        <label for="password-confirm" class="field-label">管理者ログイン用パスワード（確認） <span style="color:red">*</span></label>
+        <div class="password-wrapper">
+          <input type="password" id="password-confirm" name="passwordConfirm" class="input-text" required minlength="6" pattern="[a-zA-Z0-9]+" title="半角英数字6文字以上で入力してください。" />
+          <button type="button" class="toggle-password-btn" data-target="password-confirm" style="display: flex; align-items: center; justify-content: center;">
+            <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 20px; height: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" id="submit-btn" class="primary-btn">支払いに進む</button>
     </form>
     <div id="message" class="message"></div>
   </main>
