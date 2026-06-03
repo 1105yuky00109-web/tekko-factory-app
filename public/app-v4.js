@@ -5748,7 +5748,7 @@ function openEditModal(sched) {
             console.error(err);
             alert('削除に失敗しました: ' + err.message);
             delBtn.disabled = false;
-            delBtn.innerHTML = '🗑️ 削除';
+                delBtn.innerHTML = '🗑️ 削除';
         }
     });
 }
@@ -6210,7 +6210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </td>
                             <!-- 作業内容 -->
                             <td style="padding:8px; vertical-align:middle; text-align:left; border: 1px solid var(--border, #cbd5e1);">
-                                <span style="background:#2563eb !important; color:#ffffff !important; padding:3px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold; display:inline-block; white-space:nowrap;">${(r.tasks || []).join('・')}</span>
+                                <span style="background:#2563eb !important; color:#ffffff !important; padding:3px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold; display:inline-block; white-space:nowrap;">${(r.tasks || []).map(t => (t === 'その他' && r.notes && r.notes.trim() !== '') ? `その他（${r.notes.trim()}）` : t).join('・')}</span>
                             </td>
                             <!-- 時間 -->
                             <td style="padding:8px; text-align:right; font-weight:bold; color:var(--primary-color, #2563eb); font-size:1.05rem; vertical-align:middle; white-space:nowrap; border: 1px solid var(--border, #cbd5e1);">
@@ -6226,7 +6226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tr>
                         
                         <!-- その他作業内容 (ある場合のみ、横幅いっぱいの tr を挿入) -->
-                        ${r.notes ? `
+                        ${r.notes && !(r.tasks || []).includes('その他') ? `
                         <tr>
                             <td colspan="5" style="padding:8px; border: 1px solid var(--border, #cbd5e1); background:rgba(2,132,199,0.01);">
                                 <div style="font-size:0.85rem; color:var(--text-main); padding:6px 10px; border-left:3px solid var(--primary-color, #0284c7); font-weight:normal; white-space:pre-wrap; word-break:break-all; text-align:left;">
@@ -6412,17 +6412,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tasks.forEach(task => {
                 if (!task) return;
+                let taskName = task;
+                if (task === 'その他' && r.notes && r.notes.trim() !== '') {
+                    taskName = `その他（${r.notes.trim()}）`;
+                }
 
                 if (!gridData.has(r.projectName)) {
                     gridData.set(r.projectName, new Map());
                 }
                 const projectMap = gridData.get(r.projectName);
-                if (!projectMap.has(task)) {
-                    projectMap.set(task, new Array(daysInMonth + 1).fill(0));
+                if (!projectMap.has(taskName)) {
+                    projectMap.set(taskName, new Array(daysInMonth + 1).fill(0));
                 }
-                projectMap.get(task)[dayNum] += hours;
+                projectMap.get(taskName)[dayNum] += hours;
 
-                const key = `${r.projectName}::${task}::${dayNum}`;
+                const key = `${r.projectName}::${taskName}::${dayNum}`;
                 if (!detailData.has(key)) {
                     detailData.set(key, []);
                 }
@@ -6753,13 +6757,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tasks.forEach(task => {
                 if (!task) return;
+                let taskName = task;
+                if (task === 'その他' && r.notes && r.notes.trim() !== '') {
+                    taskName = `その他（${r.notes.trim()}）`;
+                }
 
                 if (!totalData.has(r.projectName)) {
                     totalData.set(r.projectName, new Map());
                 }
                 const projectMap = totalData.get(r.projectName);
-                const currentHours = projectMap.get(task) || 0;
-                projectMap.set(task, currentHours + hours);
+                const currentHours = projectMap.get(taskName) || 0;
+                projectMap.set(taskName, currentHours + hours);
             });
         });
 
