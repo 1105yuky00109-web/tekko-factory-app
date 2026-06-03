@@ -1,6 +1,36 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <script>
+    (function() {
+      const RESET_KEY = 'sw_reset_lp_v1';
+      if (!localStorage.getItem(RESET_KEY)) {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var promises = [];
+            for (var i = 0; i < registrations.length; i++) {
+              promises.push(registrations[i].unregister());
+            }
+            Promise.all(promises).then(function() {
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  for (var j = 0; j < names.length; j++) {
+                    caches.delete(names[j]);
+                  }
+                });
+              }
+              localStorage.setItem(RESET_KEY, 'true');
+              window.location.reload(true);
+            });
+          }).catch(function(err) {
+            console.error('Failed to reset SW:', err);
+          });
+        } else {
+          localStorage.setItem(RESET_KEY, 'true');
+        }
+      }
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>工事・日報管理システム | 現場と管理をつなぐクラウド日報</title>
