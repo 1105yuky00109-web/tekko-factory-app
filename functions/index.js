@@ -266,7 +266,7 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
 
       // アカウント登録完了メール（有効化メール）の送信
       const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${subscription.latest_invoice}`;
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
 
       const emailText = `${adminName} 様
 
@@ -419,7 +419,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
 
     // お名前.com SMTP経由での登録完了メール送信
     try {
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
 
       const emailText = `${adminName} 様
 
@@ -687,7 +687,7 @@ exports.addEmployee = functions.region('asia-northeast1').https.onRequest(async 
 
     console.log(`Employee ${employeeEmail} successfully registered for company ${companyId}`);
     try {
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
 
       const mailText = `${employeeName} 様
 
@@ -853,7 +853,7 @@ exports.sendRemindNotification = functions.region('asia-northeast1').https.onReq
       }
     }
     try {
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/index.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
       const mailText = `${employee.name} 様
 いつもお疲れ様です。管理者より日報提出の催促通知が届いています。
 

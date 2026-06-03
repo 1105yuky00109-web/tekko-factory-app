@@ -1,807 +1,661 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工事・日報管理システム | 現場と管理をつなぐクラウド日報</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    
+    :root {
+      --accent: #0F62FE;
+      --accent2: #0043CE;
+      --dark: #0A0A0F;
+      --gray: #6B7280;
+      --light: #F8FAFC;
+    }
 
-    <script>
-        (function() {
-            const RESET_KEY = 'sw_reset_v40';
-            if (!localStorage.getItem(RESET_KEY)) {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                        var promises = [];
-                        for (var i = 0; i < registrations.length; i++) {
-                            promises.push(registrations[i].unregister());
-                        }
-                        Promise.all(promises).then(function() {
-                            if ('caches' in window) {
-                                caches.keys().then(function(names) {
-                                    for (var j = 0; j < names.length; j++) {
-                                        caches.delete(names[j]);
-                                    }
-                                });
-                            }
-                            localStorage.setItem(RESET_KEY, 'true');
-                            window.location.reload(true);
-                        });
-                    }).catch(function(err) {
-                        console.error('Failed to reset SW:', err);
-                    });
-                } else {
-                    localStorage.setItem(RESET_KEY, 'true');
-                }
-            }
-        })();
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日報管理システム</title>
-    <link rel="stylesheet" href="style-v4.css?v=20260601-0690">
-    <link rel="manifest" href="manifest.json">
-    <!-- SheetJS for Excel Export -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <!-- ExcelJS for Styled Excel Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    <!-- 動的な印刷スタイル（JS側から書き換え） -->
-    <style id="print-dynamic-style"></style>
-    <!-- トースト通知用のCSS -->
-    <style>
-        .toast-card {
-            background: var(--bg-card, #ffffff);
-            color: var(--text-main, #1e293b);
-            border-left: 4px solid var(--primary-color, #0284c7);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
-            padding: 14px 18px;
-            border-radius: 8px;
-            min-width: 280px;
-            max-width: 400px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            animation: toastSlideIn 0.3s ease-out forwards;
-            border: 1px solid var(--border);
-            font-size: 0.9rem;
-            z-index: 12000;
-        }
-        .toast-card.toast-success { border-left-color: #10b981; }
-        .toast-card.toast-warning { border-left-color: #f59e0b; }
-        .toast-card.toast-error { border-left-color: #ef4444; }
-        .toast-close {
-            background: none;
-            border: none;
-            font-size: 1.1rem;
-            cursor: pointer;
-            color: var(--text-muted);
-            margin-left: 10px;
-            line-height: 1;
-        }
-        @keyframes toastSlideIn {
-            from { transform: translateX(120%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes toastFadeOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(120%); opacity: 0; }
-        }
-    </style>
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+      color: var(--dark);
+      background: #fff;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    ::selection {
+      background: rgba(15, 98, 254, 0.2);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      letter-spacing: 0.02em;
+      display: inline-block;
+      text-align: center;
+    }
+    .btn-primary:hover {
+      background: var(--accent2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 98, 254, 0.27);
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+      padding: 13px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      display: inline-block;
+      text-align: center;
+    }
+    .btn-outline:hover {
+      background: rgba(15, 98, 254, 0.07);
+      transform: translateY(-2px);
+    }
+
+    /* Cards */
+    .feature-card {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: box-shadow 0.25s, transform 0.25s, border-color 0.25s;
+    }
+    .feature-card:hover {
+      box-shadow: 0 12px 40px rgba(15, 98, 254, 0.10);
+      transform: translateY(-4px);
+      border-color: rgba(15, 98, 254, 0.27);
+    }
+
+    .plan-card {
+      border-radius: 20px;
+      padding: 36px 28px;
+      transition: box-shadow 0.25s, transform 0.25s;
+    }
+    .plan-card:hover {
+      transform: translateY(-4px);
+    }
+    .plan-card.highlight {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 20px 60px rgba(15, 98, 254, 0.35);
+    }
+    .plan-card.normal {
+      background: #fff;
+      border: 1.5px solid #E5E7EB;
+    }
+    .plan-card.normal:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    }
+
+    /* Tag & Utility */
+    .tag {
+      display: inline-block;
+      background: rgba(15, 98, 254, 0.08);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 100px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .grid-3-plans {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      align-items: start;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .grid-3, .grid-3-plans {
+        grid-template-columns: 1fr;
+      }
+      .hero-title {
+        font-size: clamp(32px, 8vw, 52px) !important;
+      }
+      .hero-flex {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .step-row {
+        flex-direction: column;
+        gap: 16px;
+      }
+      .step-item {
+        border-right: none !important;
+        border-bottom: 1px solid #E5E7EB;
+        padding-bottom: 24px !important;
+      }
+      .step-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0 !important;
+      }
+      .nav-menu {
+        display: none !important; /* タブレット・スマホは簡易表示 */
+      }
+    }
+
+    .noise-bg {
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .check-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .nav-link {
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      transition: color 0.2s;
+      cursor: pointer;
+    }
+    .nav-link:hover {
+      color: var(--accent);
+    }
+
+    /* Fade-in Animation Classes */
+    .fade-in-element {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .fade-in-element.in-view {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
 </head>
 <body>
 
-<!-- ========== 読み込み中 ========== -->
-<div id="loading-container" class="login-wrapper">
-    <div class="login-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;">
-        <div class="spinner" style="width:40px;height:40px;border:4px solid rgba(37,99,235,0.1);border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
-        <div style="font-size:1.2rem;font-weight:bold;color:var(--primary);">システム読み込み中...</div>
-        <p style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);">接続状態を確認しています。少々お待ちください。</p>
+  <!-- NAV -->
+  <nav id="navbar" style="
+    position: fixed; top: 0; left: 0; right: 0; zIndex: 100;
+    transition: all 0.3s;
+    padding: 0 5%;
+    z-index: 1000;
+  ">
+    <div style="maxWidth: 1120px; margin: 0 auto; height: 72px; display: flex; alignItems: center; justifyContent: space-between;">
+      <div style="fontWeight: 900; fontSize: 22px; letterSpacing: -0.02em; color: var(--accent);">
+        工事・日報管理システム
+      </div>
+      <div class="nav-menu" style="display: flex; alignItems: center; gap: 36px;">
+        <a href="#機能" class="nav-link">機能</a>
+        <a href="#料金" class="nav-link">料金</a>
+        <a href="#導入事例" class="nav-link">導入事例</a>
+        <a href="mailto:info@areva.co.jp" class="nav-link">お問い合わせ</a>
+        <a href="/app.html" class="nav-link" style="font-weight: bold; color: var(--accent); border: 1.5px solid var(--accent); padding: 6px 14px; border-radius: 6px; font-size: 13px;">ログイン</a>
+        <a href="/onboarding.html" class="btn-primary" style="padding: 9px 22px; fontSize: 13px;">14日間無料トライアル</a>
+      </div>
+      <!-- モバイル用のログイン・登録簡易ボタン -->
+      <div class="mobile-nav-buttons" style="display: none; gap: 10px;">
+        <a href="/app.html" style="font-size: 13px; font-weight: bold; color: var(--accent); padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px;">ログイン</a>
+      </div>
     </div>
-</div>
-<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+  </nav>
 
-<!-- ========== ログイン画面 ========== -->
-<div id="login-container" class="login-wrapper hidden">
-    <div class="login-card">
-        <h2>システム ログイン</h2>
-        <p>ご登録済みのメールアドレスとパスワードを入力してください。</p>
-        <form id="login-form" autocomplete="off">
-            <div class="form-group">
-                <label for="login-email">メールアドレス</label>
-                <input type="email" id="login-email" required placeholder="example@company.com" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label for="login-password">パスワード</label>
-                <div style="position:relative;display:flex;align-items:center;">
-                    <input type="password" id="login-password" required style="padding-right:40px;width:100%;" autocomplete="new-password">
-                    <button type="button" class="toggle-password-btn" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;color:var(--text-muted);"
-                        onclick="const inp=document.getElementById('login-password');const t=inp.type==='text';inp.type=t?'password':'text';this.querySelector('.eye-open').style.display=t?'block':'none';this.querySelector('.eye-closed').style.display=t?'none':'block';">
-                        <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:22px;height:22px;">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
-                        <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:22px;height:22px;display:none;">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <button type="submit" id="btn-login" class="btn btn-primary btn-large">ログイン</button>
-            <div id="login-error" class="message error hidden">ログインに失敗しました。</div>
-        </form>
+  <style>
+    /* CSS for sticky navbar transition */
+    #navbar.scrolled {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid #E5E7EB;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    @media (max-width: 900px) {
+      .mobile-nav-buttons {
+        display: flex !important;
+      }
+    }
+  </style>
 
-        <div style="margin-top:20px;text-align:center;border-top:1px solid var(--border);padding-top:16px;">
-            <button type="button" id="btn-show-reset" style="background:none;border:none;color:#2563eb;font-size:0.9rem;cursor:pointer;text-decoration:underline;">パスワードをお忘れの方はこちら</button>
+  <!-- HERO -->
+  <section style="minHeight: 100vh; display: flex; alignItems: center; padding: 120px 5% 80px; position: relative; overflow: hidden;" class="noise-bg">
+    <!-- Background decoration -->
+    <div style="
+      position: absolute; top: -200px; right: -200px; width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(15, 98, 254, 0.09) 0%, transparent 70%);
+      pointer-events: none;
+    "></div>
+    <div style="
+      position: absolute; bottom: -100px; left: -100px; width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.09) 0%, transparent 70%);
+      pointer-events: none;
+    "></div>
+
+    <div style="maxWidth: 1120px; margin: 0 auto; width: 100%;">
+      <div style="maxWidth: 760px;">
+        <div style="opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.1s forwards;">
+          <span class="tag">建設業向けクラウド日報</span>
         </div>
-
-        <div id="reset-password-section" style="display:none;margin-top:16px;">
-            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;">
-                <p style="font-size:0.9rem;color:#1d4ed8;margin-bottom:12px;font-weight:600;">🔑 パスワードの再設定</p>
-                <p style="font-size:0.85rem;color:#374151;margin-bottom:14px;line-height:1.5;">登録済みのメールアドレスを入力すると、再設定用のリンクをお送りします。</p>
-                <div style="display:flex;gap:8px;">
-                    <input type="email" id="reset-email" placeholder="メールアドレスを入力" style="flex:1;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;">
-                    <button type="button" id="btn-send-reset" class="btn btn-primary" style="padding:10px 16px;font-size:0.9rem;">送信</button>
-                </div>
-                <div id="reset-success" class="message hidden" style="margin-top:10px;background:#f0fdf4;color:#16a34a;border-radius:6px;padding:10px;font-size:0.85rem;"></div>
-                <div id="reset-error" class="message hidden" style="margin-top:10px;background:#fef2f2;color:#dc2626;border-radius:6px;padding:10px;font-size:0.85rem;"></div>
-            </div>
+        <h1 class="hero-title" style="
+          fontSize: clamp(40px, 5.5vw, 68px);
+          fontWeight: 900;
+          lineHeight: 1.12;
+          letterSpacing: -0.03em;
+          marginBottom: 24px;
+          opacity: 0;
+          transform: translateY(20px);
+          animation: fadeUp 0.7s ease 0.2s forwards;
+        ">
+          現場の日報を、<br />
+          <span style="color: var(--accent);">もっとシンプルに。</span>
+        </h1>
+        <p style="
+          fontSize: 18px; color: var(--gray); lineHeight: 1.75; maxWidth: 540px; marginBottom: 40px;
+          opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.3s forwards;
+        ">
+          スマートフォンから30秒で記録。管理者はリアルタイムで全現場の状況を把握。
+          建設会社のための、シンプルで使い続けられるクラウド管理システムです。
+        </p>
+        <div class="hero-flex" style="display: flex; gap: 16px; flexWrap: wrap; opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.4s forwards;">
+          <a href="/onboarding.html" class="btn-primary" style="fontSize: 16px; padding: 16px 36px;">
+            14日間 無料トライアル →
+          </a>
+          <a href="/app.html" class="btn-outline" style="fontSize: 16px; padding: 15px 32px;">
+            デモ・ログイン画面へ
+          </a>
         </div>
+        <p style="marginTop: 16px; fontSize: 12px; color: #9CA3AF; opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.5s forwards;">
+          14日間は請求なし · 導入実績 50社以上 · いつでも解約可能
+        </p>
+      </div>
+
+      <!-- Mock dashboard preview -->
+      <div style="
+        marginTop: 72px;
+        background: var(--light);
+        borderRadius: 20px;
+        border: 1px solid #E5E7EB;
+        overflow: hidden;
+        boxShadow: 0 32px 80px rgba(0,0,0,0.10);
+        opacity: 0;
+        transform: translateY(30px);
+        animation: fadeUp 0.8s ease 0.5s forwards;
+      %">
+        <!-- Browser bar -->
+        <div style="background: #F3F4F6; padding: 10px 16px; display: flex; alignItems: center; gap: 8px; borderBottom: 1px solid #E5E7EB;">
+          <div style="display: flex; gap: 6px;">
+            <div style="width: 10px; height: 10px; borderRadius: 50%; background: #FF5F57;"></div>
+            <div style="width: 10px; height: 10px; borderRadius: 50%; background: #FFBD2E;"></div>
+            <div style="width: 10px; height: 10px; borderRadius: 50%; background: #28C840;"></div>
+          </div>
+          <div style="flex: 1; background: #fff; borderRadius: 6px; padding: 4px 12px; fontSize: 11px; color: #9CA3AF; marginLeft: 8px;">
+            app.nisshi.jp/dashboard
+          </div>
+        </div>
+        <!-- Dashboard content -->
+        <div style="padding: 24px 28px; display: grid; gridTemplateColumns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+          <div style="background: #fff; borderRadius: 12px; padding: 16px 20px; border: 1px solid #E5E7EB;">
+            <div style="fontSize: 11px; color: var(--gray); marginBottom: 6px;">今月の日報件数</div>
+            <div style="fontSize: 24px; fontWeight: 900; letterSpacing: -0.02em; color: var(--dark);">247件</div>
+            <div style="fontSize: 11px; color: var(--accent); fontWeight: 600; marginTop: 4px;">+18%</div>
+          </div>
+          <div style="background: #fff; borderRadius: 12px; padding: 16px 20px; border: 1px solid #E5E7EB;">
+            <div style="fontSize: 11px; color: var(--gray); marginBottom: 6px;">稼働中の現場</div>
+            <div style="fontSize: 24px; fontWeight: 900; letterSpacing: -0.02em; color: var(--dark);">12現場</div>
+            <div style="fontSize: 11px; color: var(--accent); fontWeight: 600; marginTop: 4px;">全員提出済み</div>
+          </div>
+          <div style="background: #fff; borderRadius: 12px; padding: 16px 20px; border: 1px solid #E5E7EB;">
+            <div style="fontSize: 11px; color: var(--gray); marginBottom: 6px;">未提出アラート</div>
+            <div style="fontSize: 24px; fontWeight: 900; letterSpacing: -0.02em; color: var(--dark);">0件</div>
+            <div style="fontSize: 11px; color: var(--accent); fontWeight: 600; marginTop: 4px;">✅ 全員完了</div>
+          </div>
+        </div>
+        <div style="padding: 0 28px 24px; display: grid; gridTemplateColumns: 2fr 1fr; gap: 16px;" class="step-row">
+          <div style="background: #fff; borderRadius: 12px; padding: 16px 20px; border: 1px solid #E5E7EB;">
+            <div style="fontSize: 12px; fontWeight: 700; marginBottom: 12px;">今日の日報一覧</div>
+            
+            <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">田</div>
+                <div>
+                  <div style="fontWeight: 600;">田中 一郎</div>
+                  <div style="color: var(--gray); fontSize: 11px;">○○ビル新築工事</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <span style="color: var(--gray); fontSize: 11px;">17:32</span>
+                <span style="background: #DCFCE7; color: #16A34A; fontSize: 10px; fontWeight: 700; padding: 2px 8px; borderRadius: 100px;">提出済</span>
+              </div>
+            </div>
+
+            <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">佐</div>
+                <div>
+                  <div style="fontWeight: 600;">佐藤 次郎</div>
+                  <div style="color: var(--gray); fontSize: 11px;">△△倉庫改修</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <span style="color: var(--gray); fontSize: 11px;">17:15</span>
+                <span style="background: #DCFCE7; color: #16A34A; fontSize: 10px; fontWeight: 700; padding: 2px 8px; borderRadius: 100px;">提出済</span>
+              </div>
+            </div>
+
+            <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">鈴</div>
+                <div>
+                  <div style="fontWeight: 600;">鈴木 三郎</div>
+                  <div style="color: var(--gray); fontSize: 11px;">□□工場基礎</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; alignItems: center;">
+                <span style="color: var(--gray); fontSize: 11px;">17:48</span>
+                <span style="background: #DCFCE7; color: #16A34A; fontSize: 10px; fontWeight: 700; padding: 2px 8px; borderRadius: 100px;">提出済</span>
+              </div>
+            </div>
+          </div>
+          <div style="background: #fff; borderRadius: 12px; padding: 16px 20px; border: 1px solid #E5E7EB;">
+            <div style="fontSize: 12px; fontWeight: 700; marginBottom: 12px;">今週の提出率</div>
+            <div style="display: flex; alignItems: center; gap: 8px; marginBottom: 8px;">
+              <span style="fontSize: 11px; color: var(--gray); width: 14px;">月</span>
+              <div style="flex: 1; height: 6px; background: #F3F4F6; borderRadius: 99px;">
+                <div style="width: 100%; height: 100%; background: var(--accent); borderRadius: 99px;"></div>
+              </div>
+              <span style="fontSize: 11px; fontWeight: 700; color: var(--dark); width: 30px; textAlign: right;">100%</span>
+            </div>
+            <div style="display: flex; alignItems: center; gap: 8px; marginBottom: 8px;">
+              <span style="fontSize: 11px; color: var(--gray); width: 14px;">火</span>
+              <div style="flex: 1; height: 6px; background: #F3F4F6; borderRadius: 99px;">
+                <div style="width: 100%; height: 100%; background: var(--accent); borderRadius: 99px;"></div>
+              </div>
+              <span style="fontSize: 11px; fontWeight: 700; color: var(--dark); width: 30px; textAlign: right;">100%</span>
+            </div>
+            <div style="display: flex; alignItems: center; gap: 8px; marginBottom: 8px;">
+              <span style="fontSize: 11px; color: var(--gray); width: 14px;">水</span>
+              <div style="flex: 1; height: 6px; background: #F3F4F6; borderRadius: 99px;">
+                <div style="width: 95%; height: 100%; background: var(--accent); borderRadius: 99px;"></div>
+              </div>
+              <span style="fontSize: 11px; fontWeight: 700; color: var(--dark); width: 30px; textAlign: right;">95%</span>
+            </div>
+            <div style="display: flex; alignItems: center; gap: 8px; marginBottom: 8px;">
+              <span style="fontSize: 11px; color: var(--gray); width: 14px;">木</span>
+              <div style="flex: 1; height: 6px; background: #F3F4F6; borderRadius: 99px;">
+                <div style="width: 98%; height: 100%; background: var(--accent); borderRadius: 99px;"></div>
+              </div>
+              <span style="fontSize: 11px; fontWeight: 700; color: var(--dark); width: 30px; textAlign: right;">98%</span>
+            </div>
+            <div style="display: flex; alignItems: center; gap: 8px; marginBottom: 8px;">
+              <span style="fontSize: 11px; color: var(--gray); width: 14px;">金</span>
+              <div style="flex: 1; height: 6px; background: #F3F4F6; borderRadius: 99px;">
+                <div style="width: 100%; height: 100%; background: var(--accent); borderRadius: 99px;"></div>
+              </div>
+              <span style="fontSize: 11px; fontWeight: 700; color: var(--dark); width: 30px; textAlign: right;">100%</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-</div>
 
-<!-- ========== メインアプリ ========== -->
-<div id="app-container" class="app-container hidden">
-    <header class="no-print">
-        <div class="header-top">
-            <h1>工事管理システム</h1>
-            <div class="user-info">
-                <span id="current-company-name" style="margin-right:15px;font-weight:bold;color:var(--primary-color,#2563eb);"></span>
-                <span id="user-role-badge" style="display:none;margin-right:15px;font-weight:bold;padding:4px 8px;border-radius:4px;font-size:0.8rem;"></span>
-                <span id="current-user-email"></span>
-                <button id="theme-toggle" class="btn btn-secondary btn-small" title="テーマ切り替え">🌙 テーマ切替</button>
-                <button id="btn-logout" class="btn btn-secondary btn-small">ログアウト</button>
-            </div>
+    <style>
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </section>
+
+  <!-- FEATURES -->
+  <section style="padding: 100px 5%; background: var(--light);" id="機能">
+    <div style="maxWidth: 1120px; margin: 0 auto;">
+      <div class="fade-in-element" style="textAlign: center; marginBottom: 60px;">
+        <span class="tag">機能</span>
+        <h2 style="fontSize: clamp(28px, 4vw, 44px); fontWeight: 900; letterSpacing: -0.02em; marginBottom: 16px;">
+          現場が使いやすい、<br />管理者が把握しやすい
+        </h2>
+        <p style="color: var(--gray); fontSize: 16px; maxWidth: 480px; margin: 0 auto; lineHeight: 1.75;">
+          建設業の現場で本当に必要な機能だけを、徹底的にシンプルに作りました。
+        </p>
+      </div>
+      
+      <div class="grid-3">
+        <div class="feature-card fade-in-element" data-delay="0">
+          <div style="fontSize: 32px; marginBottom: 16px;">📋</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">スマホで30秒入力</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">現場からでもスマートフォンで即記録。入力フォームはシンプルで、ITに不慣れなベテラン職人でも迷わない設計。</p>
         </div>
-        <nav class="tabs">
-            <button class="tab-btn active tab-group-input" data-target="daily-report-input-view">日報入力</button>
-            <button class="tab-btn tab-group-history" data-target="daily-report-history-view">工事別作業集計（月間）</button>
-            <button class="tab-btn tab-group-history" data-target="daily-report-total-view">工事別作業集計（累計）</button>
-            <button class="tab-btn tab-group-schedule" data-target="gantt-view">工程管理表</button>
-            <button class="tab-btn admin-only tab-group-schedule" data-target="schedule-input-view" style="display:none;">工事登録</button>
-            <button class="tab-btn admin-only tab-group-history" data-target="summary-view" style="display:none;">日報集計</button>
-            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;margin-left:auto;">👥 社員登録</button>
-        </nav>
-    </header>
-
-    <!-- ======== 工事登録画面 (管理者専用) ======== -->
-    <main id="schedule-input-view" class="view no-print">
-        <div class="form-card">
-            <h2 id="schedule-form-title">工事を登録</h2>
-            <form id="schedule-form">
-                <input type="hidden" id="sched-id" value="">
-
-                <!-- 1. 工事名 & 工事番号 -->
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;">
-                        <label for="sched-project">工事名 <span style="color:red">*</span></label>
-                        <input type="text" id="sched-project" placeholder="例: ○○ビル新築工事" required>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label for="sched-project-number">工事番号 <span style="color:red">*</span></label>
-                        <input type="text" id="sched-project-number" placeholder="例: KP-2026-001" required>
-                    </div>
-                </div>
-
-                <!-- 2. 加工トン数 & 商社・営業担当 -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="sched-tonnage">加工トン数 (t) <span style="color:red">*</span></label>
-                        <input type="text" id="sched-tonnage" placeholder="例: 15.5" required pattern="^[0-9]+(\.[0-9]+)?$" title="半角数字（正の数・小数）で入力してください。">
-                    </div>
-                    <div class="form-group">
-                        <label for="sched-sales-rep">商社・営業担当</label>
-                        <select id="sched-sales-rep">
-                            <option value="">選択してください</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 3. 工務担当 & 現場担当 -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="sched-const-rep">工務担当</label>
-                        <select id="sched-const-rep">
-                            <option value="">選択してください</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="sched-site-rep">現場担当</label>
-                        <select id="sched-site-rep">
-                            <option value="">選択してください</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 4. 製作開始日 & 納期 -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="sched-start">製作開始日 <span style="color:red">*</span></label>
-                        <input type="date" id="sched-start" required>
-                        <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">
-                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="today">今日</button>
-                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="tomorrow">明日</button>
-                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="next-monday">来週月曜</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="sched-end">納期 (製作完了日) <span style="color:red">*</span></label>
-                        <input type="date" id="sched-end" required>
-                    </div>
-                </div>
-
-                <!-- 5. 備考・バー模様・完了 -->
-                <div class="form-row">
-                    <div class="form-group" style="flex:3;">
-                        <label for="sched-notes">備考・特記事項</label>
-                        <input type="text" id="sched-notes" placeholder="搬入条件や特殊仕様など">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label for="sched-bar-pattern">バーの模様 (工程表用)</label>
-                        <select id="sched-bar-pattern">
-                            <option value="solid">塗りつぶし（通常）</option>
-                            <option value="stripe">スポット（点線）</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:0;min-width:100px;display:flex;align-items:center;gap:8px;margin-top:20px;">
-                        <input type="checkbox" id="sched-completed" style="width:20px;height:20px;margin:0;">
-                        <label for="sched-completed" style="margin:0;font-weight:bold;white-space:nowrap;">工程完了</label>
-                    </div>
-                </div>
-
-                <div class="form-group" style="display:none;">
-                    <label for="sched-author">登録者（氏名）:</label>
-                    <input type="text" id="sched-author" readonly>
-                </div>
-
-                <div style="display:flex;gap:10px;">
-                    <button type="submit" id="sched-submit-btn" class="btn btn-primary btn-large">工事を登録</button>
-                    <button type="button" id="sched-cancel-btn" class="btn btn-secondary btn-large hidden" style="background-color:#64748b;color:white;">編集をキャンセル</button>
-                </div>
-                <div id="sched-submit-message" class="message hidden">工事情報を保存しました！</div>
-            </form>
+        <div class="feature-card fade-in-element" data-delay="0.08">
+          <div style="fontSize: 32px; marginBottom: 16px;">📊</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">リアルタイム集計</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">全社員の日報がリアルタイムに一覧化。管理者はダッシュボードで進捗・作業量・工程を即把握できます。</p>
         </div>
-
-        <!-- 工事候補サジェスト（非表示） -->
-        <datalist id="project-suggestions"></datalist>
-    </main>
-
-    <!-- ======== 工程管理表（ガントチャート）======== -->
-    <main id="gantt-view" class="view">
-        <div class="list-controls no-print" style="margin-bottom:15px;">
-            <div class="filters" style="display:flex;gap:10px;align-items:center;">
-                <label for="gantt-year" style="font-weight:bold;color:var(--text);">対象年度:</label>
-                <select id="gantt-year" style="padding:10px;font-size:1rem;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);">
-                    <option value="2025">2025年度 (R7)</option>
-                    <option value="2026" selected>2026年度 (R8)</option>
-                    <option value="2027">2027年度 (R9)</option>
-                    <option value="2028">2028年度 (R10)</option>
-                </select>
-            </div>
-            <div class="actions">
-                <button id="btn-export-gantt" class="btn btn-secondary btn-small">📊 Excel出力</button>
-                <button id="btn-print-gantt" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
-            </div>
+        <div class="feature-card fade-in-element" data-delay="0.16">
+          <div style="fontSize: 32px; marginBottom: 16px;">🔒</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">会社単位のセキュリティ</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">ログインした社員のデータのみ閲覧可能。他社のデータは完全分離。建設業の機密情報を守ります。</p>
         </div>
-        <!-- ガントチャートタイトル（印刷用） -->
-        <div id="print-gantt-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
-        <div class="gantt-wrapper" style="overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;">
-            <div id="gantt-container"></div>
+        <div class="feature-card fade-in-element" data-delay="0.24">
+          <div style="fontSize: 32px; marginBottom: 16px;">☁️</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">クラウド管理・バックアップ不要</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">サーバー管理・バックアップ作業は一切不要。インターネットがあればどこからでもアクセスできます。</p>
         </div>
-    </main>
-
-
-
-    <!-- ======== 日報入力画面 (職人・社員・管理者共通) ======== -->
-    <main id="daily-report-input-view" class="view active no-print">
-        <div class="form-card">
-            <h2>日報入力</h2>
-            <form id="daily-report-form">
-                <!-- 社員選択 -->
-                <div class="form-group">
-                    <label for="report-member-select">社員名 <span style="color:red">*</span></label>
-                    <select id="report-member-select" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
-                        <option value="">社員を選択してください</option>
-                    </select>
-                </div>
-
-                <!-- 日付選択 -->
-                <div class="form-group">
-                    <label for="report-date">作業日 <span style="color:red">*</span></label>
-                    <input type="date" id="report-date" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
-                </div>
-
-                <!-- 工事選択 -->
-                <div class="form-group">
-                    <label for="report-project-id">工事名 <span style="color:red">*</span></label>
-                    <select id="report-project-id" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
-                        <option value="">工事を選択してください</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>作業内容 <span style="color:red">*</span></label>
-                    
-                    <!-- 青文字グループ -->
-                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="一次加工" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-blue">一次加工</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="組立て" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-blue">組立て</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="溶接" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-blue">溶接</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="塗装" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-blue">塗装</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="出荷" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-blue">出荷</span>
-                        </label>
-                    </div>
-
-                    <!-- 緑文字グループ1 -->
-                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="積算" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">積算</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="見積作成" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">見積作成</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="図面作図" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">図面作図</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="原寸" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">原寸</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="打合せ" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">打合せ</span>
-                        </label>
-                    </div>
-                    <!-- 緑文字グループ2 (自主検査から改行) -->
-                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="自主検査" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">自主検査</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="検査受検" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">検査受検</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="検査準備" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">検査準備</span>
-                        </label>
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="出荷準備" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-green">出荷準備</span>
-                        </label>
-                    </div>
-
-                    <!-- 黒文字グループ -->
-                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:0;">
-                        <label class="btn-checkbox-label">
-                            <input type="radio" name="report-tasks" value="その他" class="btn-checkbox-input">
-                            <span class="btn-checkbox-text task-group-black">その他</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- その他の作業 (その他選択時のみ表示) -->
-                <div class="form-group" id="report-notes-group" style="margin-top:15px; display:none;">
-                    <label for="report-notes">その他の作業 <span style="color:red">*</span></label>
-                    <textarea id="report-notes" rows="2" placeholder="具体的な作業内容を入力してください" style="width:100%;border-radius:6px;border:1px solid var(--border);padding:10px;font-size:1rem;background:var(--card-bg);color:var(--text);resize:vertical;"></textarea>
-                </div>
-
-                <!-- 工数 (時間入力、プルダウンUI) -->
-                <div class="form-group">
-                    <label for="report-hours">工数 (時間) <span style="color:red">*</span></label>
-                    <select id="report-hours" required style="width:120px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
-                        <option value="0.5">0.5H</option>
-                        <option value="1.0">1.0H</option>
-                        <option value="1.5">1.5H</option>
-                        <option value="2.0">2.0H</option>
-                        <option value="2.5">2.5H</option>
-                        <option value="3.0">3.0H</option>
-                        <option value="3.5">3.5H</option>
-                        <option value="4.0">4.0H</option>
-                        <option value="4.5">4.5H</option>
-                        <option value="5.0">5.0H</option>
-                        <option value="5.5">5.5H</option>
-                        <option value="6.0">6.0H</option>
-                        <option value="6.5">6.5H</option>
-                        <option value="7.0">7.0H</option>
-                        <option value="7.5">7.5H</option>
-                        <option value="8.0" selected>8.0H</option>
-                        <option value="8.5">8.5H</option>
-                        <option value="9.0">9.0H</option>
-                        <option value="9.5">9.5H</option>
-                        <option value="10.0">10.0H</option>
-                        <option value="10.5">10.5H</option>
-                        <option value="11.0">11.0H</option>
-                        <option value="11.5">11.5H</option>
-                        <option value="12.0">12.0H</option>
-                        <option value="12.5">12.5H</option>
-                        <option value="13.0">13.0H</option>
-                        <option value="13.5">13.5H</option>
-                        <option value="14.0">14.0H</option>
-                        <option value="14.5">14.5H</option>
-                        <option value="15.0">15.0H</option>
-                        <option value="15.5">15.5H</option>
-                        <option value="16.0">16.0H</option>
-                        <option value="16.5">16.5H</option>
-                        <option value="17.0">17.0H</option>
-                        <option value="17.5">17.5H</option>
-                        <option value="18.0">18.0H</option>
-                        <option value="18.5">18.5H</option>
-                        <option value="19.0">19.0H</option>
-                        <option value="19.5">19.5H</option>
-                        <option value="20.0">20.0H</option>
-                        <option value="20.5">20.5H</option>
-                        <option value="21.0">21.0H</option>
-                        <option value="21.5">21.5H</option>
-                        <option value="22.0">22.0H</option>
-                        <option value="22.5">22.5H</option>
-                        <option value="23.0">23.0H</option>
-                        <option value="23.5">23.5H</option>
-                        <option value="24.0">24.0H</option>
-                    </select>
-                </div>
-
-                <div style="margin-top:20px;">
-                    <button type="submit" id="btn-report-submit" class="btn btn-primary btn-large" style="width:100%; height:50px; font-size:1.1rem; font-weight:bold; margin-top:0; background-color:#2563eb; color:#ffffff; border:none; box-shadow:0 4px 6px rgba(37,99,235,0.2);">作業を登録</button>
-                </div>
-                <div id="report-submit-message" class="message hidden" style="margin-top:10px;"></div>
-            </form>
+        <div class="feature-card fade-in-element" data-delay="0.32">
+          <div style="fontSize: 32px; marginBottom: 16px;">📁</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">PDF・Excel出力</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">月次・週次の日報をワンクリックで出力。元請への報告書作成の手間を大幅に削減します。</p>
         </div>
-
-        <!-- 選択された日の登録済み日報一覧 -->
-        <div class="form-card" style="margin-top:20px; padding:20px;" id="daily-report-buffered-section">
-            <h3 style="margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:8px; color:var(--text); display:flex; justify-content:space-between; align-items:center;">
-                <span>📅 <span id="buffered-date-label">選択日の登録済み作業</span></span>
-                <span style="font-size:0.9rem; font-weight:normal; color:var(--text-muted);">（一日に複数工事の登録が可能です）</span>
-            </h3>
-            <div id="buffered-reports-list" style="display:flex; flex-direction:column; gap:10px;">
-                <p style="text-align:center; color:var(--text-muted); font-style:italic; padding:10px;">日報データがありません。</p>
-            </div>
-            <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border); text-align:right; font-weight:bold; font-size:1.1rem; color:var(--primary-color);">
-                合計工数: <span id="buffered-total-hours">0.0</span> 時間
-            </div>
+        <div class="feature-card fade-in-element" data-delay="0.40">
+          <div style="fontSize: 32px; marginBottom: 16px;">👥</div>
+          <h3 style="fontSize: 17px; fontWeight: 700; marginBottom: 10px; letterSpacing: -0.01em;">マルチテナント対応</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">複数の会社・部署で独立利用可能。グループ会社・支店ごとに管理者を設定できます。</p>
         </div>
-    </main>
-
-    <!-- ======== 日報履歴画面 (全員/管理者で表示分け) ======== -->
-    <main id="daily-report-history-view" class="view no-print">
-        <div class="list-controls no-print">
-            <div class="filters">
-                <div class="form-group">
-                    <label for="history-filter-month">対象月</label>
-                    <select id="history-filter-month">
-                        <option value="">すべての月</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="history-filter-project">工事で絞込み</label>
-                    <select id="history-filter-project">
-                        <option value="">すべての工事</option>
-                    </select>
-                </div>
-                <div class="form-group admin-only" style="display:none;">
-                    <label for="history-filter-author">社員で絞込み</label>
-                    <select id="history-filter-author">
-                        <option value="">すべての社員</option>
-                    </select>
-                </div>
-            </div>
-            <div class="actions">
-                <button id="btn-print-history" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
-            </div>
-        </div>
-
-        <!-- 印刷用タイトル -->
-        <div id="print-history-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
-
-        <!-- 履歴一覧コンテナ (JSで動的にカードやテーブルを生成) -->
-        <div id="history-list-container">
-            <p style="text-align:center;color:var(--text-muted);padding:20px;">日報データを読み込み中...</p>
-        </div>
-
-        <!-- 印刷エリア -->
-        <div id="history-print-area" class="only-print">
-            <div id="history-print-container"></div>
-        </div>
-    </main>
-
-    <!-- ======== 工事別作業集計 (累計/全期間) ======== -->
-    <main id="daily-report-total-view" class="view no-print">
-        <div class="list-controls no-print">
-            <div class="filters">
-                <div class="form-group">
-                    <label for="total-filter-project">工事で絞込み</label>
-                    <select id="total-filter-project">
-                        <option value="">すべての工事</option>
-                    </select>
-                </div>
-                <div class="form-group admin-only" style="display:none;">
-                    <label for="total-filter-author">社員で絞込み</label>
-                    <select id="total-filter-author">
-                        <option value="">すべての社員</option>
-                    </select>
-                </div>
-            </div>
-            <div class="actions">
-                <button id="btn-print-total" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
-            </div>
-        </div>
-
-        <!-- 履歴一覧コンテナ (JSで動的にテーブルを生成) -->
-        <div id="total-list-container">
-            <p style="text-align:center;color:var(--text-muted);padding:20px;">日報データを読み込み中...</p>
-        </div>
-
-        <!-- 印刷エリア -->
-        <div id="total-print-area" class="only-print">
-            <div id="total-print-container"></div>
-        </div>
-    </main>
-
-    <!-- ======== 日報集計 (管理者専用) ======== -->
-    <main id="summary-view" class="view">
-        <div class="list-controls no-print">
-            <div class="filters" style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="summary-filter-month">月で絞込み</label>
-                    <select id="summary-filter-month">
-                        <option value="">すべての月</option>
-                    </select>
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="summary-filter-project">工事で絞込み</label>
-                    <select id="summary-filter-project">
-                        <option value="">すべての工事</option>
-                    </select>
-                </div>
-            </div>
-            <div class="actions">
-                <button id="btn-export-summary" class="btn btn-secondary btn-small">📊 Excel出力</button>
-                <button id="btn-print-summary" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
-            </div>
-        </div>
-        <div id="print-summary-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
-        <div style="overflow-x:auto;">
-            <table id="summary-table" style="width:100%;border-collapse:collapse;">
-                <thead id="summary-thead"></thead>
-                <tbody id="summary-tbody"></tbody>
-            </table>
-        </div>
-    </main>
-
-    <!-- ======== 社員アカウント管理 ======== -->
-    <main id="employee-manage-view" class="view no-print">
-        <div class="form-card">
-            <h2>👥 社員登録</h2>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <div id="employee-quota-info" style="font-size:0.9rem;color:var(--text-muted); margin:0;">
-                    社員数: <span id="emp-count-badge">読み込み中...</span>
-                </div>
-                <button id="btn-stripe-portal" class="btn" style="background:#0284c7; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; border:none; cursor:pointer; display:none; font-size:0.85rem;">💳 プラン・お支払い情報の変更</button>
-            </div>
-            <h3 id="employee-form-title">新しい社員を追加</h3>
-            <form id="employee-add-form">
-                <!-- 編集時のための隠しフィールド -->
-                <input type="hidden" id="emp-edit-original-name" value="">
-                
-                <div class="form-row">
-                    <div class="form-group" style="flex: 2;">
-                        <label for="emp-name">氏名 <span style="color:red">*</span></label>
-                        <input type="text" id="emp-name" placeholder="例: 田中 花子" required>
-                    </div>
-                    <div class="form-group" style="flex: 1.5;">
-                        <label for="emp-join-date">入社年月日</label>
-                        <input type="date" id="emp-join-date">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="emp-age">年齢</label>
-                        <input type="number" id="emp-age" placeholder="例: 25" min="0" max="120">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="emp-nationality">国籍</label>
-                        <select id="emp-nationality">
-                            <option value="日本">日本</option>
-                            <option value="ベトナム">ベトナム</option>
-                            <option value="その他">その他</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="emp-status-class">区分</label>
-                        <select id="emp-status-class">
-                            <option value="該当なし">該当なし</option>
-                            <option value="研修生">研修生</option>
-                            <option value="特定技能者">特定技能者</option>
-                            <option value="エンジニア">エンジニア</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
-                    <button type="submit" id="emp-add-btn" class="btn btn-primary">社員を追加</button>
-                    <button type="button" id="btn-emp-cancel-edit" class="btn btn-secondary" style="display: none;">キャンセル</button>
-                </div>
-                <div id="emp-add-message" class="message hidden"></div>
-            </form>
-            <div style="margin-top:30px;">
-                <h3>登録済み社員一覧</h3>
-                <div id="employee-list-container">
-                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:var(--bg-muted, #f1f5f9);border-bottom:2px solid var(--border);">
-                            <th style="padding:10px;text-align:left;">氏名</th>
-                            <th style="padding:10px;text-align:left;">入社年月日</th>
-                            <th style="padding:10px;text-align:center;">年齢</th>
-                            <th style="padding:10px;text-align:center;">国籍</th>
-                            <th style="padding:10px;text-align:left;">区分</th>
-                            <th style="padding:10px;text-align:center;width:120px;">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="employee-list-tbody"></tbody>
-                </table>
-                </div>
-            </div>
-
-
-        </div>
-    </main>
-</div>
-
-<!-- ======== 週報A4印刷用コンテナ ======== -->
-<div id="print-weekly-action-container" class="only-print"></div>
-
-<!-- ======== 工事編集モーダル ======== -->
-<div id="edit-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;overflow-y:auto;">
-    <div style="background:var(--card-bg);max-width:700px;width:90%;margin:40px auto;padding:30px;border-radius:12px;">
-        <h3 style="margin-bottom:20px;">✏️ 工事情報を編集</h3>
-        <div class="form-row">
-            <div class="form-group" style="flex:2;">
-                <label for="edit-project">工事名 <span style="color:red">*</span></label>
-                <input type="text" id="edit-project" required>
-            </div>
-            <div class="form-group" style="flex:1;">
-                <label for="edit-project-number">工事番号 <span style="color:red">*</span></label>
-                <input type="text" id="edit-project-number" required>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="edit-tonnage">加工トン数 (t) <span style="color:red">*</span></label>
-                <input type="text" id="edit-tonnage" placeholder="例: 15.5" required pattern="^[0-9]+(\.[0-9]+)?$" title="半角数字（正の数・小数）で入力してください。">
-            </div>
-            <div class="form-group">
-                <label for="edit-sales-rep">商社・営業担当</label>
-                <select id="edit-sales-rep">
-                    <option value="">選択してください</option>
-                </select>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="edit-const-rep">工務担当</label>
-                <select id="edit-const-rep">
-                    <option value="">選択してください</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="edit-site-rep">現場担当</label>
-                <select id="edit-site-rep">
-                    <option value="">選択してください</option>
-                </select>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="edit-start">製作開始日 <span style="color:red">*</span></label>
-                <input type="date" id="edit-start" required>
-            </div>
-            <div class="form-group">
-                <label for="edit-end">納期 (製作完了日) <span style="color:red">*</span></label>
-                <input type="date" id="edit-end" required>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group" style="flex:3;">
-                <label for="edit-notes">備考・特記事項</label>
-                <input type="text" id="edit-notes">
-            </div>
-            <div class="form-group" style="flex:1;">
-                <label for="edit-bar-pattern">バーの模様</label>
-                <select id="edit-bar-pattern">
-                    <option value="solid">塗りつぶし</option>
-                    <option value="stripe">スポット（点線）</option>
-                </select>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="edit-bar-color">バーの色</label>
-            <input type="color" id="edit-bar-color" value="#3b82f6">
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
-            <input type="checkbox" id="edit-completed" style="width:20px;height:20px;">
-            <label for="edit-completed" style="font-weight:bold;">工程完了</label>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button type="button" id="edit-save-btn" class="btn btn-primary btn-large">保存する</button>
-            <button type="button" id="edit-cancel-btn" class="btn btn-secondary btn-large">キャンセル</button>
-            <button type="button" id="edit-delete-btn" class="btn btn-large" style="background:#dc2626;color:white;margin-left:auto;">🗑️ 削除する</button>
-        </div>
-        <div id="edit-modal-msg" class="message hidden" style="margin-top:10px;"></div>
+      </div>
     </div>
-</div>
+  </section>
 
-<!-- ======== タスク行テンプレート（週の予定と実績で使用） ======== -->
-<template id="task-row-template">
-    <!-- このテンプレートは使用しません。JSで直接DOMを生成します -->
-</template>
-
-
-<!-- ======== 初回ログイン パスワード変更モーダル ======== -->
-<div id="password-change-modal" class="login-wrapper" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(0,0,0,0.7);">
-    <div class="login-card" style="max-width:450px;width:100%;">
-        <h2>🔑 パスワードの初期設定</h2>
-        <p>初回登録時に発行された仮パスワードを変更して、ご自身で新しいパスワードを設定してください。</p>
-        <form id="password-change-form">
-            <div class="form-group" style="margin-bottom:20px;text-align:left;">
-                <label for="new-password" style="display:block;margin-bottom:8px;font-weight:600;">新しいパスワード</label>
-                <input type="password" id="new-password" required minlength="6" placeholder="新しいパスワード（6文字以上）" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);">
-            </div>
-            <div class="form-group" style="margin-bottom:20px;text-align:left;">
-                <label for="new-password-confirm" style="display:block;margin-bottom:8px;font-weight:600;">新しいパスワード（確認）</label>
-                <input type="password" id="new-password-confirm" required minlength="6" placeholder="もう一度新しいパスワードを入力" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);">
-            </div>
-            <button type="submit" class="btn btn-primary btn-large" style="width:100%;padding:15px;font-size:1.1rem;">パスワードを変更して利用開始</button>
-            <button type="button" id="btn-password-change-logout" class="btn btn-secondary" style="width:100%;padding:12px;margin-top:10px;">キャンセルしてログアウト</button>
-            <div id="password-change-error" class="message error hidden" style="margin-top:15px;"></div>
-            <div id="password-change-success" class="message success hidden" style="margin-top:15px;"></div>
-        </form>
-    </div>
-</div>
-
-<!-- 週報詳細モーダル (管理者承認用) は不要になったため削除 -->
-
-<!-- ======== 日報詳細モーダル (工事集計画面セルクリック用) ======== -->
-<div id="history-detail-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;overflow-y:auto;align-items:center;justify-content:center;">
-    <div style="background:var(--card-bg);max-width:600px;width:95%;padding:20px 15px;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);margin:40px auto;box-sizing:border-box;">
-        <h3 id="history-detail-title" style="margin-bottom:15px;border-bottom:2px solid var(--primary-color);padding-bottom:10px;font-size:1.15rem;">日報作業詳細</h3>
-        <div id="history-detail-content" style="max-height:400px;overflow-y:auto;overflow-x:hidden;margin-bottom:20px;width:100%;box-sizing:border-box;padding-right:4px;">
-            <!-- ここに動的に日報詳細が流し込まれる -->
+  <!-- HOW IT WORKS -->
+  <section style="padding: 100px 5%; background: #fff;" id="導入事例">
+    <div style="maxWidth: 1120px; margin: 0 auto;">
+      <div class="fade-in-element" style="textAlign: center; marginBottom: 60px;">
+        <span class="tag">導入の流れ</span>
+        <h2 style="fontSize: clamp(28px, 4vw, 44px); fontWeight: 900; letterSpacing: -0.02em;">
+          最短その日から使える
+        </h2>
+      </div>
+      
+      <div class="step-row" style="display: flex; gap: 0; alignItems: stretch;">
+        <div class="step-item fade-in-element" data-delay="0" style="flex: 1; padding: 0 32px; borderRight: 1px solid #E5E7EB; textAlign: center;">
+          <div style="fontSize: 48px; fontWeight: 900; color: rgba(15, 98, 254, 0.13); letterSpacing: -0.04em; marginBottom: 8px;">01</div>
+          <h3 style="fontSize: 18px; fontWeight: 700; marginBottom: 10px;">アカウント登録</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">メールアドレスと会社名を入力するだけ。2分で完了します。</p>
         </div>
-        <div style="text-align:right;">
-            <button type="button" id="history-detail-close-btn" class="btn btn-secondary btn-large" style="padding:10px 20px;font-size:0.95rem;">閉じる</button>
+        <div class="step-item fade-in-element" data-delay="0.12" style="flex: 1; padding: 0 32px; borderRight: 1px solid #E5E7EB; textAlign: center;">
+          <div style="fontSize: 48px; fontWeight: 900; color: rgba(15, 98, 254, 0.13); letterSpacing: -0.04em; marginBottom: 8px;">02</div>
+          <h3 style="fontSize: 18px; fontWeight: 700; marginBottom: 10px;">社員を招待</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">招待リンクを送るだけで社員がアカウント作成できます。</p>
         </div>
+        <div class="step-item fade-in-element" data-delay="0.24" style="flex: 1; padding: 0 32px; textAlign: center;">
+          <div style="fontSize: 48px; fontWeight: 900; color: rgba(15, 98, 254, 0.13); letterSpacing: -0.04em; marginBottom: 8px;">03</div>
+          <h3 style="fontSize: 18px; fontWeight: 700; marginBottom: 10px;">日報入力スタート</h3>
+          <p style="fontSize: 14px; color: var(--gray); lineHeight: 1.75;">その日から現場での入力が始められます。</p>
+        </div>
+      </div>
     </div>
-</div>
+  </section>
 
-<!-- 画面内トースト通知用コンテナ -->
-<div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
+  <!-- PRICING -->
+  <section style="padding: 100px 5%; background: var(--light);" id="料金">
+    <div style="maxWidth: 1120px; margin: 0 auto;">
+      <div class="fade-in-element" style="textAlign: center; marginBottom: 60px;">
+        <span class="tag">料金プラン</span>
+        <h2 style="fontSize: clamp(28px, 4vw, 44px); fontWeight: 900; letterSpacing: -0.02em; marginBottom: 16px;">
+          シンプルな料金体系
+        </h2>
+        <p style="color: var(--gray); fontSize: 16px;">すべてのプランで14日間の無料トライアル付き</p>
+      </div>
 
-<!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260603-01"></script>
-<!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
+      <div class="grid-3-plans">
+        <div class="plan-card normal fade-in-element" data-delay="0">
+          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">スタータープラン</div>
+          <div style="display: flex; alignItems: baseline; gap: 4px; marginBottom: 4px;">
+            <span style="fontSize: 36px; fontWeight: 900; letterSpacing: -0.03em;">¥9,800</span>
+            <span style="fontSize: 14px; opacity: 0.7;">/ 月</span>
+          </div>
+          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">小規模チーム向け</div>
+          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: var(--accent);">👤 〜20名まで利用可能</div>
+          <div style="marginBottom: 28px;">
+            <div class="check-item"><span class="check-icon" style="color: var(--accent);">✓</span><span>日報入力・閲覧</span></div>
+            <div class="check-item"><span class="check-icon" style="color: var(--accent);">✓</span><span>管理者ダッシュボード</span></div>
+            <div class="check-item"><span class="check-icon" style="color: var(--accent);">✓</span><span>CSV出力</span></div>
+            <div class="check-item"><span class="check-icon" style="color: var(--accent);">✓</span><span>メールサポート</span></div>
+          </div>
+          <a href="/onboarding.html" class="btn-outline" style="width: 100%; text-align: center; padding: 14px; border-radius: 10px; font-size: 14px;">14日間無料トライアル</a>
+        </div>
+
+        <div class="plan-card highlight fade-in-element" data-delay="0.1">
+          <div style="background: rgba(255,255,255,0.2); borderRadius: 100px; display: inline-block; padding: 4px 14px; fontSize: 11px; fontWeight: 700; marginBottom: 16px; letterSpacing: 0.06em;">⭐ 人気No.1</div>
+          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">スタンダードプラン</div>
+          <div style="display: flex; alignItems: baseline; gap: 4px; marginBottom: 4px;">
+            <span style="fontSize: 36px; fontWeight: 900; letterSpacing: -0.03em;">¥24,800</span>
+            <span style="fontSize: 14px; opacity: 0.7;">/ 月</span>
+          </div>
+          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">中規模建設会社向け（人気）</div>
+          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: #fff;">👤 〜100名まで利用可能</div>
+          <div style="marginBottom: 28px;">
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>スタータープランの全機能</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>PDF・Excel出力</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>複数現場管理</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>電話・チャットサポート</span></div>
+          </div>
+          <a href="/onboarding.html" class="btn-primary" style="width: 100%; text-align: center; padding: 14px; border-radius: 10px; font-size: 14px; background: #fff; color: var(--accent);">14日間無料トライアル</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="
+    padding: 100px 5%;
+    background: var(--dark);
+    position: relative;
+    overflow: hidden;
+  ">
+    <div style="
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(15, 98, 254, 0.19) 0%, transparent 65%);
+      pointer-events: none;
+    "></div>
+    <div style="maxWidth: 700px; margin: 0 auto; textAlign: center; position: relative; zIndex: 1;">
+      <div class="fade-in-element">
+        <span class="tag" style="background: rgba(15, 98, 254, 0.2); color: #93C5FD;">今すぐ始める</span>
+        <h2 style="fontSize: clamp(28px, 5vw, 48px); fontWeight: 900; color: #fff; letterSpacing: -0.03em; margin: 0 0 20px;">
+          日報管理の悩みを、<br />今日終わらせよう。
+        </h2>
+        <p style="color: #9CA3AF; fontSize: 16px; lineHeight: 1.75; marginBottom: 40px;">
+          14日間無料でお試しいただけます。<br />
+          14日間は請求が発生しません。
+        </p>
+        <div style="display: flex; gap: 16px; justifyContent: center; flexWrap: wrap;">
+          <a href="/onboarding.html" class="btn-primary" style="fontSize: 16px; padding: 16px 40px;">
+            無料トライアルを始める →
+          </a>
+          <a href="mailto:info@areva.co.jp" class="btn-outline" style="fontSize: 16px; padding: 15px 32px; borderColor: #4B5563; color: #D1D5DB;">
+            お問い合わせ
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="background: #050508; padding: 40px 5%; borderTop: 1px solid #1F2937;">
+    <div style="maxWidth: 1120px; margin: 0 auto; display: flex; justifyContent: space-between; alignItems: center; flexWrap: wrap; gap: 16px;">
+      <div style="fontWeight: 900; fontSize: 18px; color: var(--accent); letterSpacing: -0.02em;">
+        工事・日報管理システム
+      </div>
+      <div style="display: flex; gap: 28px;">
+        <a style="fontSize: 12px; color: #6B7280; transition: color 0.2s;" href="#">利用規約</a>
+        <a style="fontSize: 12px; color: #6B7280; transition: color 0.2s;" href="#">プライバシーポリシー</a>
+        <a style="fontSize: 12px; color: #6B7280; transition: color 0.2s;" href="#">特定商取引法に基づく表記</a>
+        <a style="fontSize: 12px; color: #6B7280; transition: color 0.2s;" href="mailto:info@areva.co.jp">お問い合わせ</a>
+      </div>
+      <div style="fontSize: 12px; color: #4B5563;">© 2026 工事・日報管理システム All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Vanilla JS for Scroll and Fade-in features -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // 1. Navbar transition on scroll
+      window.addEventListener("scroll", () => {
+        const nav = document.getElementById("navbar");
+        if (window.scrollY > 40) {
+          nav.classList.add("scrolled");
+        } else {
+          nav.classList.remove("scrolled");
+        }
+      });
+
+      // 2. IntersectionObserver for Fade-in effects
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const delay = parseFloat(entry.target.dataset.delay || 0);
+            setTimeout(() => {
+              entry.target.classList.add("in-view");
+            }, delay * 1000);
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.15
+      });
+
+      document.querySelectorAll(".fade-in-element").forEach(el => {
+        observer.observe(el);
+      });
+    });
+  </script>
 </body>
 </html>

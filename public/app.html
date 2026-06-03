@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+
+    <script>
+        (function() {
+            const RESET_KEY = 'sw_reset_v40';
+            if (!localStorage.getItem(RESET_KEY)) {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        var promises = [];
+                        for (var i = 0; i < registrations.length; i++) {
+                            promises.push(registrations[i].unregister());
+                        }
+                        Promise.all(promises).then(function() {
+                            if ('caches' in window) {
+                                caches.keys().then(function(names) {
+                                    for (var j = 0; j < names.length; j++) {
+                                        caches.delete(names[j]);
+                                    }
+                                });
+                            }
+                            localStorage.setItem(RESET_KEY, 'true');
+                            window.location.reload(true);
+                        });
+                    }).catch(function(err) {
+                        console.error('Failed to reset SW:', err);
+                    });
+                } else {
+                    localStorage.setItem(RESET_KEY, 'true');
+                }
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日報管理システム</title>
+    <link rel="stylesheet" href="style-v4.css?v=20260601-0690">
+    <link rel="manifest" href="manifest.json">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS for Styled Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <!-- 動的な印刷スタイル（JS側から書き換え） -->
+    <style id="print-dynamic-style"></style>
+    <!-- トースト通知用のCSS -->
+    <style>
+        .toast-card {
+            background: var(--bg-card, #ffffff);
+            color: var(--text-main, #1e293b);
+            border-left: 4px solid var(--primary-color, #0284c7);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            padding: 14px 18px;
+            border-radius: 8px;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: toastSlideIn 0.3s ease-out forwards;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            z-index: 12000;
+        }
+        .toast-card.toast-success { border-left-color: #10b981; }
+        .toast-card.toast-warning { border-left-color: #f59e0b; }
+        .toast-card.toast-error { border-left-color: #ef4444; }
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-left: 10px;
+            line-height: 1;
+        }
+        @keyframes toastSlideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastFadeOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(120%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== 読み込み中 ========== -->
+<div id="loading-container" class="login-wrapper">
+    <div class="login-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;">
+        <div class="spinner" style="width:40px;height:40px;border:4px solid rgba(37,99,235,0.1);border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
+        <div style="font-size:1.2rem;font-weight:bold;color:var(--primary);">システム読み込み中...</div>
+        <p style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);">接続状態を確認しています。少々お待ちください。</p>
+    </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+
+<!-- ========== ログイン画面 ========== -->
+<div id="login-container" class="login-wrapper hidden">
+    <div class="login-card">
+        <h2>システム ログイン</h2>
+        <p>ご登録済みのメールアドレスとパスワードを入力してください。</p>
+        <form id="login-form" autocomplete="off">
+            <div class="form-group">
+                <label for="login-email">メールアドレス</label>
+                <input type="email" id="login-email" required placeholder="example@company.com" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="login-password">パスワード</label>
+                <div style="position:relative;display:flex;align-items:center;">
+                    <input type="password" id="login-password" required style="padding-right:40px;width:100%;" autocomplete="new-password">
+                    <button type="button" class="toggle-password-btn" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;color:var(--text-muted);"
+                        onclick="const inp=document.getElementById('login-password');const t=inp.type==='text';inp.type=t?'password':'text';this.querySelector('.eye-open').style.display=t?'block':'none';this.querySelector('.eye-closed').style.display=t?'none':'block';">
+                        <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:22px;height:22px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:22px;height:22px;display:none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" id="btn-login" class="btn btn-primary btn-large">ログイン</button>
+            <div id="login-error" class="message error hidden">ログインに失敗しました。</div>
+        </form>
+
+        <div style="margin-top:20px;text-align:center;border-top:1px solid var(--border);padding-top:16px;">
+            <button type="button" id="btn-show-reset" style="background:none;border:none;color:#2563eb;font-size:0.9rem;cursor:pointer;text-decoration:underline;">パスワードをお忘れの方はこちら</button>
+        </div>
+
+        <div id="reset-password-section" style="display:none;margin-top:16px;">
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;">
+                <p style="font-size:0.9rem;color:#1d4ed8;margin-bottom:12px;font-weight:600;">🔑 パスワードの再設定</p>
+                <p style="font-size:0.85rem;color:#374151;margin-bottom:14px;line-height:1.5;">登録済みのメールアドレスを入力すると、再設定用のリンクをお送りします。</p>
+                <div style="display:flex;gap:8px;">
+                    <input type="email" id="reset-email" placeholder="メールアドレスを入力" style="flex:1;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;">
+                    <button type="button" id="btn-send-reset" class="btn btn-primary" style="padding:10px 16px;font-size:0.9rem;">送信</button>
+                </div>
+                <div id="reset-success" class="message hidden" style="margin-top:10px;background:#f0fdf4;color:#16a34a;border-radius:6px;padding:10px;font-size:0.85rem;"></div>
+                <div id="reset-error" class="message hidden" style="margin-top:10px;background:#fef2f2;color:#dc2626;border-radius:6px;padding:10px;font-size:0.85rem;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== メインアプリ ========== -->
+<div id="app-container" class="app-container hidden">
+    <header class="no-print">
+        <div class="header-top">
+            <h1>工事管理システム</h1>
+            <div class="user-info">
+                <span id="current-company-name" style="margin-right:15px;font-weight:bold;color:var(--primary-color,#2563eb);"></span>
+                <span id="user-role-badge" style="display:none;margin-right:15px;font-weight:bold;padding:4px 8px;border-radius:4px;font-size:0.8rem;"></span>
+                <span id="current-user-email"></span>
+                <button id="theme-toggle" class="btn btn-secondary btn-small" title="テーマ切り替え">🌙 テーマ切替</button>
+                <button id="btn-logout" class="btn btn-secondary btn-small">ログアウト</button>
+            </div>
+        </div>
+        <nav class="tabs">
+            <button class="tab-btn active tab-group-input" data-target="daily-report-input-view">日報入力</button>
+            <button class="tab-btn tab-group-history" data-target="daily-report-history-view">工事別作業集計（月間）</button>
+            <button class="tab-btn tab-group-history" data-target="daily-report-total-view">工事別作業集計（累計）</button>
+            <button class="tab-btn tab-group-schedule" data-target="gantt-view">工程管理表</button>
+            <button class="tab-btn admin-only tab-group-schedule" data-target="schedule-input-view" style="display:none;">工事登録</button>
+            <button class="tab-btn admin-only tab-group-history" data-target="summary-view" style="display:none;">日報集計</button>
+            <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none;background:#7c3aed;color:white;margin-left:auto;">👥 社員登録</button>
+        </nav>
+    </header>
+
+    <!-- ======== 工事登録画面 (管理者専用) ======== -->
+    <main id="schedule-input-view" class="view no-print">
+        <div class="form-card">
+            <h2 id="schedule-form-title">工事を登録</h2>
+            <form id="schedule-form">
+                <input type="hidden" id="sched-id" value="">
+
+                <!-- 1. 工事名 & 工事番号 -->
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label for="sched-project">工事名 <span style="color:red">*</span></label>
+                        <input type="text" id="sched-project" placeholder="例: ○□ビル新築工事" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label for="sched-project-number">工事番号 <span style="color:red">*</span></label>
+                        <input type="text" id="sched-project-number" placeholder="例: KP-2026-001" required>
+                    </div>
+                </div>
+
+                <!-- 2. 加工トン数 & 商社・営業担当 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sched-tonnage">加工トン数 (t) <span style="color:red">*</span></label>
+                        <input type="text" id="sched-tonnage" placeholder="例: 15.5" required pattern="^[0-9]+(\.[0-9]+)?$" title="半角数字（正の数・小数）で入力してください。">
+                    </div>
+                    <div class="form-group">
+                        <label for="sched-sales-rep">商社・営業担当</label>
+                        <select id="sched-sales-rep">
+                            <option value="">選択してください</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3. 工務担当 & 現場担当 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sched-const-rep">工務担当</label>
+                        <select id="sched-const-rep">
+                            <option value="">選択してください</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sched-site-rep">現場担当</label>
+                        <select id="sched-site-rep">
+                            <option value="">選択してください</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 4. 製作開始日 & 納期 -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sched-start">製作開始日 <span style="color:red">*</span></label>
+                        <input type="date" id="sched-start" required>
+                        <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="today">今日</button>
+                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="tomorrow">明日</button>
+                            <button type="button" class="btn btn-secondary btn-small btn-date-shortcut" data-target="sched-start" data-type="next-monday">来週月曜</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="sched-end">納期 (製作完了日) <span style="color:red">*</span></label>
+                        <input type="date" id="sched-end" required>
+                    </div>
+                </div>
+
+                <!-- 5. 備考・バー模様・完了 -->
+                <div class="form-row">
+                    <div class="form-group" style="flex:3;">
+                        <label for="sched-notes">備考・特記事項</label>
+                        <input type="text" id="sched-notes" placeholder="搬入条件や特殊仕様など">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label for="sched-bar-pattern">バーの模様 (工程表用)</label>
+                        <select id="sched-bar-pattern">
+                            <option value="solid">塗りつぶし（通常）</option>
+                            <option value="stripe">スポット（点線）</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0;min-width:100px;display:flex;align-items:center;gap:8px;margin-top:20px;">
+                        <input type="checkbox" id="sched-completed" style="width:20px;height:20px;margin:0;">
+                        <label for="sched-completed" style="margin:0;font-weight:bold;white-space:nowrap;">工程完了</label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="display:none;">
+                    <label for="sched-author">登録者（氏名）:</label>
+                    <input type="text" id="sched-author" readonly>
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" id="sched-submit-btn" class="btn btn-primary btn-large">工事を登録</button>
+                    <button type="button" id="sched-cancel-btn" class="btn btn-secondary btn-large hidden" style="background-color:#64748b;color:white;">編集をキャンセル</button>
+                </div>
+                <div id="sched-submit-message" class="message hidden">工事情報を保存しました！</div>
+            </form>
+        </div>
+
+        <!-- 工事候補サジェスト（非表示） -->
+        <datalist id="project-suggestions"></datalist>
+    </main>
+
+    <!-- ======== 工程管理表（ガントチャート）======== -->
+    <main id="gantt-view" class="view">
+        <div class="list-controls no-print" style="margin-bottom:15px;">
+            <div class="filters" style="display:flex;gap:10px;align-items:center;">
+                <label for="gantt-year" style="font-weight:bold;color:var(--text);">対象年度:</label>
+                <select id="gantt-year" style="padding:10px;font-size:1rem;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);">
+                    <option value="2025">2025年度 (R7)</option>
+                    <option value="2026" selected>2026年度 (R8)</option>
+                    <option value="2027">2027年度 (R9)</option>
+                    <option value="2028">2028年度 (R10)</option>
+                </select>
+            </div>
+            <div class="actions">
+                <button id="btn-export-gantt" class="btn btn-secondary btn-small">📊 Excel出力</button>
+                <button id="btn-print-gantt" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
+            </div>
+        </div>
+        <!-- ガントチャートタイトル（印刷用） -->
+        <div id="print-gantt-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
+        <div class="gantt-wrapper" style="overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;">
+            <div id="gantt-container"></div>
+        </div>
+    </main>
+
+
+
+    <!-- ======== 日報入力画面 (職人・社員・管理者共通) ======== -->
+    <main id="daily-report-input-view" class="view active no-print">
+        <div class="form-card">
+            <h2>日報入力</h2>
+            <form id="daily-report-form">
+                <!-- 社員選択 -->
+                <div class="form-group">
+                    <label for="report-member-select">社員名 <span style="color:red">*</span></label>
+                    <select id="report-member-select" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
+                        <option value="">社員を選択してください</option>
+                    </select>
+                </div>
+
+                <!-- 日付選択 -->
+                <div class="form-group">
+                    <label for="report-date">作業日 <span style="color:red">*</span></label>
+                    <input type="date" id="report-date" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
+                </div>
+
+                <!-- 工事選択 -->
+                <div class="form-group">
+                    <label for="report-project-id">工事名 <span style="color:red">*</span></label>
+                    <select id="report-project-id" required style="width:100%;max-width:400px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
+                        <option value="">工事を選択してください</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>作業内容 <span style="color:red">*</span></label>
+                    
+                    <!-- 青文字グループ -->
+                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="一次加工" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-blue">一次加工</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="組立て" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-blue">組立て</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="溶接" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-blue">溶接</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="塗装" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-blue">塗装</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="出荷" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-blue">出荷</span>
+                        </label>
+                    </div>
+
+                    <!-- 緑文字グループ1 -->
+                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="積算" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">積算</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="見積作成" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">見積作成</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="図面作図" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">図面作図</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="原寸" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">原寸</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="打合せ" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">打合せ</span>
+                        </label>
+                    </div>
+                    <!-- 緑文字グループ2 (自主検査から改行) -->
+                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:12px;">
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="自主検査" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">自主検査</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="検査受検" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">検査受検</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="検査準備" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">検査準備</span>
+                        </label>
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="出荷準備" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-green">出荷準備</span>
+                        </label>
+                    </div>
+
+                    <!-- 黒文字グループ -->
+                    <div class="task-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:10px;margin-top:8px;margin-bottom:0;">
+                        <label class="btn-checkbox-label">
+                            <input type="radio" name="report-tasks" value="その他" class="btn-checkbox-input">
+                            <span class="btn-checkbox-text task-group-black">その他</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- その他の作業 (その他選択時のみ表示) -->
+                <div class="form-group" id="report-notes-group" style="margin-top:15px; display:none;">
+                    <label for="report-notes">その他の作業 <span style="color:red">*</span></label>
+                    <textarea id="report-notes" rows="2" placeholder="具体的な作業内容を入力してください" style="width:100%;border-radius:6px;border:1px solid var(--border);padding:10px;font-size:1rem;background:var(--card-bg);color:var(--text);resize:vertical;"></textarea>
+                </div>
+
+                <!-- 工数 (時間入力、プルダウンUI) -->
+                <div class="form-group">
+                    <label for="report-hours">工数 (時間) <span style="color:red">*</span></label>
+                    <select id="report-hours" required style="width:120px;height:45px;font-size:1rem;border-radius:6px;border:1px solid var(--border);padding:0 10px;background:var(--card-bg);color:var(--text);">
+                        <option value="0.5">0.5H</option>
+                        <option value="1.0">1.0H</option>
+                        <option value="1.5">1.5H</option>
+                        <option value="2.0">2.0H</option>
+                        <option value="2.5">2.5H</option>
+                        <option value="3.0">3.0H</option>
+                        <option value="3.5">3.5H</option>
+                        <option value="4.0">4.0H</option>
+                        <option value="4.5">4.5H</option>
+                        <option value="5.0">5.0H</option>
+                        <option value="5.5">5.5H</option>
+                        <option value="6.0">6.0H</option>
+                        <option value="6.5">6.5H</option>
+                        <option value="7.0">7.0H</option>
+                        <option value="7.5">7.5H</option>
+                        <option value="8.0" selected>8.0H</option>
+                        <option value="8.5">8.5H</option>
+                        <option value="9.0">9.0H</option>
+                        <option value="9.5">9.5H</option>
+                        <option value="10.0">10.0H</option>
+                        <option value="10.5">10.5H</option>
+                        <option value="11.0">11.0H</option>
+                        <option value="11.5">11.5H</option>
+                        <option value="12.0">12.0H</option>
+                        <option value="12.5">12.5H</option>
+                        <option value="13.0">13.0H</option>
+                        <option value="13.5">13.5H</option>
+                        <option value="14.0">14.0H</option>
+                        <option value="14.5">14.5H</option>
+                        <option value="15.0">15.0H</option>
+                        <option value="15.5">15.5H</option>
+                        <option value="16.0">16.0H</option>
+                        <option value="16.5">16.5H</option>
+                        <option value="17.0">17.0H</option>
+                        <option value="17.5">17.5H</option>
+                        <option value="18.0">18.0H</option>
+                        <option value="18.5">18.5H</option>
+                        <option value="19.0">19.0H</option>
+                        <option value="19.5">19.5H</option>
+                        <option value="20.0">20.0H</option>
+                        <option value="20.5">20.5H</option>
+                        <option value="21.0">21.0H</option>
+                        <option value="21.5">21.5H</option>
+                        <option value="22.0">22.0H</option>
+                        <option value="22.5">22.5H</option>
+                        <option value="23.0">23.0H</option>
+                        <option value="23.5">23.5H</option>
+                        <option value="24.0">24.0H</option>
+                    </select>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <button type="submit" id="btn-report-submit" class="btn btn-primary btn-large" style="width:100%; height:50px; font-size:1.1rem; font-weight:bold; margin-top:0; background-color:#2563eb; color:#ffffff; border:none; box-shadow:0 4px 6px rgba(37,99,235,0.2);">作業を登録</button>
+                </div>
+                <div id="report-submit-message" class="message hidden" style="margin-top:10px;"></div>
+            </form>
+        </div>
+
+        <!-- 選択された日の登録済み日報一覧 -->
+        <div class="form-card" style="margin-top:20px; padding:20px;" id="daily-report-buffered-section">
+            <h3 style="margin-bottom:15px; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:8px; color:var(--text); display:flex; justify-content:space-between; align-items:center;">
+                <span>📅 <span id="buffered-date-label">選択日の登録済み作業</span></span>
+                <span style="font-size:0.9rem; font-weight:normal; color:var(--text-muted);">（一日に複数工事の登録が可能です）</span>
+            </h3>
+            <div id="buffered-reports-list" style="display:flex; flex-direction:column; gap:10px;">
+                <p style="text-align:center; color:var(--text-muted); font-style:italic; padding:10px;">日報データがありません。</p>
+            </div>
+            <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border); text-align:right; font-weight:bold; font-size:1.1rem; color:var(--primary-color);">
+                合計工数: <span id="buffered-total-hours">0.0</span> 時間
+            </div>
+        </div>
+    </main>
+
+    <!-- ======== 日報履歴画面 (全員/管理者で表示分け) ======== -->
+    <main id="daily-report-history-view" class="view no-print">
+        <div class="list-controls no-print">
+            <div class="filters">
+                <div class="form-group">
+                    <label for="history-filter-month">対象月</label>
+                    <select id="history-filter-month">
+                        <option value="">すべての月</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="history-filter-project">工事で絞込み</label>
+                    <select id="history-filter-project">
+                        <option value="">すべての工事</option>
+                    </select>
+                </div>
+                <div class="form-group admin-only" style="display:none;">
+                    <label for="history-filter-author">社員で絞込み</label>
+                    <select id="history-filter-author">
+                        <option value="">すべての社員</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="btn-print-history" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
+            </div>
+        </div>
+
+        <!-- 印刷用タイトル -->
+        <div id="print-history-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
+
+        <!-- 履歴一覧コンテナ (JSで動的にカードやテーブルを生成) -->
+        <div id="history-list-container">
+            <p style="text-align:center;color:var(--text-muted);padding:20px;">日報データを読み込み中...</p>
+        </div>
+
+        <!-- 印刷エリア -->
+        <div id="history-print-area" class="only-print">
+            <div id="history-print-container"></div>
+        </div>
+    </main>
+
+    <!-- ======== 工事別作業集計 (累計/全期間) ======== -->
+    <main id="daily-report-total-view" class="view no-print">
+        <div class="list-controls no-print">
+            <div class="filters">
+                <div class="form-group">
+                    <label for="total-filter-project">工事で絞込み</label>
+                    <select id="total-filter-project">
+                        <option value="">すべての工事</option>
+                    </select>
+                </div>
+                <div class="form-group admin-only" style="display:none;">
+                    <label for="total-filter-author">社員で絞込み</label>
+                    <select id="total-filter-author">
+                        <option value="">すべての社員</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="btn-print-total" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
+            </div>
+        </div>
+
+        <!-- 履歴一覧コンテナ (JSで動的にテーブルを生成) -->
+        <div id="total-list-container">
+            <p style="text-align:center;color:var(--text-muted);padding:20px;">日報データを読み込み中...</p>
+        </div>
+
+        <!-- 印刷エリア -->
+        <div id="total-print-area" class="only-print">
+            <div id="total-print-container"></div>
+        </div>
+    </main>
+
+    <!-- ======== 日報集計 (管理者専用) ======== -->
+    <main id="summary-view" class="view">
+        <div class="list-controls no-print">
+            <div class="filters" style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="summary-filter-month">月で絞込み</label>
+                    <select id="summary-filter-month">
+                        <option value="">すべての月</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="summary-filter-project">工事で絞込み</label>
+                    <select id="summary-filter-project">
+                        <option value="">すべての工事</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="btn-export-summary" class="btn btn-secondary btn-small">📊 Excel出力</button>
+                <button id="btn-print-summary" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
+            </div>
+        </div>
+        <div id="print-summary-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
+        <div style="overflow-x:auto;">
+            <table id="summary-table" style="width:100%;border-collapse:collapse;">
+                <thead id="summary-thead"></thead>
+                <tbody id="summary-tbody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- ======== 社員アカウント管理 ======== -->
+    <main id="employee-manage-view" class="view no-print">
+        <div class="form-card">
+            <h2>👥 社員登録</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <div id="employee-quota-info" style="font-size:0.9rem;color:var(--text-muted); margin:0;">
+                    社員数: <span id="emp-count-badge">読み込み中...</span>
+                </div>
+                <button id="btn-stripe-portal" class="btn" style="background:#0284c7; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; border:none; cursor:pointer; display:none; font-size:0.85rem;">💳 プラン・お支払い情報の変更</button>
+            </div>
+            <h3 id="employee-form-title">新しい社員を追加</h3>
+            <form id="employee-add-form">
+                <!-- 編集時のための隠しフィールド -->
+                <input type="hidden" id="emp-edit-original-name" value="">
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="emp-name">氏名 <span style="color:red">*</span></label>
+                        <input type="text" id="emp-name" placeholder="例: 田中 花子" required>
+                    </div>
+                    <div class="form-group" style="flex: 1.5;">
+                        <label for="emp-join-date">入社年月日</label>
+                        <input type="date" id="emp-join-date">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="emp-age">年齢</label>
+                        <input type="number" id="emp-age" placeholder="例: 25" min="0" max="120">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="emp-nationality">国籍</label>
+                        <select id="emp-nationality">
+                            <option value="日本">日本</option>
+                            <option value="ベトナム">ベトナム</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="emp-status-class">区分</label>
+                        <select id="emp-status-class">
+                            <option value="該当なし">該当なし</option>
+                            <option value="研修生">研修生</option>
+                            <option value="特定技能者">特定技能者</option>
+                            <option value="エンジニア">エンジニア</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                    <button type="submit" id="emp-add-btn" class="btn btn-primary">社員を追加</button>
+                    <button type="button" id="btn-emp-cancel-edit" class="btn btn-secondary" style="display: none;">キャンセル</button>
+                </div>
+                <div id="emp-add-message" class="message hidden"></div>
+            </form>
+            <div style="margin-top:30px;">
+                <h3>登録済み社員一覧</h3>
+                <div id="employee-list-container">
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:var(--bg-muted, #f1f5f9);border-bottom:2px solid var(--border);">
+                            <th style="padding:10px;text-align:left;">氏名</th>
+                            <th style="padding:10px;text-align:left;">入社年月日</th>
+                            <th style="padding:10px;text-align:center;">年齢</th>
+                            <th style="padding:10px;text-align:center;">国籍</th>
+                            <th style="padding:10px;text-align:left;">区分</th>
+                            <th style="padding:10px;text-align:center;width:120px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employee-list-tbody"></tbody>
+                </table>
+                </div>
+            </div>
+
+
+        </div>
+    </main>
+</div>
+
+<!-- ======== 週報A4印刷用コンテナ ======== -->
+<div id="print-weekly-action-container" class="only-print"></div>
+
+<!-- ======== 工事編集モーダル ======== -->
+<div id="edit-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;overflow-y:auto;">
+    <div style="background:var(--card-bg);max-width:700px;width:90%;margin:40px auto;padding:30px;border-radius:12px;">
+        <h3 style="margin-bottom:20px;">✏️ 工事情報を編集</h3>
+        <div class="form-row">
+            <div class="form-group" style="flex:2;">
+                <label for="edit-project">工事名 <span style="color:red">*</span></label>
+                <input type="text" id="edit-project" required>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label for="edit-project-number">工事番号 <span style="color:red">*</span></label>
+                <input type="text" id="edit-project-number" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-tonnage">加工トン数 (t) <span style="color:red">*</span></label>
+                <input type="text" id="edit-tonnage" placeholder="例: 15.5" required pattern="^[0-9]+(\.[0-9]+)?$" title="半角数字（正の数・小数）で入力してください。">
+            </div>
+            <div class="form-group">
+                <label for="edit-sales-rep">商社・営業担当</label>
+                <select id="edit-sales-rep">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-const-rep">工務担当</label>
+                <select id="edit-const-rep">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-site-rep">現場担当</label>
+                <select id="edit-site-rep">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-start">製作開始日 <span style="color:red">*</span></label>
+                <input type="date" id="edit-start" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-end">納期 (製作完了日) <span style="color:red">*</span></label>
+                <input type="date" id="edit-end" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:3;">
+                <label for="edit-notes">備考・特記事項</label>
+                <input type="text" id="edit-notes">
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label for="edit-bar-pattern">バーの模様</label>
+                <select id="edit-bar-pattern">
+                    <option value="solid">塗りつぶし</option>
+                    <option value="stripe">スポット（点線）</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="edit-bar-color">バーの色</label>
+            <input type="color" id="edit-bar-color" value="#3b82f6">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+            <input type="checkbox" id="edit-completed" style="width:20px;height:20px;">
+            <label for="edit-completed" style="font-weight:bold;">工程完了</label>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" id="edit-save-btn" class="btn btn-primary btn-large">保存する</button>
+            <button type="button" id="edit-cancel-btn" class="btn btn-secondary btn-large">キャンセル</button>
+            <button type="button" id="edit-delete-btn" class="btn btn-large" style="background:#dc2626;color:white;margin-left:auto;">🗑️ 削除する</button>
+        </div>
+        <div id="edit-modal-msg" class="message hidden" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<!-- ======== タスク行テンプレート（週の予定と実績で使用） ======== -->
+<template id="task-row-template">
+    <!-- このテンプレートは使用しません。JSで直接DOMを生成します -->
+</template>
+
+
+<!-- ======== 初回ログイン パスワード変更モーダル ======== -->
+<div id="password-change-modal" class="login-wrapper" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(0,0,0,0.7);">
+    <div class="login-card" style="max-width:450px;width:100%;">
+        <h2>🔑 パスワードの初期設定</h2>
+        <p>初回登録時に発行された仮パスワードを変更して、ご自身で新しいパスワードを設定してください。</p>
+        <form id="password-change-form">
+            <div class="form-group" style="margin-bottom:20px;text-align:left;">
+                <label for="new-password" style="display:block;margin-bottom:8px;font-weight:600;">新しいパスワード</label>
+                <input type="password" id="new-password" required minlength="6" placeholder="新しいパスワード（6文字以上）" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);">
+            </div>
+            <div class="form-group" style="margin-bottom:20px;text-align:left;">
+                <label for="new-password-confirm" style="display:block;margin-bottom:8px;font-weight:600;">新しいパスワード（確認）</label>
+                <input type="password" id="new-password-confirm" required minlength="6" placeholder="もう一度新しいパスワードを入力" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);">
+            </div>
+            <button type="submit" class="btn btn-primary btn-large" style="width:100%;padding:15px;font-size:1.1rem;">パスワードを変更して利用開始</button>
+            <button type="button" id="btn-password-change-logout" class="btn btn-secondary" style="width:100%;padding:12px;margin-top:10px;">キャンセルしてログアウト</button>
+            <div id="password-change-error" class="message error hidden" style="margin-top:15px;"></div>
+            <div id="password-change-success" class="message success hidden" style="margin-top:15px;"></div>
+        </form>
+    </div>
+</div>
+
+<!-- 週報詳細モーダル (管理者承認用) は不要になったため削除 -->
+
+<!-- ======== 日報詳細モーダル (工事集計画面セルクリック用) ======== -->
+<div id="history-detail-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;overflow-y:auto;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);max-width:600px;width:95%;padding:20px 15px;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);margin:40px auto;box-sizing:border-box;">
+        <h3 id="history-detail-title" style="margin-bottom:15px;border-bottom:2px solid var(--primary-color);padding-bottom:10px;font-size:1.15rem;">日報作業詳細</h3>
+        <div id="history-detail-content" style="max-height:400px;overflow-y:auto;overflow-x:hidden;margin-bottom:20px;width:100%;box-sizing:border-box;padding-right:4px;">
+            <!-- ここに動的に日報詳細が流し込まれる -->
+        </div>
+        <div style="text-align:right;">
+            <button type="button" id="history-detail-close-btn" class="btn btn-secondary btn-large" style="padding:10px 20px;font-size:0.95rem;">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<!-- 画面内トースト通知用コンテナ -->
+<div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
+
+<!-- app.js（Firebase v10 モジュール対応） -->
+<script type="module" src="app-v4.js?v=20260603-01"></script>
+<!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
+</body>
+</html>
