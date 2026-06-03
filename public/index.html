@@ -3,7 +3,7 @@
 <head>
   <script>
     (function() {
-      const RESET_KEY = 'sw_reset_lp_v2';
+      const RESET_KEY = 'sw_reset_lp_v3';
       if (!localStorage.getItem(RESET_KEY)) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -31,7 +31,6 @@
       }
     })();
   </script>
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>工事・日報管理システム | 現場と管理をつなぐクラウド日報</title>
@@ -199,6 +198,7 @@
         padding-bottom: 0 !important;
       }
     }
+
     @media (max-width: 1040px) {
       .nav-menu {
         display: none !important; /* タブレット・スマホは簡易表示 */
@@ -337,7 +337,7 @@
             14日間 無料トライアル →
           </a>
           <a href="/app.html" class="btn-outline" style="fontSize: 16px; padding: 15px 32px;">
-            デモ・ログイン画面へ
+            デモを見る
           </a>
         </div>
         <p style="marginTop: 16px; fontSize: 12px; color: #9CA3AF; opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease 0.5s forwards;">
@@ -356,7 +356,7 @@
         opacity: 0;
         transform: translateY(30px);
         animation: fadeUp 0.8s ease 0.5s forwards;
-      %">
+      ">
         <!-- Browser bar -->
         <div style="background: #F3F4F6; padding: 10px 16px; display: flex; alignItems: center; gap: 8px; borderBottom: 1px solid #E5E7EB;">
           <div style="display: flex; gap: 6px;">
@@ -392,7 +392,7 @@
             
             <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
               <div style="display: flex; gap: 10px; alignItems: center;">
-                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">田</div>
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justify-content: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">田</div>
                 <div>
                   <div style="fontWeight: 600;">田中 一郎</div>
                   <div style="color: var(--gray); fontSize: 11px;">○○ビル新築工事</div>
@@ -406,7 +406,7 @@
 
             <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
               <div style="display: flex; gap: 10px; alignItems: center;">
-                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">佐</div>
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justify-content: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">佐</div>
                 <div>
                   <div style="fontWeight: 600;">佐藤 次郎</div>
                   <div style="color: var(--gray); fontSize: 11px;">△△倉庫改修</div>
@@ -420,7 +420,7 @@
 
             <div style="display: flex; alignItems: center; justifyContent: space-between; padding: 8px 0; borderBottom: 1px solid #F3F4F6; fontSize: 12px;">
               <div style="display: flex; gap: 10px; alignItems: center;">
-                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justifyContent: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">鈴</div>
+                <div style="width: 28px; height: 28px; borderRadius: 50%; background: rgba(15, 98, 254, 0.13); display: flex; alignItems: center; justify-content: center; fontSize: 10px; fontWeight: 700; color: var(--accent);">鈴</div>
                 <div>
                   <div style="fontWeight: 600;">鈴木 三郎</div>
                   <div style="color: var(--gray); fontSize: 11px;">□□工場基礎</div>
@@ -571,24 +571,58 @@
         <p style="color: var(--gray); fontSize: 16px;">すべてのプランで14日間の無料トライアル付き</p>
       </div>
 
-      <div style="max-width: 480px; margin: 0 auto;">
-        <div class="plan-card highlight fade-in-element" data-delay="0" style="background: var(--accent); color: #fff; box-shadow: 0 20px 60px rgba(15, 98, 254, 0.35);">
-          <div style="background: rgba(255,255,255,0.2); borderRadius: 100px; display: inline-block; padding: 4px 14px; fontSize: 11px; fontWeight: 700; marginBottom: 16px; letterSpacing: 0.06em;">⭐ 柔軟な定額プラン</div>
-          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">10名パック追加プラン</div>
+      <div class="grid-3-plans">
+        <!-- 10名パックプラン -->
+        <div class="plan-card normal fade-in-element" data-delay="0">
+          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">10名パックプラン</div>
           <div style="display: flex; alignItems: baseline; gap: 4px; marginBottom: 4px;">
             <span style="fontSize: 36px; fontWeight: 900; letterSpacing: -0.03em;">¥5,000〜</span>
-            <span style="fontSize: 14px; opacity: 0.7;">/ 月 (税別)</span>
+            <span style="fontSize: 14px; opacity: 0.7;">/ 月（税別）</span>
           </div>
-          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">建設会社向け・人数に応じて柔軟にスケール</div>
-          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: #fff;">👤 基本10名まで利用可能 （1口追加ごとに +¥5,000/月）</div>
+          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">人数に応じて柔軟にスケール</div>
+          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: var(--accent);">👤 10名（1口）〜まで利用可能</div>
           <div style="marginBottom: 28px;">
-            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>日報の入力・履歴閲覧</span></div>
-            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>工程管理表（ガントチャート）</span></div>
-            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>工事別作業集計（月間・全期間）</span></div>
-            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>PDF印刷・Excelエクスポート</span></div>
-            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>管理者専用ダッシュボード（承認・催促機能）</span></div>
+            <div class="check-item" style="color: #374151;">
+              <span class="check-icon" style="color: var(--accent);">✓</span>
+              <span>日報入力・閲覧</span>
+            </div>
+            <div class="check-item" style="color: #374151;">
+              <span class="check-icon" style="color: var(--accent);">✓</span>
+              <span>管理者ダッシュボード</span>
+            </div>
+            <div class="check-item" style="color: #374151;">
+              <span class="check-icon" style="color: var(--accent);">✓</span>
+              <span>PDF・Excel出力</span>
+            </div>
+            <div class="check-item" style="color: #374151;">
+              <span class="check-icon" style="color: var(--accent);">✓</span>
+              <span>複数現場管理</span>
+            </div>
+            <div class="check-item" style="color: #374151;">
+              <span class="check-icon" style="color: var(--accent);">✓</span>
+              <span>1口追加ごとに +¥5,000/月</span>
+            </div>
           </div>
-          <a href="/onboarding.html" class="btn-primary" style="width: 100%; text-align: center; padding: 14px; border-radius: 10px; font-size: 14px; background: #fff; color: var(--accent);">14日間無料トライアル</a>
+          <a href="/onboarding.html" class="btn-outline" style="width: 100%; text-align: center; padding: 14px; border-radius: 10px; font-size: 14px; display: block; box-sizing: border-box;">14日間無料トライアル</a>
+        </div>
+
+        <!-- スタンダードプラン -->
+        <div class="plan-card highlight fade-in-element" data-delay="0.1">
+          <div style="background: rgba(255,255,255,0.2); borderRadius: 100px; display: inline-block; padding: 4px 14px; fontSize: 11px; fontWeight: 700; marginBottom: 16px; letterSpacing: 0.06em;">⭐ 人気No.1</div>
+          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">スタンダードプラン</div>
+          <div style="display: flex; alignItems: baseline; gap: 4px; marginBottom: 4px;">
+            <span style="fontSize: 36px; fontWeight: 900; letterSpacing: -0.03em;">¥24,800</span>
+            <span style="fontSize: 14px; opacity: 0.7;">/ 月（税別）</span>
+          </div>
+          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">中規模建設会社向け（人気）</div>
+          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: #fff;">👤 〜100名まで利用可能</div>
+          <div style="marginBottom: 28px;">
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>10名パックの全機能</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>優先サポート</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>複数現場一括管理</span></div>
+            <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>電話・チャットサポート</span></div>
+          </div>
+          <a href="/onboarding.html" class="btn-primary" style="width: 100%; text-align: center; padding: 14px; border-radius: 10px; font-size: 14px; background: #fff; color: var(--accent); display: block; box-sizing: border-box;">14日間無料トライアル</a>
         </div>
       </div>
     </div>
