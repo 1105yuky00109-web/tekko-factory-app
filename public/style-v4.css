@@ -1922,12 +1922,7 @@ body.dark-theme .tab-btn.tab-group-schedule.active {
 }
 
 /* 管理者設定モーダル＆ボタンのホバーエフェクト */
-#btn-admin-settings {
-    transition: transform 0.3s ease;
-}
-#btn-admin-settings:hover {
-    transform: rotate(45deg);
-}
+/* 回転エフェクトは不要のため削除 */
 
 #settings-btn-schedule, #settings-btn-employee {
     transition: all 0.2s ease;
