@@ -84,7 +84,8 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
     return res.status(204).send('');
   }
 
-  const path = req.path || req.url;
+  const rawPath = req.path || req.url || '';
+  const path = rawPath.startsWith('/api') ? rawPath.substring(4) : rawPath;
   
   // 1. 請求書詳細取得API
   if (path === '/get-invoice-details') {
