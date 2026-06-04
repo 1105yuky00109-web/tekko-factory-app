@@ -131,6 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedQty = form.quantity.value;
     if (!selectedQty) return;
 
+    const newLimit = selectedQty * 10;
+    const isConfirmed = confirm(`【プラン変更の最終確認】\n\nご契約プランを「${newLimit}名プラン」に変更します。よろしいですか？\n\n※確定すると、即座に最大登録人数が${newLimit}名に切り替わります。`);
+    if (!isConfirmed) return;
+
     showMsg('プランの変更手続きを実行しています。少々お待ちください...', 'info');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-icon"></span> 処理中...';
