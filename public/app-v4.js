@@ -7523,6 +7523,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsPlanLimit.textContent = maxUsers;
             }
             
+            // トライアル情報の表示
+            const trialInfoDiv = document.getElementById('settings-trial-info');
+            const trialPeriodSpan = document.getElementById('settings-trial-period');
+            if (trialInfoDiv && trialPeriodSpan) {
+                const nowSec = Math.floor(Date.now() / 1000);
+                const trialStart = companyData.trialStart;
+                const trialEnd = companyData.trialEnd;
+                
+                if (trialEnd && nowSec < trialEnd) {
+                    const startDate = new Date(trialStart * 1000);
+                    const endDate = new Date(trialEnd * 1000);
+                    const startStr = `${startDate.getMonth() + 1}月${startDate.getDate()}日`;
+                    const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+                    trialPeriodSpan.textContent = `（${startStr}～${endStr}まで）`;
+                    trialInfoDiv.style.display = 'block';
+                } else {
+                    trialInfoDiv.style.display = 'none';
+                }
+            }
+
             // プラン変更ボタンの紐付け
             if (settingsBtnChangePlan) {
                 settingsBtnChangePlan.onclick = () => {

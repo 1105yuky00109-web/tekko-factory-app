@@ -402,6 +402,8 @@ ${invoiceLink}
         adminEmails: [adminEmail],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         status: 'active',
+        trialStart: subscription.trial_start || null,
+        trialEnd: subscription.trial_end || null,
       });
 
       // サブスクリプション情報の登録
@@ -538,6 +540,19 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
       console.error('Failed to update customer name', custErr);
     }
 
+    // Stripe サブスクリプション詳細の取得 (trial_start, trial_end 取得のため)
+    let trialStart = null;
+    let trialEnd = null;
+    if (session.subscription) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        trialStart = subscription.trial_start || null;
+        trialEnd = subscription.trial_end || null;
+      } catch (subErr) {
+        console.error('Failed to retrieve subscription details in checkout.session.completed', subErr);
+      }
+    }
+
     // Firestore に会社データを作成
     const companyRef = db.collection('companies').doc(companyId);
     const maxUsers = (parseInt(quantity) || 1) * 10;
@@ -553,6 +568,8 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
       adminEmails: [adminEmail],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'active',
+      trialStart: trialStart,
+      trialEnd: trialEnd,
     });
 
     // サブスクリプション情報の登録

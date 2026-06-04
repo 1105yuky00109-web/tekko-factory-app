@@ -113,92 +113,71 @@
     }
 
     /* プランカードスタイル */
-    .plan-cards-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+    .plan-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       margin-top: 8px;
     }
 
-    @media (max-width: 480px) {
-      .plan-cards-container {
-        grid-template-columns: 1fr;
-        gap: 12px;
-      }
-    }
-
-    .plan-card-option {
-      cursor: pointer;
+    .plan-option-label {
       display: block;
       position: relative;
+      cursor: pointer;
     }
 
-    .plan-card-body {
+    .plan-option-label input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .plan-option-body {
+      background: #ffffff;
       border: 2px solid var(--border);
-      border-radius: 12px;
-      padding: 20px 16px;
-      text-align: center;
-      transition: all 0.2s ease;
-      background: #f8fafc;
-      height: 100%;
+      border-radius: 10px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      text-align: left;
     }
 
-    .plan-card-option input:checked + .plan-card-body {
+    .plan-option-label input[type="radio"]:checked + .plan-option-body {
+      background: #f0f9ff;
       border-color: var(--primary);
-      background-color: #eff6ff;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
     }
 
-    .plan-card-option:hover .plan-card-body {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+    .plan-option-label:hover .plan-option-body {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
       border-color: #cbd5e1;
     }
 
-    .plan-card-option input:checked:hover .plan-card-body {
+    .plan-option-label input[type="radio"]:checked:hover .plan-option-body {
       border-color: var(--primary);
     }
 
-    .plan-badge {
-      position: absolute;
-      top: -10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--primary);
-      color: #fff;
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 2px 10px;
-      border-radius: 9999px;
-      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);
-    }
-
-    .plan-name {
-      font-size: 0.9rem;
+    .option-title {
+      font-size: 1.05rem;
       font-weight: 700;
-      color: #1e293b;
-      margin-top: 4px;
-    }
-
-    .plan-price {
-      font-size: 1.4rem;
-      font-weight: 800;
       color: var(--text);
-      margin: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .plan-price span {
-      font-size: 0.8rem;
-      font-weight: normal;
-      color: var(--text-muted);
+    .option-price {
+      color: var(--primary);
+      font-weight: 800;
     }
 
-    .plan-limit {
-      font-size: 0.75rem;
+    .option-desc {
+      font-size: 0.85rem;
       color: var(--text-muted);
+      margin-top: 4px;
     }
 
     /* パスワード入力エリア */
@@ -312,28 +291,60 @@
 
 
       <div class="form-group">
-        <label class="field-label">ご契約プラン</label>
-        <div class="plan-cards-container" style="grid-template-columns: 1fr;">
-          <label class="plan-card-option" style="cursor: default;">
-            <input type="radio" name="plan" value="price_1TaP0sJdCQkwItViebEBEhJa" checked style="display:none;" />
-            <div class="plan-card-body" style="background-color: #eff6ff; border-color: var(--primary);">
-              <div class="plan-name">10名パック追加プラン</div>
-              <div class="plan-price">¥5,000〜<span>/月 (税別)</span></div>
-              <div class="plan-limit">基本10名まで利用可能。1口追加（10名増）ごとに +¥5,000/月 (税別) となります。</div>
+        <label class="field-label">ご契約プラン（上限人数） <span style="color:red">*</span></label>
+        <input type="hidden" name="plan" value="price_1TaP0sJdCQkwItViebEBEhJa" />
+        <div class="plan-options">
+          <label class="plan-option-label">
+            <input type="radio" name="quantity" value="1" checked />
+            <div class="plan-option-body">
+              <div class="option-title">
+                <span>10名プラン (合計 10名まで)</span>
+                <span class="option-price">¥5,000/月<span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span></span>
+              </div>
+              <div class="option-desc">最大10名までのユーザーが利用可能です。</div>
+            </div>
+          </label>
+          <label class="plan-option-label">
+            <input type="radio" name="quantity" value="2" />
+            <div class="plan-option-body">
+              <div class="option-title">
+                <span>20名プラン (合計 20名まで)</span>
+                <span class="option-price">¥10,000/月<span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span></span>
+              </div>
+              <div class="option-desc">最大20名までのユーザーが利用可能です。</div>
+            </div>
+          </label>
+          <label class="plan-option-label">
+            <input type="radio" name="quantity" value="3" />
+            <div class="plan-option-body">
+              <div class="option-title">
+                <span>30名プラン (合計 30名まで)</span>
+                <span class="option-price">¥15,000/月<span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span></span>
+              </div>
+              <div class="option-desc">最大30名までのユーザーが利用可能です。</div>
+            </div>
+          </label>
+          <label class="plan-option-label">
+            <input type="radio" name="quantity" value="4" />
+            <div class="plan-option-body">
+              <div class="option-title">
+                <span>40名プラン (合計 40名まで)</span>
+                <span class="option-price">¥20,000/月<span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span></span>
+              </div>
+              <div class="option-desc">最大40名までのユーザーが利用可能です。</div>
+            </div>
+          </label>
+          <label class="plan-option-label">
+            <input type="radio" name="quantity" value="5" />
+            <div class="plan-option-body">
+              <div class="option-title">
+                <span>50名プラン (合計 50名まで)</span>
+                <span class="option-price">¥25,000/月<span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span></span>
+              </div>
+              <div class="option-desc">最大50名までのユーザーが利用可能です。</div>
             </div>
           </label>
         </div>
-      </div>
-
-      <div class="form-group">
-        <label for="quantity" class="field-label">ご契約口数（ユーザー上限） <span style="color:red">*</span></label>
-        <select id="quantity" name="quantity" class="input-text" style="height: 48px; background: #fff;" required>
-          <option value="1">1口 (最大 10名まで / ¥5,000/月、税込¥5,500)</option>
-          <option value="2">2口 (最大 20名まで / ¥10,000/月、税込¥11,000)</option>
-          <option value="3">3口 (最大 30名まで / ¥15,000/月、税込¥16,500)</option>
-          <option value="4">4口 (最大 40名まで / ¥20,000/月、税込¥22,000)</option>
-          <option value="5">5口 (最大 50名まで / ¥25,000/月、税込¥27,500)</option>
-        </select>
       </div>
 
       <div class="form-group">

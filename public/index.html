@@ -3,7 +3,7 @@
 <head>
   <script>
     (function() {
-      const RESET_KEY = 'sw_reset_lp_v5';
+      const RESET_KEY = 'sw_reset_lp_v6';
       if (!localStorage.getItem(RESET_KEY)) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -575,13 +575,41 @@
         <!-- 10名パック追加プラン -->
         <div class="plan-card highlight fade-in-element" data-delay="0" style="background: var(--accent); color: #fff; box-shadow: 0 20px 60px rgba(15, 98, 254, 0.35);">
           <div style="background: rgba(255,255,255,0.2); borderRadius: 100px; display: inline-block; padding: 4px 14px; fontSize: 11px; fontWeight: 700; marginBottom: 16px; letterSpacing: 0.06em;">⭐ 柔軟な定額プラン</div>
-          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">10名パック追加プラン</div>
+          <div style="fontSize: 13px; fontWeight: 600; opacity: 0.7; marginBottom: 8px;">ユーザー上限数で選べるプラン</div>
           <div style="display: flex; alignItems: baseline; gap: 4px; marginBottom: 4px;">
             <span style="fontSize: 36px; fontWeight: 900; letterSpacing: -0.03em;">¥5,000〜</span>
             <span style="fontSize: 14px; opacity: 0.7;">/ 月（税別）</span>
           </div>
-          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 8px;">建設会社向け・人数に応じて柔軟にスケール</div>
-          <div style="fontSize: 13px; fontWeight: 700; marginBottom: 20px; color: #fff;">👤 10名〜利用可能 （10名追加ごとに＋¥5,000/月）</div>
+          <div style="fontSize: 12px; opacity: 0.6; marginBottom: 16px;">建設会社向け・人数に合わせて選べる5つのプラン</div>
+          
+          <!-- プラン料金表 -->
+          <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; color: #fff;">
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-weight: bold;">👤 10名プラン（上限10名）</span>
+              <span style="font-weight: 800;">¥5,000/月<span style="font-weight: normal; font-size: 11px;"> (税別)</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-weight: bold;">👤 20名プラン（上限20名）</span>
+              <span style="font-weight: 800;">¥10,000/月<span style="font-weight: normal; font-size: 11px;"> (税別)</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-weight: bold;">👤 30名プラン（上限30名）</span>
+              <span style="font-weight: 800;">¥15,000/月<span style="font-weight: normal; font-size: 11px;"> (税別)</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-weight: bold;">👤 40名プラン（上限40名）</span>
+              <span style="font-weight: 800;">¥20,000/月<span style="font-weight: normal; font-size: 11px;"> (税別)</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+              <span style="font-weight: bold;">👤 50名プラン（上限50名）</span>
+              <span style="font-weight: 800;">¥25,000/月<span style="font-weight: normal; font-size: 11px;"> (税別)</span></span>
+            </div>
+          </div>
+
+          <div style="fontSize: 12px; opacity: 0.8; margin-bottom: 20px; text-align: center; font-weight: bold;">
+            ※10名単位で追加可能（10名増ごとに +¥5,000/月）
+          </div>
+
           <div style="marginBottom: 28px;">
             <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>日報の入力・履歴閲覧</span></div>
             <div class="check-item" style="color: rgba(255,255,255,0.9);"><span class="check-icon" style="color: #fff;">✓</span><span>工程管理表（ガントチャート）</span></div>
