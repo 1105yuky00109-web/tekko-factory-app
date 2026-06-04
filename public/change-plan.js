@@ -62,6 +62,26 @@ document.addEventListener('DOMContentLoaded', () => {
         companyNameEl.textContent = currentCompany.companyName || cid;
         currentPlanNameEl.textContent = `${currentLimit}名プラン`;
 
+        // トライアル表示の追加
+        const trialInfoRow = document.getElementById('trial-info-row');
+        const trialPeriodText = document.getElementById('trial-period-text');
+        if (trialInfoRow && trialPeriodText) {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const trialStart = currentCompany.trialStart;
+          const trialEnd = currentCompany.trialEnd;
+
+          if (trialEnd && nowSec < trialEnd) {
+            const startDate = new Date(trialStart * 1000);
+            const endDate = new Date(trialEnd * 1000);
+            const startStr = `${startDate.getMonth() + 1}月${startDate.getDate()}日`;
+            const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+            trialPeriodText.textContent = `無料トライアル中（${startStr}～${endStr}まで）`;
+            trialInfoRow.style.display = 'flex';
+          } else {
+            trialInfoRow.style.display = 'none';
+          }
+        }
+
         // オプション（口数追加）の動的描画
         renderUpgradeOptions(currentLimit);
 
