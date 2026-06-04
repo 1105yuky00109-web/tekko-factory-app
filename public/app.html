@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v40';
+            const RESET_KEY = 'sw_reset_v41';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -35,7 +35,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日報管理システム</title>
-    <link rel="stylesheet" href="style-v4.css?v=20260601-0690">
+    <link rel="stylesheet" href="style-v4.css?v=20260604-001">
     <link rel="manifest" href="manifest.json">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -166,7 +166,7 @@
             <button class="tab-btn tab-group-schedule" data-target="gantt-view">工程管理表</button>
             <button class="tab-btn admin-only tab-group-schedule" data-target="schedule-input-view" style="display:none;">工事登録</button>
             <button class="tab-btn admin-only tab-group-history" data-target="summary-view" style="display:none;">日報集計</button>
-            <div id="plan-status-badge" class="admin-only" style="display:none; margin-left:auto; margin-right:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:6px 12px; border-radius:6px; font-size:0.85rem; font-weight:bold; align-items:center; gap:5px; white-space:nowrap;">
+            <div id="plan-status-badge" class="admin-only" style="display:none; margin-right:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:6px 12px; border-radius:6px; font-size:0.85rem; font-weight:bold; align-items:center; gap:5px; white-space:nowrap;">
                 契約プラン: <span id="current-plan-limit">10</span>名プラン
             </div>
             <button id="btn-change-plan" class="tab-btn admin-only" style="display:none; background:#0284c7; color:white; margin-right:10px; font-weight:bold; white-space:nowrap;">💳 プラン変更</button>

@@ -48,9 +48,7 @@ h1 { font-size: 1.5rem; }
 .user-info { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; font-weight: bold; }
 
 /* タブをスマホで横スクロール可能に */
-.tabs { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px; }
-.tabs::-webkit-scrollbar { height: 4px; }
-.tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 5px; align-items: center; }
 .tab-btn { padding: 10px 16px; border: 1px solid #e2e8f0; background: transparent; font-weight: bold; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
 .tab-btn:hover { background: #f1f5f9; }
 
@@ -1912,4 +1910,13 @@ body.dark-theme .tab-btn.tab-group-schedule.active {
     background-color: #f59e0b !important;
     border-color: #f59e0b !important;
     color: #ffffff !important;
+}
+
+#plan-status-badge {
+    margin-left: auto;
+}
+@media (max-width: 1024px) {
+    #plan-status-badge {
+        margin-left: 0;
+    }
 }
