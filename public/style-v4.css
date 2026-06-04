@@ -1950,6 +1950,6 @@ body.dark-theme .tab-btn.tab-group-schedule.active {
     transition: all 0.2s ease;
 }
 #btn-close-admin-mode button:hover {
-    background: #b91c1c !important;
+    background: #1d4ed8 !important;
     transform: scale(1.03);
 }

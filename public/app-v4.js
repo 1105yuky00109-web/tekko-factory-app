@@ -7460,6 +7460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsBtnSchedule = document.getElementById('settings-btn-schedule');
     const settingsBtnEmployee = document.getElementById('settings-btn-employee');
     const btnCloseAdminMode = document.getElementById('btn-close-admin-mode');
+    const settingsBtnCloseMenu = document.getElementById('settings-btn-close-menu');
 
     let previousActiveTabTarget = 'gantt-view'; // 初期値
 
@@ -7485,6 +7486,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseSettingsModal.addEventListener('click', () => {
         adminSettingsModal.style.display = 'none';
     });
+
+    // 最下段の「閉じる」ボタンをクリックした際
+    if (settingsBtnCloseMenu) {
+        settingsBtnCloseMenu.addEventListener('click', () => {
+            adminSettingsModal.style.display = 'none';
+        });
+    }
 
     // モーダルの外側クリックで閉じる
     adminSettingsModal.addEventListener('click', (e) => {
@@ -7578,7 +7586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ❌ 管理者画面を終了ボタンをクリックした際
+    // 🔙 管理者設定メニューへ戻るボタンをクリックした際
     if (btnCloseAdminMode) {
         btnCloseAdminMode.addEventListener('click', () => {
             // 終了ボタンを非表示
@@ -7592,6 +7600,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 退避していない場合はデフォルトの工程管理表に戻る
                 const defaultTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
                 if (defaultTab) defaultTab.click();
+            }
+
+            // 管理者設定メニューを再度開く（認証は完了しているのでメニューセクションを直接表示）
+            if (adminSettingsModal) {
+                settingsAuthSection.style.display = 'none';
+                settingsMenuSection.style.display = 'block';
+                adminSettingsModal.style.display = 'flex';
             }
         });
     }
