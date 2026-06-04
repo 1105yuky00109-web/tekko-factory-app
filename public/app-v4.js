@@ -13,7 +13,7 @@ const showDebugLog = (msg) => {
 
 showDebugLog("1. Start loading imports...");
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
@@ -306,26 +306,19 @@ onAuthStateChanged(auth, async (user) => {
         
 
 
-        // 契約プランバッジとプラン変更ボタンの表示制御
+        // 契約プランバッジとプラン変更ボタンはヘッダーからは常に非表示にする（⚙️設定モーダル内に集約するため）
         const planStatusBadge = document.getElementById('plan-status-badge');
         const currentPlanLimit = document.getElementById('current-plan-limit');
         const btnChangePlan = document.getElementById('btn-change-plan');
         
+        if (planStatusBadge) planStatusBadge.style.display = 'none';
+        if (btnChangePlan) btnChangePlan.style.display = 'none';
+        
         if (currentCompany && currentCompany.role === 'admin') {
-            if (planStatusBadge && currentPlanLimit) {
+            if (currentPlanLimit) {
                 const maxUsers = currentCompany.maxUsers || 10;
                 currentPlanLimit.textContent = maxUsers;
-                planStatusBadge.style.display = 'inline-flex';
             }
-            if (btnChangePlan) {
-                btnChangePlan.style.display = 'inline-block';
-                btnChangePlan.onclick = () => {
-                    window.open(`/change-plan.html?cid=${currentCompany.companyId}`, '_blank');
-                };
-            }
-        } else {
-            if (planStatusBadge) planStatusBadge.style.display = 'none';
-            if (btnChangePlan) btnChangePlan.style.display = 'none';
         }
 
         const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid || e.email === currentUser.email) : null;
@@ -403,16 +396,14 @@ onAuthStateChanged(auth, async (user) => {
         const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
         const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
 
+        // 管理者関連のタブはヘッダーからは常に非表示（管理者設定モーダルからのみ遷移させるため）
+        if (empTab) empTab.style.display = 'none';
+        if (configTab) configTab.style.display = 'none';
+        if (registerTab) registerTab.style.display = 'none';
+
         if (currentCompany && currentCompany.role === 'admin') {
-            if (empTab) empTab.style.display = '';
-            if (configTab) configTab.style.display = '';
-            if (registerTab) registerTab.style.display = '';
             setTimeout(() => initEmployeeManagePanel(), 200);
         } else {
-            if (empTab) empTab.style.display = 'none';
-            if (configTab) configTab.style.display = 'none';
-            if (registerTab) registerTab.style.display = 'none';
-
             // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
             const activeTab = document.querySelector('.tab-btn.active');
             if (activeTab && (activeTab === registerTab || activeTab === configTab || activeTab === empTab)) {
@@ -626,7 +617,7 @@ function initEmployeeManagePanel() {
 
     const tab = document.getElementById('tab-employee-manage');
     if (!tab) return;
-    tab.style.display = '';
+    // tab.style.display = '';
 
     const empAddForm = document.getElementById('employee-add-form');
     if (empAddForm) {
@@ -7434,7 +7425,7 @@ async function verifyAdminCredentials(email, password) {
         // Firestoreから管理者権限があるかをクエリ
         const companyData = await resolveUserCompany(email, tempUid);
         
-        await tempApp.delete();
+        await deleteApp(tempApp);
         
         if (companyData && companyData.role === 'admin') {
             return companyData;
@@ -7442,7 +7433,7 @@ async function verifyAdminCredentials(email, password) {
             throw new Error("このアカウントには管理者（企業）権限がありません。");
         }
     } catch (err) {
-        try { await tempApp.delete(); } catch(e) {}
+        try { await deleteApp(tempApp); } catch(e) {}
         // Firebaseの認証エラーコードの日本語化
         let errorMsg = err.message;
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
