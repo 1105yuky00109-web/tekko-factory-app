@@ -304,18 +304,7 @@ onAuthStateChanged(auth, async (user) => {
         
         showDebugLog("Company resolved: " + currentCompany.companyId + ", role: " + currentCompany.role);
         
-        // 役割（管理者のみ）を示すバッジの表示制御
-        const roleBadge = document.getElementById('user-role-badge');
-        if (roleBadge) {
-            if (currentCompany && currentCompany.role === 'admin') {
-                roleBadge.textContent = '企業管理者用画面';
-                roleBadge.style.backgroundColor = '#ef4444';
-                roleBadge.style.color = '#ffffff';
-                roleBadge.style.display = 'inline-block';
-            } else {
-                roleBadge.style.display = 'none';
-            }
-        }
+
 
         // 契約プランバッジとプラン変更ボタンの表示制御
         const planStatusBadge = document.getElementById('plan-status-badge');
@@ -7427,6 +7416,193 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+});
 
+// ==========================================
+// 管理者設定メニューおよび再認証制御ロジック
+// ==========================================
+
+// 一時的なFirebaseアプリを用いて、メインのセッションを壊さずに管理者情報を検証する
+async function verifyAdminCredentials(email, password) {
+    const tempAppName = "TempAdminApp_" + Date.now();
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+    try {
+        const userCredential = await signInWithEmailAndPassword(tempAuth, email, password);
+        const tempUid = userCredential.user.uid;
+        
+        // Firestoreから管理者権限があるかをクエリ
+        const companyData = await resolveUserCompany(email, tempUid);
+        
+        await tempApp.delete();
+        
+        if (companyData && companyData.role === 'admin') {
+            return companyData;
+        } else {
+            throw new Error("このアカウントには管理者（企業）権限がありません。");
+        }
+    } catch (err) {
+        try { await tempApp.delete(); } catch(e) {}
+        // Firebaseの認証エラーコードの日本語化
+        let errorMsg = err.message;
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+            errorMsg = "メールアドレスまたはパスワードが正しくありません。";
+        }
+        throw new Error(errorMsg);
+    }
+}
+
+// DOMContentLoadedのタイミングでイベントを紐付け
+document.addEventListener('DOMContentLoaded', () => {
+    const btnAdminSettings = document.getElementById('btn-admin-settings');
+    const adminSettingsModal = document.getElementById('admin-settings-modal');
+    const btnCloseSettingsModal = document.getElementById('btn-close-settings-modal');
+    const settingsAuthSection = document.getElementById('settings-auth-section');
+    const settingsMenuSection = document.getElementById('settings-menu-section');
+    const settingsAuthForm = document.getElementById('settings-auth-form');
+    const settingsAuthEmail = document.getElementById('settings-auth-email');
+    const settingsAuthPassword = document.getElementById('settings-auth-password');
+    const settingsAuthError = document.getElementById('settings-auth-error');
+    
+    const settingsPlanLimit = document.getElementById('settings-plan-limit');
+    const settingsBtnChangePlan = document.getElementById('settings-btn-change-plan');
+    const settingsBtnSchedule = document.getElementById('settings-btn-schedule');
+    const settingsBtnEmployee = document.getElementById('settings-btn-employee');
+    const btnCloseAdminMode = document.getElementById('btn-close-admin-mode');
+
+    let previousActiveTabTarget = 'gantt-view'; // 初期値
+
+    if (!btnAdminSettings || !adminSettingsModal) return;
+
+    // ⚙️設定ボタンをクリックした際
+    btnAdminSettings.addEventListener('click', () => {
+        // 入力値をクリア
+        settingsAuthEmail.value = '';
+        settingsAuthPassword.value = '';
+        settingsAuthError.textContent = '';
+        settingsAuthError.classList.add('hidden');
+        
+        // 認証画面を表示、メニューを非表示
+        settingsAuthSection.style.display = 'block';
+        settingsMenuSection.style.display = 'none';
+        
+        // モーダル表示
+        adminSettingsModal.style.display = 'flex';
+    });
+
+    // 閉じる (×) ボタンをクリックした際
+    btnCloseSettingsModal.addEventListener('click', () => {
+        adminSettingsModal.style.display = 'none';
+    });
+
+    // モーダルの外側クリックで閉じる
+    adminSettingsModal.addEventListener('click', (e) => {
+        if (e.target === adminSettingsModal) {
+            adminSettingsModal.style.display = 'none';
+        }
+    });
+
+    // 認証フォーム送信
+    settingsAuthForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = settingsAuthEmail.value.trim();
+        const password = settingsAuthPassword.value;
+        const submitBtn = settingsAuthForm.querySelector('button[type="submit"]');
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "認証中...";
+        settingsAuthError.classList.add('hidden');
+
+        try {
+            const companyData = await verifyAdminCredentials(email, password);
+            
+            // 認証成功時：メニューを表示
+            const maxUsers = companyData.maxUsers || 10;
+            if (settingsPlanLimit) {
+                settingsPlanLimit.textContent = maxUsers;
+            }
+            
+            // プラン変更ボタンの紐付け
+            if (settingsBtnChangePlan) {
+                settingsBtnChangePlan.onclick = () => {
+                    window.open(`/change-plan.html?cid=${companyData.companyId}`, '_blank');
+                };
+            }
+
+            settingsAuthSection.style.display = 'none';
+            settingsMenuSection.style.display = 'block';
+        } catch (err) {
+            settingsAuthError.textContent = err.message;
+            settingsAuthError.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    });
+
+    // メニュー：工事登録へ
+    if (settingsBtnSchedule) {
+        settingsBtnSchedule.addEventListener('click', () => {
+            // 現在アクティブな一般タブを退避（戻る時のため）
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view') {
+                previousActiveTabTarget = activeTab.dataset.target;
+            }
+            
+            adminSettingsModal.style.display = 'none';
+            
+            // 非表示にしている隠しタブボタンをクリックさせて画面切り替え
+            const targetTab = document.getElementById('tab-schedule-input-hidden');
+            if (targetTab) {
+                targetTab.click();
+            }
+            
+            // 終了ボタンを表示
+            if (btnCloseAdminMode) {
+                btnCloseAdminMode.style.display = 'block';
+            }
+        });
+    }
+
+    // メニュー：社員登録へ
+    if (settingsBtnEmployee) {
+        settingsBtnEmployee.addEventListener('click', () => {
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view') {
+                previousActiveTabTarget = activeTab.dataset.target;
+            }
+
+            adminSettingsModal.style.display = 'none';
+
+            const targetTab = document.getElementById('tab-employee-manage');
+            if (targetTab) {
+                targetTab.click();
+            }
+
+            if (btnCloseAdminMode) {
+                btnCloseAdminMode.style.display = 'block';
+            }
+        });
+    }
+
+    // ❌ 管理者画面を終了ボタンをクリックした際
+    if (btnCloseAdminMode) {
+        btnCloseAdminMode.addEventListener('click', () => {
+            // 終了ボタンを非表示
+            btnCloseAdminMode.style.display = 'none';
+            
+            // 元の一般タブに戻る（クリックイベントを発火）
+            const originalTab = document.querySelector(`.tab-btn[data-target="${previousActiveTabTarget}"]`);
+            if (originalTab) {
+                originalTab.click();
+            } else {
+                // 退避していない場合はデフォルトの工程管理表に戻る
+                const defaultTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
+                if (defaultTab) defaultTab.click();
+            }
+        });
+    }
 });
 

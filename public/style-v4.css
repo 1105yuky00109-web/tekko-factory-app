@@ -1920,3 +1920,41 @@ body.dark-theme .tab-btn.tab-group-schedule.active {
         margin-left: 0;
     }
 }
+
+/* 管理者設定モーダル＆ボタンのホバーエフェクト */
+#btn-admin-settings {
+    transition: transform 0.3s ease;
+}
+#btn-admin-settings:hover {
+    transform: rotate(45deg);
+}
+
+#settings-btn-schedule, #settings-btn-employee {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+#settings-btn-schedule:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(217, 119, 6, 0.15) !important;
+    border-color: #fbbf24 !important;
+    background: #fffbeb !important;
+}
+
+#settings-btn-employee:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(124, 58, 237, 0.15) !important;
+    border-color: #a78bfa !important;
+    background: #f5f3ff !important;
+}
+
+#btn-close-admin-mode {
+    transition: all 0.2s ease;
+}
+#btn-close-admin-mode button {
+    transition: all 0.2s ease;
+}
+#btn-close-admin-mode button:hover {
+    background: #b91c1c !important;
+    transform: scale(1.03);
+}
