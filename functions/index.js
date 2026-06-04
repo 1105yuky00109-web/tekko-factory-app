@@ -247,16 +247,7 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
         if (isInvoice) {
           // 請求書払いの場合
           const latestInvoiceId = updatedSub.latest_invoice;
-          let invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${latestInvoiceId}`;
-          
-          if (latestInvoiceId) {
-            try {
-              const latestInvoiceObj = await stripe.invoices.retrieve(latestInvoiceId);
-              invoiceLink = latestInvoiceObj.hosted_invoice_url || invoiceLink;
-            } catch (err) {
-              console.error('Failed to retrieve hosted_invoice_url', err);
-            }
-          }
+          const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${latestInvoiceId}`;
 
           emailText = `${companyData.companyName}
 御中 管理者 様

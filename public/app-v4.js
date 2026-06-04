@@ -6707,8 +6707,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedProject = filterProjectSelect ? filterProjectSelect.value : '';
         const selectedAuthor = filterAuthorSelect ? filterAuthorSelect.value : '';
 
-        // プロジェクトフィルタードロップダウンの更新 (初回)
-        if (filterProjectSelect && filterProjectSelect.children.length <= 1) {
+        // プロジェクトフィルタードロップダウンの更新
+        if (filterProjectSelect) {
             const projects = [...new Set(allDailyReports.map(r => r.projectName))].filter(Boolean).sort();
             filterProjectSelect.innerHTML = '<option value="">すべての工事</option>';
             projects.forEach(p => {
@@ -6721,8 +6721,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 社員フィルタードロップダウンの更新 (初回・管理者用)
-        if (filterAuthorSelect && filterAuthorSelect.children.length <= 1 && currentCompany && currentCompany.role === 'admin') {
+        // 社員フィルタードロップダウンの更新 (管理者用)
+        if (filterAuthorSelect && currentCompany && currentCompany.role === 'admin') {
             const authors = [...new Set(allDailyReports.map(r => r.author))].filter(Boolean).sort();
             filterAuthorSelect.innerHTML = '<option value="">すべての社員</option>';
             authors.forEach(a => {
