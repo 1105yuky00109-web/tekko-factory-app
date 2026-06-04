@@ -81,53 +81,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentQty = currentLimit / 10; // 現在の口数
     optionsContainer.innerHTML = '';
 
-    // 1口(10名)から5口(50名)までの選択肢を作成 (現在の口数は除く)
-    let optionsCount = 0;
+    // 1口(10名)から5口(50名)までのすべての選択肢を作成
     for (let qty = 1; qty <= 5; qty++) {
-      if (qty === currentQty) continue;
-
       const totalLimit = qty * 10;
       const totalPrice = qty * 5000;
+      const isCurrent = (qty === currentQty);
+
       const optionLabel = document.createElement('label');
       optionLabel.className = 'plan-option-label';
-
-      if (qty > currentQty) {
-        // アップグレード（追加）の場合
-        const addedLimit = (qty - currentQty) * 10;
-        const additionalPrice = (qty - currentQty) * 5000;
-        optionLabel.innerHTML = `
-          <input type="radio" name="quantity" value="${qty}" ${optionsCount === 0 ? 'checked' : ''} />
-          <div class="plan-option-body">
-            <div class="option-title">
-              <span>＋${addedLimit}名追加 (合計 ${totalLimit}名まで)</span>
-              <span class="option-price">＋¥${new Intl.NumberFormat('ja-JP').format(additionalPrice)}/月 <span style="font-size:0.75rem;color:var(--text-muted);"> (税別)</span></span>
-            </div>
-            <div class="option-desc">ご契約口数を ${currentQty}口から ${qty}口に変更し、ユーザー登録枠を最大 ${totalLimit}名に拡大します。</div>
-          </div>
-        `;
-      } else {
-        // ダウングレード（減枠）の場合
-        optionLabel.innerHTML = `
-          <input type="radio" name="quantity" value="${qty}" ${optionsCount === 0 ? 'checked' : ''} />
-          <div class="plan-option-body">
-            <div class="option-title">
-              <span>${totalLimit}名プランへ戻す (合計 ${totalLimit}名まで)</span>
-              <span class="option-price" style="color: #475569;">¥${new Intl.NumberFormat('ja-JP').format(totalPrice)}/月 <span style="font-size:0.75rem;color:var(--text-muted);"> (税別)</span></span>
-            </div>
-            <div class="option-desc">ご契約口数を ${currentQty}口から ${qty}口に変更し、ユーザー登録枠を最大 ${totalLimit}名に縮小します。</div>
-          </div>
-        `;
+      if (isCurrent) {
+        optionLabel.style.cursor = 'not-allowed';
       }
+
+      optionLabel.innerHTML = `
+        <input type="radio" name="quantity" value="${qty}" ${isCurrent ? 'disabled' : ''} />
+        <div class="plan-option-body" style="${isCurrent ? 'background: #f8fafc; border-color: var(--border); color: var(--text-muted); opacity: 0.65; cursor: not-allowed;' : ''}">
+          <div class="option-title" style="${isCurrent ? 'color: var(--text-muted);' : ''}">
+            <span>${totalLimit}名プラン (合計 ${totalLimit}名まで)</span>
+            <span class="option-price" style="${isCurrent ? 'color: var(--text-muted);' : 'color: var(--primary);'}">
+              ¥${new Intl.NumberFormat('ja-JP').format(totalPrice)}/月 
+              <span style="font-size:0.75rem;color:var(--text-muted); font-weight:normal;"> (税別)</span>
+              ${isCurrent ? ' <span style="font-size:0.8rem; background:#cbd5e1; color:#475569; padding:2px 8px; border-radius:12px; margin-left:8px; font-weight:bold; vertical-align:middle; display:inline-block;">現在のご契約</span>' : ''}
+            </span>
+          </div>
+          <div class="option-desc">ご契約口数を ${qty}口に変更し、ユーザー登録枠を最大 ${totalLimit}名に設定します。</div>
+        </div>
+      `;
       optionsContainer.appendChild(optionLabel);
-      optionsCount++;
     }
 
-    if (optionsCount === 0) {
-      optionsContainer.innerHTML = '<p style="color:var(--text-muted);font-weight:600;">現在、選択可能なプラン変更オプションがありません。</p>';
-      submitBtn.disabled = true;
-    } else {
-      submitBtn.disabled = false;
+    // デフォルトで、現在のご契約以外の最初の選択肢を選択状態にする
+    const radios = optionsContainer.querySelectorAll('input[type="radio"]');
+    let hasSelectable = false;
+    for (let radio of radios) {
+      if (!radio.disabled) {
+        radio.checked = true;
+        hasSelectable = true;
+        break;
+      }
     }
+
+    submitBtn.disabled = !hasSelectable;
   }
 
   // 確定ボタンのサブミット処理
