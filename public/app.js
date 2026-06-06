@@ -895,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ログアウト処理
 btnLogout.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error(err));
+    if (confirm('ログアウトしますか？')) { signOut(auth).catch(err => console.error(err)); }
 });
 
 // ユーティリティ関数
@@ -3930,7 +3930,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPassChangeLogout = document.getElementById('btn-password-change-logout');
     if (btnPassChangeLogout) {
         btnPassChangeLogout.addEventListener('click', () => {
-            signOut(auth).catch(err => console.error(err));
+            if (confirm('ログアウトしますか？')) {
+                signOut(auth).catch(err => console.error(err));
+            }
         });
     }
 });

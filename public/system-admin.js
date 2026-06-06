@@ -106,7 +106,9 @@ loginForm.addEventListener('submit', (e) => {
 
 // ログアウト処理
 btnLogout.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error(err));
+    if (confirm('ログアウトしますか？')) {
+        signOut(auth).catch(err => console.error(err));
+    }
 });
 
 // Firestoreから本番データ取得
