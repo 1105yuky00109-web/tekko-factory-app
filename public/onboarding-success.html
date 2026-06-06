@@ -207,5 +207,41 @@
       }
     });
   </script>
+
+  <!-- 新規登録時に既存のログインセッションを強制的にログアウト（クリア）する -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
+    authDomain: "tekko-factory-app.firebaseapp.com",
+    projectId: "tekko-factory-app",
+    storageBucket: "tekko-factory-app.firebasestorage.app",
+    messagingSenderId: "354843914657",
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const method = urlParams.get('method');
+
+    // プラン変更(change-success)以外の新規登録フローの場合のみ強制ログアウト
+    if (method !== 'change-success') {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log("onboarding-success: logged-in user detected, logging out to prevent session mismatch:", user.email);
+                try {
+                    await signOut(auth);
+                    console.log("onboarding-success: successfully logged out.");
+                } catch (e) {
+                    console.error("onboarding-success: logout failed:", e);
+                }
+            }
+        });
+    }
+  </script>
 </body>
 </html>

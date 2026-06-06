@@ -28,16 +28,7 @@ let messaging = null;
 
 // URLパラメータの確認 (新規登録後のログインなどで強制ログアウトするため)
 const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('logout') === 'true') {
-    showDebugLog("Detecting logout=true parameter, logging out current session...");
-    signOut(auth).then(() => {
-        // パラメータを消去して履歴を書き換える
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-    }).catch(e => {
-        console.error("Failed to sign out on logout parameter", e);
-    });
-}
+const paramTargetEmail = urlParams.get('email') ? decodeURIComponent(urlParams.get('email')).trim() : null;
 
 showDebugLog("3. Firebase Services initialized.");
 
@@ -74,6 +65,7 @@ let allMembers = [];
 let allDailyReports = [];
 let currentIsPlanEditable = true;
 let currentIsActualEditable = true;
+let authStateGeneration = 0; // 認証状態の世代カウンタ
 
 // ユーザーの所属する会社をFirestoreから解決する関数 (ownerUid優先)
 async function resolveUserCompany(email, uid) {
@@ -140,6 +132,8 @@ function updateReportProjectDropdown() {
     
     const makeOptionsHtml = (defaultText) => {
         let html = `<option value="">${defaultText}</option>`;
+        // 雑務を常にデフォルトの選択肢として追加
+        html += `<option value="雑務">雑務</option>`;
         // 未完了の工事を優先的に上に表示
         const sortedSchedules = [...allSchedules].sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
         sortedSchedules.forEach(sched => {
@@ -259,255 +253,318 @@ const setupNotification = async () => {
     }
 };
 
-// 認証状態の監視
-onAuthStateChanged(auth, async (user) => {
-    showDebugLog("5. onAuthStateChanged triggered. User logged in: " + (user ? user.email : "NO_USER"));
-    try {
-        const loadingContainer = document.getElementById('loading-container');
-
-    if (user) {
-        // displayNameがまだ反映されていない場合に備えて再読み込み
-        if (!user.displayName) {
-            try { 
-                showDebugLog("Reloading user profile...");
-                await user.reload(); 
-                user = auth.currentUser; 
-            } catch(e) {
-                showDebugLog("User reload failed: " + e.message);
-            }
-        }
-
-        // メールアドレス確認が完了しているかチェック（特定のテスト用・管理者アドレスはバイパス）
-        const isBypassEmail = user.email.includes('oowada') || 
-                              user.email.includes('dai-wada') || 
-                              user.email.includes('daiwada') || 
-                              user.email === '1105yuky00109@gmail.com' ||
-                              user.email === '1105yuky00109-web@github.com';
-                              
-        if (!user.emailVerified && !isBypassEmail) {
-            showDebugLog("User email is not verified. Logging out.");
-            await signOut(auth);
-            const errorMsg = document.getElementById('login-error');
-            if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = 'メールアドレスの確認が完了していません。登録時に送信された案内メールのリンクをクリックしてアカウントを有効化した後、ログインしてください。';
-            }
-            if (loadingContainer) loadingContainer.classList.add('hidden');
-            return;
-        }
-
-        // ログイン成功時
-        currentUser = auth.currentUser;
+// 認証状態の監視をセットアップする関数
+function setupAuthListener() {
+    onAuthStateChanged(auth, async (user) => {
+        authStateGeneration++;
+        const currentGeneration = authStateGeneration;
+        showDebugLog("5. onAuthStateChanged triggered (gen: " + currentGeneration + "). User logged in: " + (user ? user.email : "NO_USER"));
         
-        // 所属会社の解決
-        showDebugLog("Resolving company for: " + currentUser.email);
-        currentCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
-        if (!currentCompany) {
-            showDebugLog("No company resolved for user. Logging out.");
-            // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
-            await signOut(auth);
-            const errorMsg = document.getElementById('login-error');
-            if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = 'このメールアドレスはシステムに登録されていません。管理者にお問い合わせください。';
-            }
-            if (loadingContainer) loadingContainer.classList.add('hidden');
-            return;
-        }
-        
-        showDebugLog("Company resolved: " + currentCompany.companyId + ", role: " + currentCompany.role);
-        
+        try {
+            const loadingContainer = document.getElementById('loading-container');
 
-
-        // 契約プランバッジとプラン変更ボタンはヘッダーからは常に非表示にする（⚙️設定モーダル内に集約するため）
-        const planStatusBadge = document.getElementById('plan-status-badge');
-        const currentPlanLimit = document.getElementById('current-plan-limit');
-        const btnChangePlan = document.getElementById('btn-change-plan');
-        
-        if (planStatusBadge) planStatusBadge.style.display = 'none';
-        if (btnChangePlan) btnChangePlan.style.display = 'none';
-        
-        if (currentCompany && currentCompany.role === 'admin') {
-            if (currentPlanLimit) {
-                const maxUsers = currentCompany.maxUsers || 10;
-                currentPlanLimit.textContent = maxUsers;
-            }
-        }
-
-        const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid || e.email === currentUser.email) : null;
-        
-        // ユーザー名の決定と表示
-        let userNameToShow = currentUser.displayName || currentUser.email;
-        if (myEmpInfo && myEmpInfo.name) {
-            userNameToShow = myEmpInfo.name;
-        }
-        document.getElementById('current-user-email').textContent = userNameToShow;
-        
-        const compLabel = document.getElementById('current-company-name');
-        if (compLabel) {
-            let compText = currentCompany.companyName || currentCompany.companyId;
-            compLabel.textContent = compText;
-        }
-        
-        
-        // 担当者入力欄に表示名（氏名）を自動設定（未設定の場合はメールアドレスの@より前を使用）
-        const nameDisplay = currentUser.displayName || currentUser.email.split('@')[0];
-        const authorEl = document.getElementById('author');
-        if (authorEl) authorEl.value = nameDisplay;
-        const schedAuthorEl = document.getElementById('sched-author');
-        if (schedAuthorEl) schedAuthorEl.value = nameDisplay;
-        
-        loginContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        
-        // データ初期読み込み（DOMContentLoaded後に確実に実行されるよう安全に呼び出す）
-        showDebugLog("Populating member dropdowns...");
-        populateMemberDropdowns();
-        showDebugLog("Member dropdowns populated. Populating branch dropdowns...");
-        populateBranchDropdowns();
-        showDebugLog("Branch dropdowns populated.");
-
-
-
-
-
-        const safeLoadAll = async () => {
-            showDebugLog("6. safeLoadAll started.");
-            try {
-                if (typeof window.loadSchedules === 'function') {
-                    showDebugLog("Loading schedules...");
-                    await window.loadSchedules();
+            if (user) {
+                // メールアドレスの不一致チェック (email パラメータがある場合)
+                if (paramTargetEmail && user.email !== paramTargetEmail) {
+                    showDebugLog(`Session email mismatch: Logged in as ${user.email}, expected: ${paramTargetEmail}. Forcing logout.`);
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    
+                    const emailInput = document.getElementById('login-email');
+                    if (emailInput) emailInput.value = paramTargetEmail;
+                    
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    return;
                 }
-                if (typeof window.loadReports === 'function') {
-                    showDebugLog("Loading reports...");
-                    await window.loadReports(false);
-                }
-                showDebugLog("Setting up notifications...");
-                setupNotification();
-                if ('clearAppBadge' in navigator) {
-                    navigator.clearAppBadge().catch(err => console.error('Failed to clear app badge:', err));
-                }
-                showDebugLog("safeLoadAll completed successfully.");
-            } catch (loadError) {
-                console.error("CRITICAL LOAD ERROR:", loadError);
-                showDebugLog("CRITICAL LOAD ERROR: " + loadError.message);
-                alert("データ読み込みエラーが発生しました:\n" + loadError.stack + "\n\nメッセージ: " + loadError.message);
-                const loadingContainer = document.getElementById('loading-container');
-                if (loadingContainer) loadingContainer.classList.add('hidden');
-            }
-        };
-        if (document.readyState === 'loading') {
-            showDebugLog("Waiting for DOMContentLoaded to trigger safeLoadAll...");
-            document.addEventListener('DOMContentLoaded', safeLoadAll, { once: true });
-        } else {
-            showDebugLog("DOM already loaded, running safeLoadAll directly...");
-            await safeLoadAll();
-        }
 
-        // 管理者の場合は社員管理パネルを初期化、社員の場合は非表示を確実にする
-        const empTab = document.getElementById('tab-employee-manage');
-        const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
-        const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
-
-        // 管理者関連のタブはヘッダーからは常に非表示（管理者設定モーダルからのみ遷移させるため）
-        if (empTab) empTab.style.display = 'none';
-        if (configTab) configTab.style.display = 'none';
-        if (registerTab) registerTab.style.display = 'none';
-
-        if (currentCompany && currentCompany.role === 'admin') {
-            setTimeout(() => initEmployeeManagePanel(), 200);
-        } else {
-            // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
-            const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && (activeTab === registerTab || activeTab === configTab || activeTab === empTab)) {
-                const ganttTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
-                if (ganttTab) ganttTab.click();
-            }
-        }
-
-        // 初回ログイン時のパスワード強制変更のチェック
-        const passModal = document.getElementById('password-change-modal');
-        if (passModal && currentCompany) {
-            const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid) : null;
-            
-            // パスワードを忘れて再設定リンクから変更してきた場合は、強制変更をスキップして自動でFirestoreのフラグを消去する
-            if (localStorage.getItem('password_reset_just_done') === 'true' || 
-                (currentUser && (currentUser.email.includes('oowada') || currentUser.email.includes('dai-wada') || currentUser.email.includes('daiwada') || currentUser.displayName === '大和田 三郎'))) {
-                
-                localStorage.removeItem('password_reset_just_done');
-                if (myEmpInfo && myEmpInfo.mustChangePassword === true) {
-                    try {
-                        const employees = currentCompany.employees || [];
-                        const updatedEmployees = employees.map(emp => {
-                            if (emp.uid === currentUser.uid) {
-                                const newEmp = { ...emp };
-                                delete newEmp.mustChangePassword;
-                                return newEmp;
-                            }
-                            return emp;
-                        });
-                        const compDocRef = doc(db, "companies", currentCompany.companyId);
-                        updateDoc(compDocRef, { employees: updatedEmployees }).then(() => {
-                            console.log('mustChangePassword flag cleared automatically for Oowada Saburo.');
-                        });
-                        myEmpInfo.mustChangePassword = false;
-                    } catch (e) {
-                        console.error('Failed to auto-clear mustChangePassword flag:', e);
+                // displayNameがまだ反映されていない場合に備えて再読み込み
+                if (!user.displayName) {
+                    try { 
+                        showDebugLog("Reloading user profile...");
+                        await user.reload(); 
+                        user = auth.currentUser; 
+                    } catch(e) {
+                        showDebugLog("User reload failed: " + e.message);
                     }
                 }
-            }
 
-            // 【救済措置】一時的にパスワード変更モーダルの表示を完全に強制無効化
-            passModal.style.display = 'none';
-            /*
-            if (myEmpInfo && myEmpInfo.mustChangePassword === true) {
-                passModal.style.display = 'flex';
+                // 世代チェック：非同期処理の間に次のonAuthStateChangedが走っていたら中断
+                if (currentGeneration !== authStateGeneration) {
+                    showDebugLog("onAuthStateChanged: Generation changed after user reload. Aborting (gen: " + currentGeneration + ").");
+                    return;
+                }
+
+                // メールアドレス確認が完了しているかチェック（特定のテスト用・管理者アドレスはバイパス）
+                const isBypassEmail = user.email.includes('oowada') || 
+                                      user.email.includes('dai-wada') || 
+                                      user.email.includes('daiwada') || 
+                                      user.email === '1105yuky00109@gmail.com' ||
+                                      user.email === '1105yuky00109-web@github.com';
+                                      
+                if (!user.emailVerified && !isBypassEmail) {
+                    showDebugLog("User email is not verified. Logging out.");
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = 'メールアドレスの確認が完了していません。登録時に送信された案内メールのリンクをクリックしてアカウントを有効化した後、ログインしてください。';
+                    }
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    return;
+                }
+
+                // ログイン成功時
+                currentUser = auth.currentUser;
+                
+                // 所属会社の解決
+                showDebugLog("Resolving company for: " + currentUser.email);
+                const resolvedCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
+                
+                // 世代チェック
+                if (currentGeneration !== authStateGeneration) {
+                    showDebugLog("onAuthStateChanged: Generation changed after resolveUserCompany. Aborting (gen: " + currentGeneration + ").");
+                    return;
+                }
+
+                if (!resolvedCompany) {
+                    showDebugLog("No company resolved for user. Logging out.");
+                    // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = 'このメールアドレスはシステムに登録されていません。管理者にお問い合わせください。';
+                    }
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    return;
+                }
+                
+                currentCompany = resolvedCompany;
+                showDebugLog("Company resolved: " + currentCompany.companyId + ", role: " + currentCompany.role);
+                
+                // 契約プランバッジとプラン変更ボタンはヘッダーからは常に非表示にする（⚙️設定モーダル内に集約するため）
+                const planStatusBadge = document.getElementById('plan-status-badge');
+                const currentPlanLimit = document.getElementById('current-plan-limit');
+                const btnChangePlan = document.getElementById('btn-change-plan');
+                
+                if (planStatusBadge) planStatusBadge.style.display = 'none';
+                if (btnChangePlan) btnChangePlan.style.display = 'none';
+                
+                if (currentCompany && currentCompany.role === 'admin') {
+                    if (currentPlanLimit) {
+                        const maxUsers = currentCompany.maxUsers || 10;
+                        currentPlanLimit.textContent = maxUsers;
+                    }
+                }
+
+                const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid || e.email === currentUser.email) : null;
+                
+                // ユーザー名の決定と表示
+                let userNameToShow = currentUser.displayName || currentUser.email;
+                if (myEmpInfo && myEmpInfo.name) {
+                    userNameToShow = myEmpInfo.name;
+                }
+                document.getElementById('current-user-email').textContent = userNameToShow;
+                
+                const compLabel = document.getElementById('current-company-name');
+                if (compLabel) {
+                    let compText = currentCompany.companyName || currentCompany.companyId;
+                    compLabel.textContent = compText;
+                }
+                
+                // 担当者入力欄に表示名（氏名）を自動設定（未設定の場合はメールアドレスの@より前を使用）
+                const nameDisplay = currentUser.displayName || currentUser.email.split('@')[0];
+                const authorEl = document.getElementById('author');
+                if (authorEl) authorEl.value = nameDisplay;
+                const schedAuthorEl = document.getElementById('sched-author');
+                if (schedAuthorEl) schedAuthorEl.value = nameDisplay;
+                
+                loginContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                
+                // データ初期読み込み（DOMContentLoaded後に確実に実行されるよう安全に呼び出す）
+                showDebugLog("Populating member dropdowns...");
+                populateMemberDropdowns();
+                showDebugLog("Member dropdowns populated. Populating branch dropdowns...");
+                populateBranchDropdowns();
+                showDebugLog("Branch dropdowns populated.");
+
+                const safeLoadAll = async () => {
+                    showDebugLog("6. safeLoadAll started.");
+                    try {
+                        if (typeof window.loadSchedules === 'function') {
+                            showDebugLog("Loading schedules...");
+                            await window.loadSchedules();
+                        }
+                        if (typeof window.loadReports === 'function') {
+                            showDebugLog("Loading reports...");
+                            await window.loadReports(false);
+                        }
+                        // 世代チェック
+                        if (currentGeneration !== authStateGeneration) {
+                            showDebugLog("safeLoadAll: Generation changed during data loading. Aborting.");
+                            return;
+                        }
+                        showDebugLog("Setting up notifications...");
+                        setupNotification();
+                        if ('clearAppBadge' in navigator) {
+                            navigator.clearAppBadge().catch(err => console.error('Failed to clear app badge:', err));
+                        }
+                        showDebugLog("safeLoadAll completed successfully.");
+                    } catch (loadError) {
+                        console.error("CRITICAL LOAD ERROR:", loadError);
+                        showDebugLog("CRITICAL LOAD ERROR: " + loadError.message);
+                        alert("データ読み込みエラーが発生しました:\n" + loadError.stack + "\n\nメッセージ: " + loadError.message);
+                        const loadingContainer = document.getElementById('loading-container');
+                        if (loadingContainer) loadingContainer.classList.add('hidden');
+                    }
+                };
+                if (document.readyState === 'loading') {
+                    showDebugLog("Waiting for DOMContentLoaded to trigger safeLoadAll...");
+                    document.addEventListener('DOMContentLoaded', safeLoadAll, { once: true });
+                } else {
+                    showDebugLog("DOM already loaded, running safeLoadAll directly...");
+                    await safeLoadAll();
+                }
+
+                // 管理者の場合は社員管理パネルを初期化、社員の場合は非表示を確実にする
+                const empTab = document.getElementById('tab-employee-manage');
+                const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
+                const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
+
+                // 管理者関連のタブはヘッダーからは常に非表示（管理者設定モーダルからのみ遷移させるため）
+                if (empTab) empTab.style.display = 'none';
+                if (configTab) configTab.style.display = 'none';
+                if (registerTab) registerTab.style.display = 'none';
+
+                if (currentCompany && currentCompany.role === 'admin') {
+                    setTimeout(() => initEmployeeManagePanel(), 200);
+                } else {
+                    // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
+                    const activeTab = document.querySelector('.tab-btn.active');
+                    if (activeTab && (activeTab === registerTab || activeTab === configTab || activeTab === empTab)) {
+                        const ganttTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
+                        if (ganttTab) ganttTab.click();
+                    }
+                }
+
+                // 初回ログイン時のパスワード強制変更のチェック
+                const passModal = document.getElementById('password-change-modal');
+                if (passModal && currentCompany) {
+                    const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid) : null;
+                    
+                    // パスワードを忘れて再設定リンクから変更してきた場合は、強制変更をスキップして自動でFirestoreのフラグを消去する
+                    if (localStorage.getItem('password_reset_just_done') === 'true' || 
+                        (currentUser && (currentUser.email.includes('oowada') || currentUser.email.includes('dai-wada') || currentUser.email.includes('daiwada') || currentUser.displayName === '大和田 三郎'))) {
+                        
+                        localStorage.removeItem('password_reset_just_done');
+                        if (myEmpInfo && myEmpInfo.mustChangePassword === true) {
+                            try {
+                                const employees = currentCompany.employees || [];
+                                const updatedEmployees = employees.map(emp => {
+                                    if (emp.uid === currentUser.uid) {
+                                        const newEmp = { ...emp };
+                                        delete newEmp.mustChangePassword;
+                                        return newEmp;
+                                    }
+                                    return emp;
+                                });
+                                const compDocRef = doc(db, "companies", currentCompany.companyId);
+                                updateDoc(compDocRef, { employees: updatedEmployees }).then(() => {
+                                    console.log('mustChangePassword flag cleared automatically for Oowada Saburo.');
+                                });
+                                myEmpInfo.mustChangePassword = false;
+                            } catch (e) {
+                                console.error('Failed to auto-clear mustChangePassword flag:', e);
+                            }
+                        }
+                    }
+
+                    // 【救済措置】一時的にパスワード変更モーダルの表示を完全に強制無効化
+                    passModal.style.display = 'none';
+                    // 表示不整合を防止するため、ログイン完了直後に日報入力タブを強制的に再選択（クリック）させる
+                    const defaultTab = document.querySelector('.tab-btn[data-target="daily-report-input-view"]');
+                    if (defaultTab) {
+                        showDebugLog("Triggering initial tab click...");
+                        defaultTab.click();
+                    }
+                    showDebugLog("7. Hiding loadingContainer (User log-in flow).");
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                } else {
+                    showDebugLog("7. passModal not found or currentCompany not set.");
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                }
             } else {
-                passModal.style.display = 'none';
+                // ログアウト状態
+                showDebugLog("5. User is logged out.");
+                currentUser = null;
+                currentCompany = null;
+                showDebugLog("7. Hiding loadingContainer (User log-out flow).");
+                if (loadingContainer) loadingContainer.classList.add('hidden');
+                loginContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                const roleBadge = document.getElementById('user-role-badge');
+                if (roleBadge) {
+                    roleBadge.style.display = 'none';
+                }
+                const passModal = document.getElementById('password-change-modal');
+                if (passModal) {
+                    passModal.style.display = 'none';
+                }
+                const empTab = document.getElementById('tab-employee-manage');
+                if (empTab) {
+                    empTab.style.display = 'none';
+                }
             }
-            */
-            // 表示不整合を防止するため、ログイン完了直後に日報入力タブを強制的に再選択（クリック）させる
-            const defaultTab = document.querySelector('.tab-btn[data-target="daily-report-input-view"]');
-            if (defaultTab) {
-                showDebugLog("Triggering initial tab click...");
-                defaultTab.click();
-            }
-            showDebugLog("7. Hiding loadingContainer (User log-in flow).");
-            if (loadingContainer) loadingContainer.classList.add('hidden');
-        } else {
-            showDebugLog("7. passModal not found or currentCompany not set.");
+        } catch (authError) {
+            console.error("CRITICAL AUTH ERROR:", authError);
+            showDebugLog("CRITICAL AUTH ERROR: " + authError.message);
+            alert("認証状態監視でエラーが発生しました:\n" + authError.stack + "\n\nメッセージ: " + authError.message);
+            const loadingContainer = document.getElementById('loading-container');
             if (loadingContainer) loadingContainer.classList.add('hidden');
         }
-    } else {
-        // ログアウト状態
-        showDebugLog("5. User is logged out.");
-        currentUser = null;
-        currentCompany = null;
-        showDebugLog("7. Hiding loadingContainer (User log-out flow).");
-        if (loadingContainer) loadingContainer.classList.add('hidden');
-        loginContainer.classList.remove('hidden');
-        appContainer.classList.add('hidden');
-        const roleBadge = document.getElementById('user-role-badge');
-        if (roleBadge) {
-            roleBadge.style.display = 'none';
-        }
-        const passModal = document.getElementById('password-change-modal');
-        if (passModal) {
-            passModal.style.display = 'none';
-        }
-        const empTab = document.getElementById('tab-employee-manage');
-        if (empTab) {
-            empTab.style.display = 'none';
+    });
+}
+
+// アプリケーションの初期化
+const initApp = async () => {
+    showDebugLog("3. Initializing App state...");
+    const urlParams = new URLSearchParams(window.location.search);
+    const isForceLogout = urlParams.get('logout') === 'true';
+    
+    if (isForceLogout) {
+        showDebugLog("Detecting logout=true parameter, logging out current session before app initialization...");
+        try {
+            await signOut(auth);
+            showDebugLog("Successfully logged out due to logout=true.");
+        } catch (e) {
+            console.error("Failed to sign out on logout parameter", e);
         }
     }
-    } catch (authError) {
-        console.error("CRITICAL AUTH ERROR:", authError);
-        showDebugLog("CRITICAL AUTH ERROR: " + authError.message);
-        alert("認証状態監視でエラーが発生しました:\n" + authError.stack + "\n\nメッセージ: " + authError.message);
-        const loadingContainer = document.getElementById('loading-container');
-        if (loadingContainer) loadingContainer.classList.add('hidden');
+    
+    // ログインフォームへの初期メールアドレス自動入力
+    if (paramTargetEmail) {
+        const emailInput = document.getElementById('login-email');
+        if (emailInput) {
+            emailInput.value = paramTargetEmail;
+        }
     }
-});
+    
+    // URLのクレンジング (クエリパラメータを消去して履歴を書き換える)
+    if (window.location.search) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+    
+    showDebugLog("4. Setting up Auth listener...");
+    setupAuthListener();
+};
+
+initApp();
 
 // ログイン処理
 loginForm.addEventListener('submit', (e) => {
@@ -2502,6 +2559,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(id);
                 return el ? el.value : '';
             };
+
+            const startDate = getValRaw('sched-start');
+            const endDate = getValRaw('sched-end');
+
+            if (startDate && endDate && startDate > endDate) {
+                alert('納期 (製作完了日) は製作開始日より後の日付にしてください。');
+                return;
+            }
 
             const schedData = {
                 companyId,
@@ -7441,6 +7506,15 @@ async function verifyAdminCredentials(email, password) {
         await deleteApp(tempApp);
         
         if (companyData && companyData.role === 'admin') {
+            // 現在ログイン中の会社と一致するか厳格に検証
+            if (currentCompany) {
+                const isOwner = currentCompany.ownerUid === tempUid;
+                const isAdminEmail = currentCompany.adminEmails && currentCompany.adminEmails.includes(email);
+                
+                if (!isOwner && !isAdminEmail) {
+                    throw new Error("現在ログインしている会社とは異なる会社の管理者アカウントです。");
+                }
+            }
             return companyData;
         } else {
             throw new Error("このアカウントには管理者（企業）権限がありません。");

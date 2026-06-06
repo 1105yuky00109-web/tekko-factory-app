@@ -68,4 +68,5 @@ injectTo('auth-action.html');
 injectTo('invoice.html');
 injectTo('change-plan.html');
 injectTo('onboarding.html');
+injectTo('onboarding-success.html');
 

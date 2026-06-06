@@ -16,12 +16,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// URLパラメータの確認 (新規登録後のログインなどで強制ログアウトするため)
+const urlParams = new URLSearchParams(window.location.search);
+const paramTargetEmail = urlParams.get('email') ? decodeURIComponent(urlParams.get('email')).trim() : null;
+
 // 状態管理
 let currentUser = null;
 let currentCompany = null;
 let allReports = [];
 let allSchedules = [];
 let allMembers = [];
+let authStateGeneration = 0; // 認証状態の世代カウンタ
 
 // ユーザーの所属する会社をFirestoreの adminEmails / memberEmails から解決する関数
 async function resolveUserCompany(email, uid) {
@@ -76,148 +81,217 @@ const loginForm = document.getElementById('login-form');
 const btnLogout = document.getElementById('btn-logout');
 
 // 認証状態の監視
-onAuthStateChanged(auth, async (user) => {
-    // 接続判定が完了したため、ローディング表示を非表示にする
-    const loadingContainer = document.getElementById('loading-container');
-    if (loadingContainer) {
-        loadingContainer.classList.add('hidden');
-    }
-
-    if (user) {
-        // displayNameがまだ反映されていない場合に備えて再読み込み
-        if (!user.displayName) {
-            try { await user.reload(); user = auth.currentUser; } catch(e) {}
-        }
-
-        // メールアドレス確認が完了しているかチェック（特定のテスト用・管理者アドレスはバイパス）
-        const isBypassEmail = user.email.includes('oowada') || 
-                              user.email.includes('dai-wada') || 
-                              user.email.includes('daiwada') || 
-                              user.email === '1105yuky00109@gmail.com' ||
-                              user.email === '1105yuky00109-web@github.com';
-                              
-        // メールアドレス確認は不要のため、チェックを無効化
-        if (false) {
-            console.log("User email is not verified. Logging out.");
-            await signOut(auth);
-            const errorMsg = document.getElementById('login-error');
-            if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = 'メールアドレスの確認が完了していません。登録時に送信された案内メールのリンクをクリックしてアカウントを有効化した後、ログインしてください。';
-            }
-            return;
+// 認証状態の監視をセットアップする関数
+function setupAuthListener() {
+    onAuthStateChanged(auth, async (user) => {
+        authStateGeneration++;
+        const currentGeneration = authStateGeneration;
+        
+        // 接続判定が完了したため、ローディング表示を非表示にする
+        const loadingContainer = document.getElementById('loading-container');
+        if (loadingContainer) {
+            loadingContainer.classList.add('hidden');
         }
 
-        // ログイン成功時
-        currentUser = auth.currentUser;
-        document.getElementById('current-user-email').textContent = currentUser.email;
-        
-        // 所属会社の解決
-        currentCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
-        if (!currentCompany) {
-            // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
-            await signOut(auth);
-            const errorMsg = document.getElementById('login-error');
-            if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = 'このメールアドレスはシステムに登録されていません。管理者にお問い合わせください。';
-            }
-            return;
-        }
-        
-        const compLabel = document.getElementById('current-company-name');
-        if (compLabel) {
-            compLabel.textContent = currentCompany.companyName || currentCompany.companyId;
-        }
-        
-        // 役割（管理者のみ）を示すバッジの表示制御
-        const roleBadge = document.getElementById('user-role-badge');
-        if (roleBadge) {
-            if (currentCompany && currentCompany.role === 'admin') {
-                roleBadge.textContent = '企業管理者用画面';
-                roleBadge.style.backgroundColor = '#ef4444';
-                roleBadge.style.color = '#ffffff';
-                roleBadge.style.display = 'inline-block';
+        try {
+            if (user) {
+                // メールアドレスの不一致チェック (email パラメータがある場合)
+                if (paramTargetEmail && user.email !== paramTargetEmail) {
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    
+                    const emailInput = document.getElementById('login-email');
+                    if (emailInput) emailInput.value = paramTargetEmail;
+                    return;
+                }
+
+                // displayNameがまだ反映されていない場合に備えて再読み込み
+                if (!user.displayName) {
+                    try { await user.reload(); user = auth.currentUser; } catch(e) {}
+                }
+
+                // 世代チェック
+                if (currentGeneration !== authStateGeneration) return;
+
+                // メールアドレス確認が完了しているかチェック（特定のテスト用・管理者アドレスはバイパス）
+                const isBypassEmail = user.email.includes('oowada') || 
+                                      user.email.includes('dai-wada') || 
+                                      user.email.includes('daiwada') || 
+                                      user.email === '1105yuky00109@gmail.com' ||
+                                      user.email === '1105yuky00109-web@github.com';
+                                      
+                // メールアドレス確認は不要のため、チェックを無効化
+                if (false) {
+                    console.log("User email is not verified. Logging out.");
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = 'メールアドレスの確認が完了していません。登録時に送信された案内メールのリンクをクリックしてアカウントを有効化した後、ログインしてください。';
+                    }
+                    return;
+                }
+
+                // ログイン成功時
+                currentUser = auth.currentUser;
+                document.getElementById('current-user-email').textContent = currentUser.email;
+                
+                // 所属会社の解決
+                const resolvedCompany = await resolveUserCompany(currentUser.email, currentUser.uid);
+                
+                // 世代チェック
+                if (currentGeneration !== authStateGeneration) return;
+
+                if (!resolvedCompany) {
+                    // 所属会社が解決できない未登録ユーザーは強制ログアウトしてエラー表示
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = 'このメールアドレスはシステムに登録されていません。管理者にお問い合わせください。';
+                    }
+                    return;
+                }
+                
+                currentCompany = resolvedCompany;
+                const compLabel = document.getElementById('current-company-name');
+                if (compLabel) {
+                    compLabel.textContent = currentCompany.companyName || currentCompany.companyId;
+                }
+                
+                // 役割（管理者のみ）を示すバッジの表示制御
+                const roleBadge = document.getElementById('user-role-badge');
+                if (roleBadge) {
+                    if (currentCompany && currentCompany.role === 'admin') {
+                        roleBadge.textContent = '企業管理者用画面';
+                        roleBadge.style.backgroundColor = '#ef4444';
+                        roleBadge.style.color = '#ffffff';
+                        roleBadge.style.display = 'inline-block';
+                    } else {
+                        roleBadge.style.display = 'none';
+                    }
+                }
+                
+                // 担当者入力欄に表示名（氏名）を自動設定（未設定の場合はメールアドレスの@より前を使用）
+                const nameDisplay = currentUser.displayName || currentUser.email.split('@')[0];
+                const authorEl = document.getElementById('author');
+                if (authorEl) authorEl.value = nameDisplay;
+                const schedAuthorEl = document.getElementById('sched-author');
+                if (schedAuthorEl) schedAuthorEl.value = nameDisplay;
+                
+                loginContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                
+                // データ初期読み込み（DOMContentLoaded後に確実に実行されるよう安全に呼び出す）
+                await loadMembers();
+                
+                // 世代チェック
+                if (currentGeneration !== authStateGeneration) return;
+
+                const safeLoadAll = async () => {
+                    if (typeof window.loadSchedules === 'function') await window.loadSchedules();
+                    if (typeof window.loadReports === 'function') await window.loadReports(false);
+                };
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', safeLoadAll, { once: true });
+                } else {
+                    await safeLoadAll();
+                }
+
+                // 世代チェック
+                if (currentGeneration !== authStateGeneration) return;
+
+                // 管理者の場合は社員管理パネルを初期化、社員の場合は非表示を確実にする
+                const empTab = document.getElementById('tab-employee-manage');
+                const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
+                const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
+
+                if (currentCompany && currentCompany.role === 'admin') {
+                    if (empTab) empTab.style.display = '';
+                    if (configTab) configTab.style.display = '';
+                    if (registerTab) registerTab.style.display = '';
+                    setTimeout(() => initEmployeeManagePanel(), 200);
+                } else {
+                    if (empTab) empTab.style.display = 'none';
+                    if (configTab) configTab.style.display = 'none';
+                    if (registerTab) registerTab.style.display = 'none';
+
+                    // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
+                    const activeTab = document.querySelector('.tab-btn.active');
+                    if (activeTab && (activeTab === registerTab || activeTab === configTab || activeTab === empTab)) {
+                        const ganttTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
+                        if (ganttTab) ganttTab.click();
+                    }
+                }
+
+                // 初回ログイン時のパスワード強制変更のチェック
+                const passModal = document.getElementById('password-change-modal');
+                if (passModal && currentCompany) {
+                    const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid) : null;
+                    if (myEmpInfo && myEmpInfo.mustChangePassword === true) {
+                        passModal.style.display = 'flex';
+                    } else {
+                        passModal.style.display = 'none';
+                    }
+                }
             } else {
-                roleBadge.style.display = 'none';
+                // ログアウト状態
+                currentUser = null;
+                currentCompany = null;
+                loginContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                const roleBadge = document.getElementById('user-role-badge');
+                if (roleBadge) {
+                    roleBadge.style.display = 'none';
+                }
+                const passModal = document.getElementById('password-change-modal');
+                if (passModal) {
+                    passModal.style.display = 'none';
+                }
+                const empTab = document.getElementById('tab-employee-manage');
+                if (empTab) {
+                    empTab.style.display = 'none';
+                }
             }
+        } catch (e) {
+            console.error("Auth status error", e);
         }
-        
-        // 担当者入力欄に表示名（氏名）を自動設定（未設定の場合はメールアドレスの@より前を使用）
-        const nameDisplay = currentUser.displayName || currentUser.email.split('@')[0];
-        const authorEl = document.getElementById('author');
-        if (authorEl) authorEl.value = nameDisplay;
-        const schedAuthorEl = document.getElementById('sched-author');
-        if (schedAuthorEl) schedAuthorEl.value = nameDisplay;
-        
-        loginContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        
-        // データ初期読み込み（DOMContentLoaded後に確実に実行されるよう安全に呼び出す）
-        await loadMembers();
-        const safeLoadAll = async () => {
-            if (typeof window.loadSchedules === 'function') await window.loadSchedules();
-            if (typeof window.loadReports === 'function') await window.loadReports(false);
-        };
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', safeLoadAll, { once: true });
-        } else {
-            await safeLoadAll();
-        }
+    });
+}
 
-        // 管理者の場合は社員管理パネルを初期化、社員の場合は非表示を確実にする
-        const empTab = document.getElementById('tab-employee-manage');
-        const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
-        const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
-
-        if (currentCompany && currentCompany.role === 'admin') {
-            if (empTab) empTab.style.display = '';
-            if (configTab) configTab.style.display = '';
-            if (registerTab) registerTab.style.display = '';
-            setTimeout(() => initEmployeeManagePanel(), 200);
-        } else {
-            if (empTab) empTab.style.display = 'none';
-            if (configTab) configTab.style.display = 'none';
-            if (registerTab) registerTab.style.display = 'none';
-
-            // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
-            const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && (activeTab === registerTab || activeTab === configTab || activeTab === empTab)) {
-                const ganttTab = document.querySelector('.tab-btn[data-target="gantt-view"]');
-                if (ganttTab) ganttTab.click();
-            }
-        }
-
-        // 初回ログイン時のパスワード強制変更のチェック
-        const passModal = document.getElementById('password-change-modal');
-        if (passModal && currentCompany) {
-            const myEmpInfo = currentCompany.employees ? currentCompany.employees.find(e => e.uid === currentUser.uid) : null;
-            if (myEmpInfo && myEmpInfo.mustChangePassword === true) {
-                passModal.style.display = 'flex';
-            } else {
-                passModal.style.display = 'none';
-            }
-        }
-    } else {
-        // ログアウト状態
-        currentUser = null;
-        currentCompany = null;
-        loginContainer.classList.remove('hidden');
-        appContainer.classList.add('hidden');
-        const roleBadge = document.getElementById('user-role-badge');
-        if (roleBadge) {
-            roleBadge.style.display = 'none';
-        }
-        const passModal = document.getElementById('password-change-modal');
-        if (passModal) {
-            passModal.style.display = 'none';
-        }
-        const empTab = document.getElementById('tab-employee-manage');
-        if (empTab) {
-            empTab.style.display = 'none';
+// アプリケーションの初期化
+const initApp = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isForceLogout = urlParams.get('logout') === 'true';
+    
+    if (isForceLogout) {
+        try {
+            await signOut(auth);
+        } catch (e) {
+            console.error("Failed to sign out on logout parameter", e);
         }
     }
-});
+    
+    // ログインフォームへの初期メールアドレス自動入力
+    if (paramTargetEmail) {
+        const emailInput = document.getElementById('login-email');
+        if (emailInput) {
+            emailInput.value = paramTargetEmail;
+        }
+    }
+    
+    // URLのクレンジング
+    if (window.location.search) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+    
+    setupAuthListener();
+};
+
+initApp();
 
 // ログイン処理
 loginForm.addEventListener('submit', (e) => {
@@ -1659,6 +1733,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const companyId = currentCompany ? currentCompany.companyId : currentUser.email.split('@')[1];
             const schedId = document.getElementById('sched-id').value;
+
+            const startVal = document.getElementById('sched-start').value;
+            const endVal = document.getElementById('sched-end').value;
+
+            if (startVal && endVal && startVal > endVal) {
+                alert('納期 (製作完了日) は製作開始日より後の日付にしてください。');
+                return;
+            }
+
             const schedData = {
                 companyId,
                 project: document.getElementById('sched-project').value.trim(),
