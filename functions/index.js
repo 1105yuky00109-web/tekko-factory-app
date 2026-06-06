@@ -225,6 +225,8 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
         proration_behavior: 'always_invoice',
       });
 
+      const isInvoice = updatedSub.collection_method === 'send_invoice';
+
       // 4. Firestoreの会社情報を更新
       const maxUsers = parseInt(newQuantity, 10) * 10;
       await companyRef.update({
@@ -240,7 +242,6 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
       });
 
       // 6. メールの送付判定
-      const isInvoice = updatedSub.collection_method === 'send_invoice';
       const adminEmail = companyData.adminEmails && companyData.adminEmails[0];
 
       if (adminEmail) {
