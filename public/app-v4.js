@@ -2568,6 +2568,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const projectNumber = getVal('sched-project-number');
+            if (/[０-９]/.test(projectNumber)) {
+                alert('工事番号の数字は半角で入力してください（全角数字は許可されていません）。');
+                return;
+            }
+
             const schedData = {
                 companyId,
                 project: getVal('sched-project'),
