@@ -232,7 +232,11 @@
     if (method !== 'change-success') {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
+                const isDeveloper = user && (
+                    (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') ||
+                    (user.uid === 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2')
+                );
+                if (isDeveloper) {
                     console.log("onboarding-success: Developer account detected. Skipping force logout.");
                     return;
                 }

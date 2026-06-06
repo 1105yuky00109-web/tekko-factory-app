@@ -34,22 +34,46 @@ const loginForm = document.getElementById('login-form');
 const btnLogout = document.getElementById('btn-logout');
 const currentEmailLabel = document.getElementById('current-user-email');
 
+// 開発者判定ヘルパー
+const checkIsDeveloper = (user) => {
+    if (!user) return false;
+    const devUid = 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2';
+    const devEmail = 'steelworks@areva.co.jp';
+    
+    // UIDによる判定（最も確実）
+    if (user.uid === devUid) return true;
+    
+    // メールアドレスによる判定（表記揺れ考慮）
+    if (user.email && user.email.toLowerCase().trim() === devEmail) return true;
+    
+    return false;
+};
+
 // 認証状態の監視
 onAuthStateChanged(auth, async (user) => {
-    if (user && user.email && DEVELOPER_EMAILS.map(e => e.toLowerCase()).includes(user.email.toLowerCase().trim())) {
-        currentUser = user;
-        if (currentEmailLabel) currentEmailLabel.textContent = user.email;
-        loginContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
+    if (user) {
+        const isDev = checkIsDeveloper(user);
         
-        // 初回ロード
-        await reloadData();
-    } else {
-        if (user) {
-            // 開発者以外の場合はログアウトせず、一般アプリ画面へリダイレクト
+        if (isDev) {
+            currentUser = user;
+            if (currentEmailLabel) currentEmailLabel.textContent = user.email || 'steelworks@areva.co.jp';
+            loginContainer.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            
+            // 初回ロード
+            await reloadData();
+        } else {
+            // 開発者ではない場合は、一時的なメールアドレス未ロード状態でないことを確認した上で一般アプリへリダイレクト
+            // user.email が存在しない瞬間は、判定が確定するまでリダイレクトを保留する
+            if (user.email === undefined || user.email === null) {
+                console.log("onAuthStateChanged: user.email is not loaded yet in system-admin.js. Waiting...");
+                return;
+            }
+            
+            // 開発者ではないことが確定したため、一般アプリ画面へリダイレクト
             window.location.href = "app.html";
-            return;
         }
+    } else {
         currentUser = null;
         loginContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');

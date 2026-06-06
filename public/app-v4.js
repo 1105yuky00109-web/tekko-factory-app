@@ -264,14 +264,26 @@ function setupAuthListener() {
             const loadingContainer = document.getElementById('loading-container');
 
             if (user) {
-                const isDeveloper = user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp';
+                const isDeveloper = user && (
+                    (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') ||
+                    (user.uid === 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2')
+                );
+
+                // 開発者アカウントの場合は、他のチェックをすべてスキップして即座に管理画面へ遷移
+                if (isDeveloper) {
+                    showDebugLog("Developer account detected. Redirecting to system-admin.html...");
+                    window.location.href = "system-admin.html";
+                    return;
+                }
+
+                // メールアドレスが一時的にロードされていない場合は処理を保留
+                if (user.email === undefined || user.email === null) {
+                    showDebugLog("onAuthStateChanged: user.email is not loaded yet. Waiting...");
+                    return;
+                }
 
                 // メールアドレスの不一致チェック (email パラメータがある場合)
                 if (paramTargetEmail && user.email !== paramTargetEmail) {
-                    if (isDeveloper) {
-                        window.location.href = "system-admin.html";
-                        return;
-                    }
                     showDebugLog(`Session email mismatch: Logged in as ${user.email}, expected: ${paramTargetEmail}. Forcing logout.`);
                     await signOut(auth);
                     if (currentGeneration !== authStateGeneration) return;
@@ -305,13 +317,8 @@ function setupAuthListener() {
                                       user.email.includes('dai-wada') || 
                                       user.email.includes('daiwada') || 
                                       user.email === '1105yuky00109@gmail.com' ||
-                                      user.email === '1105yuky00109-web@github.com' ||
-                                      isDeveloper;
+                                      user.email === '1105yuky00109-web@github.com';
                                       
-                if (isDeveloper) {
-                    window.location.href = "system-admin.html";
-                    return;
-                }
                 if (!user.emailVerified && !isBypassEmail) {
                     showDebugLog("User email is not verified. Logging out.");
                     await signOut(auth);
