@@ -2574,6 +2574,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            if (startDate && startDate < todayStr) {
+                alert('製作開始日は今日以降の日付を指定してください（過去の日付は入力できません）。');
+                return;
+            }
+
             const schedData = {
                 companyId,
                 project: getVal('sched-project'),
@@ -2856,6 +2867,82 @@ document.addEventListener('DOMContentLoaded', () => {
     // データ読み込み（ガントチャート）
     const ganttYearSelect = document.getElementById('gantt-year');
 
+    // 管理者専用工事予定一覧テーブルのレンダリング
+    const renderAdminScheduleList = () => {
+        const tbody = document.getElementById('admin-schedule-list-tbody');
+        if (!tbody) return;
+
+        // 開始日の早い順、その次は工事名順でソート
+        const sortedSchedules = [...allSchedules].sort((a, b) => {
+            if (a.start !== b.start) return a.start > b.start ? 1 : -1;
+            return a.project > b.project ? 1 : -1;
+        });
+
+        let html = '';
+        sortedSchedules.forEach(s => {
+            const statusLabel = s.completed 
+                ? '<span class="status-badge" style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.75rem;">完了</span>' 
+                : '<span class="status-badge" style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.75rem;">進行中</span>';
+            
+            html += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid var(--border); font-weight: bold; text-align: left;">${s.project || ''}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: left;">${s.projectNumber || '-'}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: right;">${s.tonnage || 0} t</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: left;">${s.siteRep || '-'}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">${s.start || ''} 〜 ${s.end || ''}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">${statusLabel}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <button class="btn btn-secondary btn-small btn-edit-admin-sched" data-id="${s.id}" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">編集</button>
+                            <button class="btn btn-secondary btn-small btn-delete-admin-sched" data-id="${s.id}" style="padding: 4px 8px; font-size: 0.75rem; background-color: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">削除</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        if (sortedSchedules.length === 0) {
+            html = `<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">工事予定が登録されていません。</td></tr>`;
+        }
+
+        tbody.innerHTML = html;
+
+        // 編集ボタンのイベント紐付け
+        tbody.querySelectorAll('.btn-edit-admin-sched').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const schedId = btn.dataset.id;
+                const sched = allSchedules.find(s => s.id === schedId);
+                if (sched) {
+                    startEditScheduleMode(sched);
+                    // フォームのある上部へスクロールして戻す
+                    const formCard = document.querySelector('#schedule-input-view .form-card');
+                    if (formCard) formCard.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // 削除ボタンのイベント紐付け
+        tbody.querySelectorAll('.btn-delete-admin-sched').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const schedId = btn.dataset.id;
+                const sched = allSchedules.find(s => s.id === schedId);
+                if (sched) {
+                    if (confirm(`本当に工事「${sched.project}」を削除しますか？\n（※この操作は取り消せません）`)) {
+                        try {
+                            await deleteDoc(doc(db, "schedules", schedId));
+                            alert('工事を削除しました。');
+                            await loadSchedules();
+                        } catch (e) {
+                            console.error("Error deleting schedule: ", e);
+                            alert('削除に失敗しました。');
+                        }
+                    }
+                }
+            });
+        });
+    };
+
     window.loadSchedules = async () => {
         try {
             const cid = currentCompany ? currentCompany.companyId : currentUser.email.split('@')[1];
@@ -2863,6 +2950,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const querySnapshot = await getDocs(q);
             allSchedules = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             renderGanttChart();
+            renderAdminScheduleList();
             updateProjectSuggestions();
             if (typeof updateReportProjectDropdown === 'function') {
                 updateReportProjectDropdown();
@@ -2955,9 +3043,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 左側テーブルセル
             const completedBadge = s.completed ? '<span class="proj-card-completed-badge" style="background: #dcfce7; color: #15803d; padding: 1px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-right: 5px; flex-shrink: 0;">完了</span>' : '';
             
-            // 企業管理者のみ「編集」ボタンを表示
-            const editBtnHtml = (currentCompany && currentCompany.role === 'admin') ?
-                `<button class="btn btn-secondary btn-small btn-edit-schedule-v4" data-id="${s.id}" style="padding: 2px 6px; font-size: 0.72rem; line-height: 1; height: 18px; margin: 0; white-space: nowrap; background-color: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;">編集</button>` : '';
+            // ガントチャートからは編集ボタンを排除
+            const editBtnHtml = '';
 
             // 10個の縦割りカラム (sticky固定 & 背景色指定、並び替え・仕入れ複数行対応)
             const supplierParts = [s.supplier1, s.supplier2, s.supplier3].filter(Boolean);
