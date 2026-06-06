@@ -372,27 +372,12 @@ function aggregateAndRenderReports() {
         return;
     }
 
+    // まず、存在するすべての月（YYYY-MM）を抽出してフィルターオプションを構築
     const monthsSet = new Set();
-    const aggMap = new Map(); // key: projectName + "::" + month
-
     currentCompanyReports.forEach(r => {
-        const proj = r.projectName || '(不明な工事)';
-        const month = r.date ? r.date.substring(0, 7) : '(不明な月)';
-        const hours = parseFloat(r.hours) || 0;
-
         if (r.date && r.date.length >= 7) {
-            monthsSet.add(month);
+            monthsSet.add(r.date.substring(0, 7));
         }
-
-        const key = `${proj}::${month}`;
-        if (!aggMap.has(key)) {
-            aggMap.set(key, {
-                projectName: proj,
-                month: month,
-                hours: 0
-            });
-        }
-        aggMap.get(key).hours += hours;
     });
 
     const sortedMonths = Array.from(monthsSet).sort().reverse();
@@ -407,12 +392,31 @@ function aggregateAndRenderReports() {
         }
     }
 
-    let aggList = Array.from(aggMap.values());
+    // 選択された月でフィルタリングされた日報データ
     const activeMonth = monthFilter ? monthFilter.value : "";
-    if (activeMonth) {
-        aggList = aggList.filter(row => row.month === activeMonth);
-    }
+    const filteredReports = activeMonth 
+        ? currentCompanyReports.filter(r => r.date && r.date.substring(0, 7) === activeMonth)
+        : currentCompanyReports;
 
+    // テーブル表示用の集計（工事名 × 対象月 で合計時間を算出）
+    const tableAggMap = new Map();
+    filteredReports.forEach(r => {
+        const proj = r.projectName || '(不明な工事)';
+        const month = r.date ? r.date.substring(0, 7) : '(不明な月)';
+        const hours = parseFloat(r.hours) || 0;
+
+        const key = `${proj}::${month}`;
+        if (!tableAggMap.has(key)) {
+            tableAggMap.set(key, {
+                projectName: proj,
+                month: month,
+                hours: 0
+            });
+        }
+        tableAggMap.get(key).hours += hours;
+    });
+
+    let aggList = Array.from(tableAggMap.values());
     aggList.sort((a, b) => {
         if (a.projectName !== b.projectName) {
             return a.projectName.localeCompare(b.projectName);
@@ -432,13 +436,44 @@ function aggregateAndRenderReports() {
         }).join('');
     }
 
-    // X軸用：工事名一覧を取得
-    const projects = Array.from(new Set(currentCompanyReports.map(r => r.projectName || '(不明な工事)'))).sort();
-    
-    // 積み上げ要素（凡例）：対象月を古い順に昇順ソート
-    const sortedMonthsAsc = Array.from(monthsSet).sort();
+    // グラフ用の集計（X軸：工事名、積層：作業内容）
+    const projects = Array.from(new Set(filteredReports.map(r => r.projectName || '(不明な工事)'))).sort();
+    const tasksSet = new Set();
+    const chartAggMap = new Map(); // key: projectName + "::" + taskName
 
-    // 積層カラーパレット定義 (彩度と明度を統一したモダンでシャープなカラー)
+    filteredReports.forEach(r => {
+        const proj = r.projectName || '(不明な工事)';
+        const hours = parseFloat(r.hours) || 0;
+        const tasks = Array.isArray(r.tasks) ? r.tasks : (r.tasks ? [r.tasks] : []);
+        
+        // 作業内容が空の場合は「その他」として扱う
+        const activeTasks = tasks.length > 0 ? tasks : ['その他'];
+
+        activeTasks.forEach(task => {
+            if (!task) return;
+            let taskName = task;
+            if (task === 'その他' && r.notes && r.notes.trim() !== '') {
+                taskName = `その他（${r.notes.trim()}）`;
+            }
+            tasksSet.add(taskName);
+
+            const key = `${proj}::${taskName}`;
+            if (!chartAggMap.has(key)) {
+                chartAggMap.set(key, {
+                    projectName: proj,
+                    taskName: taskName,
+                    hours: 0
+                });
+            }
+            // 報告ごとにタスクが複数ある場合は等分する（割合として正しく積み上げるため）
+            const distributedHours = hours / activeTasks.length;
+            chartAggMap.get(key).hours += distributedHours;
+        });
+    });
+
+    const sortedTasks = Array.from(tasksSet).sort();
+
+    // 積層カラーパレット定義
     const colorPalette = [
         '#6366f1', // indigo
         '#06b6d4', // cyan
@@ -452,26 +487,21 @@ function aggregateAndRenderReports() {
         '#84cc16'  // lime
     ];
 
-    // 月ごとのデータセット作成
-    const datasets = sortedMonthsAsc.map((month, idx) => {
+    // 作業内容ごとのデータセット作成
+    const datasets = sortedTasks.map((task, idx) => {
         const data = projects.map(proj => {
-            const key = `${proj}::${month}`;
-            const item = aggMap.get(key);
+            const key = `${proj}::${task}`;
+            const item = chartAggMap.get(key);
             return item ? item.hours : 0;
         });
 
-        // 年月のフォーマット（例: "2026-05" -> "26年5月"）
-        const year = month.substring(2, 4);
-        const mon = parseInt(month.substring(5, 7));
-        const formattedMonthLabel = `${year}年${mon}月`;
-
         return {
-            label: formattedMonthLabel,
+            label: task,
             data: data,
             backgroundColor: colorPalette[idx % colorPalette.length],
             borderColor: 'transparent',
             borderWidth: 0,
-            borderRadius: 6, // バーの角を丸くしてスタイリッシュにする
+            borderRadius: 6,
             borderSkipped: false
         };
     });
