@@ -2630,6 +2630,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: getVal('sched-notes'),
                 client: getVal('sched-client'),
                 address: getVal('sched-address'),
+                architect: getVal('sched-architect'),
                 drawing: getVal('sched-drawing'),
                 lofting: getVal('sched-lofting'),
                 inspectionCompany: getVal('sched-inspection-company'),
@@ -5642,6 +5643,7 @@ function startEditScheduleMode(sched) {
     setVal('sched-tonnage', sched.tonnage || '');
     setVal('sched-client', sched.client || '');
     setVal('sched-address', sched.address || '');
+    setVal('sched-architect', sched.architect || '');
     setVal('sched-start', sched.start || '');
     setVal('sched-end', sched.end || '');
     setVal('sched-drawing', sched.drawing || '');
@@ -5739,12 +5741,12 @@ function openEditModal(sched) {
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">現場住所</label>
-                <input type="text" id="edit-address" value="${(sched.address || '').replace(/"/g, '&quot;')}"
+                <input type="text" id="edit-address" value="${(sched.address || '').replace(/"/g, '&quot;')}" placeholder="例: 東京都新宿区..."
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">受注先</label>
-                <input type="text" id="edit-client" value="${(sched.client || '').replace(/"/g, '&quot;')}"
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建て方日</label>
+                <input type="text" id="edit-erection-date" value="${(sched.erectionDate || '').replace(/"/g, '&quot;')}" placeholder="例: 10月中旬 / 2026-10-15"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
         </div>
@@ -5752,30 +5754,35 @@ function openEditModal(sched) {
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">施工図</label>
-                <input type="text" id="edit-drawing" value="${(sched.drawing || '').replace(/"/g, '&quot;')}"
+                <input type="text" id="edit-drawing" value="${(sched.drawing || '').replace(/"/g, '&quot;')}" placeholder="例: ○○設計"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">現寸</label>
-                <input type="text" id="edit-lofting" value="${(sched.lofting || '').replace(/"/g, '&quot;')}"
+                <input type="text" id="edit-lofting" value="${(sched.lofting || '').replace(/"/g, '&quot;')}" placeholder="例: ○○原寸"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">第三者検査会社</label>
-                <input type="text" id="edit-inspection-company" value="${(sched.inspectionCompany || '').replace(/"/g, '&quot;')}"
+                <input type="text" id="edit-inspection-company" value="${(sched.inspectionCompany || '').replace(/"/g, '&quot;')}" placeholder="例: ○○検査"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">ゼネコン</label>
-                <input type="text" id="edit-general-contractor" value="${(sched.generalContractor || '').replace(/"/g, '&quot;')}"
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">設計事務所</label>
+                <input type="text" id="edit-architect" value="${(sched.architect || '').replace(/"/g, '&quot;')}" placeholder="例: ○○設計"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建て方日</label>
-                <input type="text" id="edit-erection-date" value="${(sched.erectionDate || '').replace(/"/g, '&quot;')}"
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">元請業者</label>
+                <input type="text" id="edit-general-contractor" value="${(sched.generalContractor || '').replace(/"/g, '&quot;')}" placeholder="例: ○○建設"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">受注先</label>
+                <input type="text" id="edit-client" value="${(sched.client || '').replace(/"/g, '&quot;')}" placeholder="例: ○○商事"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
         </div>
@@ -5857,6 +5864,7 @@ function openEditModal(sched) {
             tonnage: parseFloat(document.getElementById('edit-tonnage').value) || 0,
             client: document.getElementById('edit-client').value.trim(),
             address: document.getElementById('edit-address').value.trim(),
+            architect: document.getElementById('edit-architect').value.trim(),
             drawing: document.getElementById('edit-drawing').value.trim(),
             lofting: document.getElementById('edit-lofting').value.trim(),
             inspectionCompany: document.getElementById('edit-inspection-company').value.trim(),
