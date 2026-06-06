@@ -1561,36 +1561,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 日付ショートカット処理
-    document.querySelectorAll('.btn-date-shortcut').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.dataset.target;
-            const type = btn.dataset.type;
-            const targetInput = document.getElementById(targetId);
-            if (!targetInput) return;
 
-            const now = new Date();
-            let dateVal = '';
-
-            if (type === 'today') {
-                dateVal = now.toISOString().split('T')[0];
-            } else if (type === 'tomorrow') {
-                now.setDate(now.getDate() + 1);
-                dateVal = now.toISOString().split('T')[0];
-            } else if (type === 'next-monday') {
-                const daysUntilNextMonday = (1 - now.getDay() + 7) % 7 || 7;
-                now.setDate(now.getDate() + daysUntilNextMonday);
-                dateVal = now.toISOString().split('T')[0];
-            }
-
-            targetInput.value = dateVal;
-            // 終了日も同じ日に自動設定
-            const endInput = document.getElementById('sched-end');
-            if (endInput && !endInput.value) {
-                endInput.value = dateVal;
-            }
-        });
-    });
 
     // タブ切り替え
     const tabBtns = document.querySelectorAll('.tab-btn');
