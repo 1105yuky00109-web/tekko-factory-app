@@ -9,7 +9,19 @@ const firebaseConfig = {
 
 const showDebugLog = (msg) => {
     console.log("[DEBUG] " + msg);
+    const debugEl = document.getElementById('debug-log-display');
+    if (debugEl) {
+        debugEl.textContent += msg + "\n";
+        debugEl.scrollTop = debugEl.scrollHeight;
+    }
 };
+
+window.addEventListener('error', (event) => {
+    showDebugLog(`[CRITICAL ERROR] ${event.message} at ${event.filename}:${event.lineno}`);
+});
+window.addEventListener('unhandledrejection', (event) => {
+    showDebugLog(`[UNHANDLED REJECTION] ${event.reason}`);
+});
 
 showDebugLog("1. Start loading imports...");
 
@@ -1078,7 +1090,7 @@ function populateMemberDropdowns() {
 
 // ログアウト処理
 btnLogout.addEventListener('click', () => {
-    if (confirm('ログアウトしますか？')) { signOut(auth).catch(err => console.error(err)); }
+    signOut(auth).catch(err => console.error(err));
 });
 
 // トースト通知を表示する関数
@@ -6011,9 +6023,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPassChangeLogout = document.getElementById('btn-password-change-logout');
     if (btnPassChangeLogout) {
         btnPassChangeLogout.addEventListener('click', () => {
-            if (confirm('ログアウトしますか？')) {
-                signOut(auth).catch(err => console.error(err));
-            }
+            signOut(auth).catch(err => console.error(err));
         });
     }
 
