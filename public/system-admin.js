@@ -24,6 +24,8 @@ let allCompanies = [];
 let allSchedules = [];
 let selectedCompanyId = "";
 let currentCompanyReports = []; // 選択された会社の日報データ
+let reportChartInstance = null; // Chart.jsのグラフインスタンス
+
 
 // DOM要素
 const loginContainer = document.getElementById('login-container');
@@ -292,26 +294,27 @@ async function selectAdminCompany(companyId) {
         filterSelect.value = companyId;
     }
 
-    const reportSection = document.getElementById('company-report-section');
+    const detailModal = document.getElementById('company-detail-modal');
     const tbody = document.getElementById('admin-reports-tbody');
-    const title = document.getElementById('report-section-title');
+    const title = document.getElementById('modal-company-title');
 
     if (!companyId) {
-        if (reportSection) reportSection.classList.add('hidden');
+        if (detailModal) detailModal.classList.remove('show');
         currentCompanyReports = [];
         return;
     }
 
-    if (reportSection) reportSection.classList.remove('hidden');
+    // モーダルを表示
+    if (detailModal) detailModal.classList.add('show');
 
     const companyObj = allCompanies.find(c => (c.companyId || c.id) === companyId);
     const companyName = companyObj ? (companyObj.companyName || companyId) : companyId;
     if (title) {
-        title.textContent = `🏢 ${companyName} 工事別月間作業集計`;
+        title.textContent = `🏢 ${companyName} 工事別稼働集計`;
     }
 
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">⏳ 日報データを読み込み中...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">⏳ 日報データを読み込み中...</td></tr>`;
     }
 
     try {
@@ -324,56 +327,48 @@ async function selectAdminCompany(companyId) {
     } catch (err) {
         console.error("Error loading company reports: ", err);
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5" style="padding:30px; text-align:center; color:var(--danger);">❌ データの取得に失敗しました: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--error);">❌ データの取得に失敗しました: ${err.message}</td></tr>`;
         }
     }
 }
 
-// 日報の集計と描画
+// 日報の集計と描画（およびグラフ描画）
 function aggregateAndRenderReports() {
     const tbody = document.getElementById('admin-reports-tbody');
     const monthFilter = document.getElementById('admin-month-filter');
     if (!tbody) return;
 
     if (currentCompanyReports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">日報データが登録されていません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">日報データが登録されていません。</td></tr>';
         updateMonthFilterOptions([]);
+        if (reportChartInstance) {
+            reportChartInstance.destroy();
+            reportChartInstance = null;
+        }
         return;
     }
 
     const monthsSet = new Set();
-    const aggMap = new Map();
+    const aggMap = new Map(); // key: projectName + "::" + month
 
     currentCompanyReports.forEach(r => {
         const proj = r.projectName || '(不明な工事)';
         const month = r.date ? r.date.substring(0, 7) : '(不明な月)';
-        const author = r.author || '(不明な社員)';
         const hours = parseFloat(r.hours) || 0;
 
         if (r.date && r.date.length >= 7) {
             monthsSet.add(month);
         }
 
-        const tasks = Array.isArray(r.tasks) ? r.tasks : (r.tasks ? [r.tasks] : []);
-        tasks.forEach(task => {
-            if (!task) return;
-            let taskName = task;
-            if (task === 'その他' && r.notes && r.notes.trim() !== '') {
-                taskName = `その他（${r.notes.trim()}）`;
-            }
-
-            const key = `${proj}::${month}::${author}::${taskName}`;
-            if (!aggMap.has(key)) {
-                aggMap.set(key, {
-                    projectName: proj,
-                    month: month,
-                    author: author,
-                    taskName: taskName,
-                    hours: 0
-                });
-            }
-            aggMap.get(key).hours += hours;
-        });
+        const key = `${proj}::${month}`;
+        if (!aggMap.has(key)) {
+            aggMap.set(key, {
+                projectName: proj,
+                month: month,
+                hours: 0
+            });
+        }
+        aggMap.get(key).hours += hours;
     });
 
     const sortedMonths = Array.from(monthsSet).sort().reverse();
@@ -398,24 +393,174 @@ function aggregateAndRenderReports() {
         if (a.projectName !== b.projectName) {
             return a.projectName.localeCompare(b.projectName);
         }
-        if (a.month !== b.month) {
-            return b.month.localeCompare(a.month);
-        }
-        return a.author.localeCompare(b.author);
+        return b.month.localeCompare(a.month);
     });
 
     if (aggList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">選択された月に該当する日報データはありません。</td></tr>';
-        return;
+        tbody.innerHTML = '<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">選択された月に該当する日報データはありません。</td></tr>';
+    } else {
+        tbody.innerHTML = aggList.map(row => {
+            return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:12px 15px; font-weight:bold;">${row.projectName}</td>
+                <td style="padding:12px 15px; color:var(--text-muted); font-size:0.9rem;">${row.month}</td>
+                <td style="padding:12px 15px; text-align:right; font-weight:bold; color:#60a5fa; font-size:1.05rem;">${row.hours.toFixed(1)} h</td>
+            </tr>`;
+        }).join('');
     }
 
-    tbody.innerHTML = aggList.map(row => {
-        return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:12px 15px; font-weight:bold;">${row.projectName}</td>
-            <td style="padding:12px 15px; color:var(--text-muted); font-size:0.9rem;">${row.month}</td>
-            <td style="padding:12px 15px;">${row.author}</td>
-            <td style="padding:12px 15px; font-size:0.9rem;">${row.taskName}</td>
-            <td style="padding:12px 15px; text-align:right; font-weight:bold; color:#60a5fa; font-size:1.05rem;">${row.hours.toFixed(1)} h</td>
-        </tr>`;
-    }).join('');
+    // X軸用：対象月を古い順に昇順ソート
+    const sortedMonthsAsc = Array.from(monthsSet).sort();
+    
+    // 工事名一覧を取得
+    const projects = Array.from(new Set(currentCompanyReports.map(r => r.projectName || '(不明な工事)'))).sort();
+
+    // 積層カラーパレット定義 (ダークテーマに映える鮮やかなカラー)
+    const colorPalette = [
+        '#6366f1', // indigo
+        '#06b6d4', // cyan
+        '#10b981', // emerald
+        '#f59e0b', // amber
+        '#ec4899', // pink
+        '#8b5cf6', // violet
+        '#3b82f6', // blue
+        '#f43f5e', // rose
+        '#14b8a6', // teal
+        '#84cc16'  // lime
+    ];
+
+    // 工事ごとのデータセット作成
+    const datasets = projects.map((proj, idx) => {
+        const data = sortedMonthsAsc.map(month => {
+            const key = `${proj}::${month}`;
+            const item = aggMap.get(key);
+            return item ? item.hours : 0;
+        });
+
+        return {
+            label: proj,
+            data: data,
+            backgroundColor: colorPalette[idx % colorPalette.length],
+            borderColor: 'transparent',
+            borderWidth: 0
+        };
+    });
+
+    renderChart(sortedMonthsAsc, datasets);
 }
+
+// Chart.jsによる積層棒グラフの描画
+function renderChart(labels, datasets) {
+    const ctx = document.getElementById('company-report-chart');
+    if (!ctx) return;
+
+    if (reportChartInstance) {
+        reportChartInstance.destroy();
+    }
+
+    reportChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#f8fafc',
+                        font: {
+                            size: 11,
+                            family: 'sans-serif'
+                        },
+                        boxWidth: 10,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#60a5fa',
+                    bodyColor: '#f8fafc',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(1) + ' h';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: {
+                        color: 'rgba(51, 65, 85, 0.25)'
+                    },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: {
+                            family: 'sans-serif'
+                        }
+                    }
+                },
+                y: {
+                    stacked: true,
+                    grid: {
+                        color: 'rgba(51, 65, 85, 0.25)'
+                    },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: {
+                            family: 'sans-serif'
+                        },
+                        callback: function(value) {
+                            return value + ' h';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// モーダルを閉じる処理
+function closeDetailModal() {
+    const detailModal = document.getElementById('company-detail-modal');
+    if (detailModal) {
+        detailModal.classList.remove('show');
+    }
+    if (reportChartInstance) {
+        reportChartInstance.destroy();
+        reportChartInstance = null;
+    }
+    // 会社セレクトボックスを初期値に戻す
+    selectedCompanyId = "";
+    const filterSelect = document.getElementById('admin-company-filter');
+    if (filterSelect) {
+        filterSelect.value = "";
+    }
+}
+
+// 閉じるボタンと背景クリックのイベント追加
+const btnCloseModal = document.getElementById('btn-close-modal');
+if (btnCloseModal) {
+    btnCloseModal.addEventListener('click', closeDetailModal);
+}
+const detailModalOverlay = document.getElementById('company-detail-modal');
+if (detailModalOverlay) {
+    detailModalOverlay.addEventListener('click', (e) => {
+        if (e.target === detailModalOverlay) {
+            closeDetailModal();
+        }
+    });
+}
+

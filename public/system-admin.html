@@ -376,7 +376,134 @@
       border-radius: 20px;
       font-size: 0.8rem;
     }
+
+    /* 詳細ポップアップモーダルスタイル */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 95%;
+      max-width: 1000px;
+      max-height: 90vh;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.95);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .modal-overlay.show .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .modal-header h2 {
+      font-size: 1.25rem;
+      color: var(--primary);
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 2rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .btn-close:hover {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      transform: rotate(90deg);
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    @media (min-width: 768px) {
+      .modal-body {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        align-items: start;
+        height: 60vh;
+      }
+    }
+
+    .chart-wrapper {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      height: 100%;
+      min-height: 300px;
+      box-sizing: border-box;
+    }
+    
+    .chart-wrapper canvas {
+      max-width: 100% !important;
+      max-height: 100% !important;
+    }
+
+    .modal-table-wrapper {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
   </style>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <!-- 1. ログイン画面 -->
@@ -471,36 +598,48 @@
         </div>
       </div>
 
-      <!-- 会社別日報集計セクション -->
-      <div id="company-report-section" class="data-table-card hidden" style="margin-top: 25px;">
-        <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 id="report-section-title">🏢 会社別 工事別月間作業集計</h3>
-          <div>
-            <label for="admin-month-filter" style="font-size: 0.85rem; color: var(--text-muted); margin-right: 5px;">対象月:</label>
-            <select id="admin-month-filter" class="btn-select" style="padding: 5px 10px; font-size: 0.85rem; background: var(--background); border-color: var(--border); color: #fff; cursor: pointer;">
-              <option value="">すべての月</option>
-            </select>
-          </div>
+  <!-- 3. 会社詳細集計モーダル (ポップアップ別画面) -->
+  <div id="company-detail-modal" class="modal-overlay">
+    <div class="modal-card">
+      <header class="modal-header">
+        <h2 id="modal-company-title">🏢 会社詳細集計</h2>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <!-- グラフエリア -->
+        <div class="chart-wrapper">
+          <canvas id="company-report-chart"></canvas>
         </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr style="background: rgba(0, 0, 0, 0.2);">
-                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">🏗️ 工事名</th>
-                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">📅 対象月</th>
-                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">👤 社員名</th>
-                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">🛠️ 作業内容</th>
-                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: right; width: 120px; font-weight: bold; color: var(--text-muted);">🕒 合計時間</th>
-              </tr>
-            </thead>
-            <tbody id="admin-reports-tbody">
-              <tr>
-                <td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">
-                  会社を選択すると、その会社の日報データが集計されて表示されます。
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        
+        <!-- テーブルエリア -->
+        <div class="modal-table-wrapper">
+          <div class="table-header" style="padding: 12px 15px; background: rgba(255, 255, 255, 0.02); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+            <h3 style="font-size: 0.95rem;">工事別・月別稼働時間</h3>
+            <div>
+              <label for="admin-month-filter" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 5px;">対象月:</label>
+              <select id="admin-month-filter" class="btn-select" style="padding: 4px 8px; font-size: 0.8rem; background: var(--background); border-color: var(--border); color: #fff; cursor: pointer;">
+                <option value="">すべての月</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container" style="overflow-y: auto; flex: 1;">
+            <table>
+              <thead>
+                <tr style="background: rgba(0, 0, 0, 0.2);">
+                  <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">🏗️ 工事名</th>
+                  <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">📅 対象月</th>
+                  <th style="padding: 10px 15px; text-align: right; width: 100px; font-weight: bold; color: var(--text-muted);">🕒 合計時間</th>
+                </tr>
+              </thead>
+              <tbody id="admin-reports-tbody">
+                <tr>
+                  <td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">
+                    データをロード中...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
