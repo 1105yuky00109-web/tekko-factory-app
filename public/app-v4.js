@@ -26,6 +26,19 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 let messaging = null;
 
+// URLパラメータの確認 (新規登録後のログインなどで強制ログアウトするため)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('logout') === 'true') {
+    showDebugLog("Detecting logout=true parameter, logging out current session...");
+    signOut(auth).then(() => {
+        // パラメータを消去して履歴を書き換える
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }).catch(e => {
+        console.error("Failed to sign out on logout parameter", e);
+    });
+}
+
 showDebugLog("3. Firebase Services initialized.");
 
 const isFcmSupported = () => {

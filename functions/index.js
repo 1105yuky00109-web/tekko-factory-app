@@ -415,7 +415,7 @@ ${invoiceLink}
 
       // アカウント登録完了メール（有効化メール）の送信
       const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${subscription.latest_invoice}`;
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html?logout=true`;
 
       const emailText = `${adminName} 様
 
@@ -584,7 +584,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
 
     // お名前.com SMTP経由での登録完了メール送信
     try {
-      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`;
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html?logout=true`;
 
       const emailText = `${adminName} 様
 
