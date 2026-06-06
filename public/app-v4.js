@@ -14,19 +14,7 @@ const firebaseConfig = {
 
 const showDebugLog = (msg) => {
     console.log("[DEBUG] " + msg);
-    const debugEl = document.getElementById('debug-log-display');
-    if (debugEl) {
-        debugEl.textContent += msg + "\n";
-        debugEl.scrollTop = debugEl.scrollHeight;
-    }
 };
-
-window.addEventListener('error', (event) => {
-    showDebugLog(`[CRITICAL ERROR] ${event.message} at ${event.filename}:${event.lineno}`);
-});
-window.addEventListener('unhandledrejection', (event) => {
-    showDebugLog(`[UNHANDLED REJECTION] ${event.reason}`);
-});
 
 showDebugLog("1. Start loading imports...");
 showDebugLog("2. Imports completed. Initializing Firebase...");
@@ -2549,6 +2537,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 予定(Schedule)保存 - Firebase Firestore
     const schedForm = document.getElementById('schedule-form');
     if (schedForm) {
+        // Enterキー押下による誤送信を防止
+        schedForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+            }
+        });
         schedForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const companyId = currentCompany ? currentCompany.companyId : currentUser.email.split('@')[1];
