@@ -5716,8 +5716,8 @@ function openEditModal(sched) {
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建て方日</label>
-                <input type="text" id="edit-erection-date" value="${(sched.erectionDate || '').replace(/"/g, '&quot;')}" placeholder="例: 10月中旬 / 2026-10-15"
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建て方開始日</label>
+                <input type="date" id="edit-erection-date" value="${sched.erectionDate || ''}"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
         </div>
