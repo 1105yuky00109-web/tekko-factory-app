@@ -307,6 +307,23 @@ const renderAdminCompaniesTable = () => {
     const sumReports = document.getElementById('summary-total-reports');
     if (!tbody) return;
 
+    // 堅牢な日付解析ヘルパー関数
+    const parseFirestoreDate = (field) => {
+        if (!field) return null;
+        if (typeof field.toDate === 'function') {
+            return field.toDate();
+        }
+        if (typeof field.seconds === 'number') {
+            return new Date(field.seconds * 1000);
+        }
+        if (typeof field === 'number') {
+            // 秒単位かミリ秒単位かを桁数で自動判定
+            return field > 9999999999 ? new Date(field) : new Date(field * 1000);
+        }
+        const d = new Date(field);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
     // 全社統計の計算
     let totalEmployees = 0;
     
@@ -325,8 +342,8 @@ const renderAdminCompaniesTable = () => {
             employeeCount: empCount,
             scheduleCount: compSchedules.length,
             reportCount: compReports.length,
-            createdAt: c.createdAt ? new Date(c.createdAt.seconds * 1000) : null,
-            trialEnd: c.trialEnd ? new Date(c.trialEnd.seconds * 1000) : null,
+            createdAt: parseFirestoreDate(c.createdAt),
+            trialEnd: parseFirestoreDate(c.trialEnd),
             adminEmail: (c.adminEmails && c.adminEmails[0]) || '(なし)'
         };
     });
