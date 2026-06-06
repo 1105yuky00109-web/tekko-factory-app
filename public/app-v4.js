@@ -5705,10 +5705,10 @@ function openEditModal(sched) {
 
     const makeOptions = (roleKey, currentVal) => {
         const employees = currentCompany.employees || [];
-        let optHtml = \`<option value="">選択してください</option>\`;
+        let optHtml = `<option value="">選択してください</option>`;
         employees.forEach(emp => {
             const selected = emp.name === currentVal ? 'selected' : '';
-            optHtml += \`<option value="${emp.name}" ${selected}>${emp.name}</option>\`;
+            optHtml += `<option value="${emp.name}" ${selected}>${emp.name}</option>`;
         });
         return optHtml;
     };
