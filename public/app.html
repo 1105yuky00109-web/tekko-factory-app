@@ -32,6 +32,23 @@
             }
         })();
     </script>
+    <!-- ロードエラーやJSエラーを画面上のデバッグログエリアに強制出力するインラインスクリプト -->
+    <script>
+        (function() {
+            window.addEventListener('error', function(event) {
+                var debugEl = document.getElementById('debug-log-display');
+                if (debugEl) {
+                    debugEl.textContent += "[HTML ERROR] " + event.message + " (at " + event.filename + ":" + event.lineno + ")\n";
+                }
+            });
+            window.addEventListener('unhandledrejection', function(event) {
+                var debugEl = document.getElementById('debug-log-display');
+                if (debugEl) {
+                    debugEl.textContent += "[HTML REJECTION] " + event.reason + "\n";
+                }
+            });
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日報管理システム</title>
