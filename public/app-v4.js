@@ -1056,7 +1056,7 @@ function populateMemberDropdowns() {
 
 // ログアウト処理
 btnLogout.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error(err));
+    if (confirm('ログアウトしますか？')) { signOut(auth).catch(err => console.error(err)); }
 });
 
 // トースト通知を表示する関数
@@ -5603,6 +5603,8 @@ function startEditScheduleMode(sched) {
         if (el) el.value = val;
     };
     setVal('sched-project', sched.project || '');
+    setVal('sched-project-number', sched.projectNumber || '');
+    setVal('sched-tonnage', sched.tonnage || '');
     setVal('sched-client', sched.client || '');
     setVal('sched-address', sched.address || '');
     setVal('sched-start', sched.start || '');
