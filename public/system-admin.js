@@ -432,13 +432,13 @@ function aggregateAndRenderReports() {
         }).join('');
     }
 
-    // X軸用：対象月を古い順に昇順ソート
-    const sortedMonthsAsc = Array.from(monthsSet).sort();
-    
-    // 工事名一覧を取得
+    // X軸用：工事名一覧を取得
     const projects = Array.from(new Set(currentCompanyReports.map(r => r.projectName || '(不明な工事)'))).sort();
+    
+    // 積み上げ要素（凡例）：対象月を古い順に昇順ソート
+    const sortedMonthsAsc = Array.from(monthsSet).sort();
 
-    // 積層カラーパレット定義 (ダークテーマに映える鮮やかなカラー)
+    // 積層カラーパレット定義 (彩度と明度を統一したモダンでシャープなカラー)
     const colorPalette = [
         '#6366f1', // indigo
         '#06b6d4', // cyan
@@ -452,24 +452,31 @@ function aggregateAndRenderReports() {
         '#84cc16'  // lime
     ];
 
-    // 工事ごとのデータセット作成
-    const datasets = projects.map((proj, idx) => {
-        const data = sortedMonthsAsc.map(month => {
+    // 月ごとのデータセット作成
+    const datasets = sortedMonthsAsc.map((month, idx) => {
+        const data = projects.map(proj => {
             const key = `${proj}::${month}`;
             const item = aggMap.get(key);
             return item ? item.hours : 0;
         });
 
+        // 年月のフォーマット（例: "2026-05" -> "26年5月"）
+        const year = month.substring(2, 4);
+        const mon = parseInt(month.substring(5, 7));
+        const formattedMonthLabel = `${year}年${mon}月`;
+
         return {
-            label: proj,
+            label: formattedMonthLabel,
             data: data,
             backgroundColor: colorPalette[idx % colorPalette.length],
             borderColor: 'transparent',
-            borderWidth: 0
+            borderWidth: 0,
+            borderRadius: 6, // バーの角を丸くしてスタイリッシュにする
+            borderSkipped: false
         };
     });
 
-    renderChart(sortedMonthsAsc, datasets);
+    renderChart(projects, datasets);
 }
 
 // Chart.jsによる積層棒グラフの描画
@@ -490,6 +497,8 @@ function renderChart(labels, datasets) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            barPercentage: 0.4, // バーを細くしてシャープにする
+            categoryPercentage: 0.8,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -497,7 +506,8 @@ function renderChart(labels, datasets) {
                         color: '#f8fafc',
                         font: {
                             size: 11,
-                            family: 'sans-serif'
+                            family: 'sans-serif',
+                            weight: 'bold'
                         },
                         boxWidth: 10,
                         padding: 15
@@ -509,6 +519,8 @@ function renderChart(labels, datasets) {
                     bodyColor: '#f8fafc',
                     borderColor: '#334155',
                     borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 12,
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -527,24 +539,26 @@ function renderChart(labels, datasets) {
                 x: {
                     stacked: true,
                     grid: {
-                        color: 'rgba(51, 65, 85, 0.25)'
+                        display: false // X軸のグリッド線を消してシンプルに
                     },
                     ticks: {
                         color: '#94a3b8',
                         font: {
-                            family: 'sans-serif'
+                            family: 'sans-serif',
+                            size: 11
                         }
                     }
                 },
                 y: {
                     stacked: true,
                     grid: {
-                        color: 'rgba(51, 65, 85, 0.25)'
+                        color: 'rgba(51, 65, 85, 0.15)' // 薄いグリッド線
                     },
                     ticks: {
                         color: '#94a3b8',
                         font: {
-                            family: 'sans-serif'
+                            family: 'sans-serif',
+                            size: 11
                         },
                         callback: function(value) {
                             return value + ' h';
