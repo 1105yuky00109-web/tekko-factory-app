@@ -2989,9 +2989,9 @@ document.addEventListener('DOMContentLoaded', () => {
         targetSchedules.sort((a, b) => (a.start || '') > (b.start || '') ? 1 : ((a.start || '') < (b.start || '') ? -1 : ((a.project || '') > (b.project || '') ? 1 : -1)));
 
         // 画面表示用に幅を設定し、PCでは画面幅に収め、スマホでは詳細幅があるため自動的にスクロール可能にします。
-        container.style.width = '100%';
-        container.style.minWidth = '100%';
-        container.style.overflow = 'hidden';
+        const isMobile = window.innerWidth <= 1024; const totalWidth = isMobile ? (615 + dateList.length * 8) + 'px' : '100%'; container.style.width = totalWidth;
+        container.style.minWidth = totalWidth;
+        container.style.overflow = 'visible';
 
         const wrapper = container.closest('.gantt-wrapper');
         if (wrapper) {
@@ -3000,7 +3000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 列定義: 左側詳細テーブル（10カラム、合計615pxに縮小） + 右側カレンダー各日(1frで画面幅に収める)
-        let html = `<div class="gantt-grid" style="grid-template-columns: 100px 80px 80px 70px 45px 45px 45px 45px 60px 45px repeat(${dateList.length}, 1fr); width: 100%;">`;
+        const colWidth = isMobile ? '8px' : '1fr'; let html = `<div class="gantt-grid" style="grid-template-columns: 100px 80px 80px 70px 45px 45px 45px 45px 60px 45px repeat(${dateList.length}, ${colWidth}); width: ${totalWidth};">`;
 
         // ==========================================
         // 行1: ヘッダー (左側：10個の詳細カラムヘッダー、右側：各月)
