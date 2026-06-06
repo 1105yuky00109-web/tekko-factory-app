@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <script>
+    // 開発者専用画面では、Service Worker による意図しないキャッシュや裏でのログアウト干渉を防ぐため、
+    // 起動時に登録されているすべての Service Worker を強制的に解除し、キャッシュをクリアします。
+    (function() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var i = 0; i < registrations.length; i++) {
+            registrations[i].unregister().then(function(success) {
+              if (success) console.log('Successfully unregistered service worker for admin panel.');
+            });
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(key) {
+            caches.delete(key);
+          });
+        });
+      }
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>開発者専用 システム管理パネル</title>
@@ -387,16 +409,20 @@
       </div>
     </header>
 
-    <!-- タブメニュー -->
-    <div class="tabs no-print" style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:10px;">
-      <button id="tab-btn-companies" class="btn-tab active">🏢 企業一覧（利用状況）</button>
-      <button id="tab-btn-reports" class="btn-tab">📝 全社週報データ</button>
-    </div>
+    <!-- コントロールパネル -->
+    <section class="control-panel" style="margin-bottom: 20px;">
+      <div class="control-actions" style="margin-top: 0; display: flex; gap: 10px; align-items: center;">
+        <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
+        <select id="admin-company-filter" class="btn-select" style="padding: 10px; font-size: 0.9rem; background: #1e3a8a; color: #fff; border: 1px solid #3b82f6; border-radius: 6px; cursor: pointer;">
+          <option value="">🏢 会社を選択して絞り込み...</option>
+        </select>
+      </div>
+    </section>
 
     <!-- 企業一覧セクション -->
     <div id="companies-section" class="tab-content">
       <!-- 全体サマリーカード -->
-      <div class="company-cards" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 25px;">
+      <div class="company-cards" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-bottom: 25px;">
         <div class="company-card" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); pointer-events: none;">
           <div style="font-size: 1.5rem; margin-bottom: 5px;">🏢</div>
           <div style="font-size: 0.8rem; opacity: 0.8;">登録総企業数</div>
@@ -412,11 +438,6 @@
           <div style="font-size: 0.8rem; opacity: 0.8;">総工事登録数</div>
           <div id="summary-total-schedules" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 件</div>
         </div>
-        <div class="company-card" style="background: linear-gradient(135deg, #ec4899, #be185d); pointer-events: none;">
-          <div style="font-size: 1.5rem; margin-bottom: 5px;">📄</div>
-          <div style="font-size: 0.8rem; opacity: 0.8;">総週報提出数</div>
-          <div id="summary-total-reports" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 件</div>
-        </div>
       </div>
 
       <!-- 企業別利用状況一覧テーブル -->
@@ -431,9 +452,9 @@
               <tr>
                 <th>🏢 会社ID / 企業名</th>
                 <th>💳 契約プラン / 上限</th>
+                <th>💰 支払い方法</th>
                 <th style="text-align:center;">👤 社員数</th>
                 <th style="text-align:center;">🏗️ 工事数</th>
-                <th style="text-align:center;">📄 週報数</th>
                 <th>状態 / トライアル期限</th>
                 <th>✉️ 管理者メール</th>
                 <th>📅 登録日</th>
@@ -449,65 +470,43 @@
           </table>
         </div>
       </div>
-    </div>
 
-    <!-- 週報一覧セクション -->
-    <div id="reports-section" class="tab-content hidden">
-      <!-- コントロールパネル -->
-      <section class="control-panel">
-        <div class="control-title">
-          <span>⚙️</span>
-          <h2>全体コントロール</h2>
-        </div>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">本番環境のデータベース（Firestore）から全体の稼働状況を監視します。</p>
-        
-        <div class="control-actions">
-          <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
-          <button id="admin-view-all-btn" class="btn" style="background:#059669; color:#fff;">🌐 全社データ表示</button>
-          <select id="admin-company-filter" class="btn-select">
-            <option value="">🏢 会社を選択して絞り込み...</option>
-          </select>
-        </div>
-      </section>
-
-      <!-- 会社別サマリーカード -->
-      <section id="admin-company-cards" class="company-cards">
-        <div style="text-align:center; padding:40px; color: var(--text-muted); grid-column: 1 / -1;">
-          データを読み込んでください。
-        </div>
-      </section>
-
-      <!-- 週報一覧テーブル -->
-      <section class="data-table-card">
-        <div class="table-header">
-          <h3 id="admin-table-title">全社 週報データ一覧</h3>
-          <span id="admin-record-count" style="font-size:0.85rem; color:var(--text-muted);">全 0 件</span>
+      <!-- 会社別日報集計セクション -->
+      <div id="company-report-section" class="data-table-card hidden" style="margin-top: 25px;">
+        <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 id="report-section-title">🏢 会社別 工事別月間作業集計</h3>
+          <div>
+            <label for="admin-month-filter" style="font-size: 0.85rem; color: var(--text-muted); margin-right: 5px;">対象月:</label>
+            <select id="admin-month-filter" class="btn-select" style="padding: 5px 10px; font-size: 0.85rem; background: var(--background); border-color: var(--border); color: #fff; cursor: pointer;">
+              <option value="">すべての月</option>
+            </select>
+          </div>
         </div>
         <div class="table-container">
           <table>
             <thead>
-              <tr>
-                <th>🏢 会社ID / 会社名</th>
-                <th>👤 担当者</th>
-                <th>📅 対象月</th>
-                <th style="text-align:center;">ステータス</th>
-                <th>🕒 送信日時</th>
+              <tr style="background: rgba(0, 0, 0, 0.2);">
+                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">🏗️ 工事名</th>
+                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">📅 対象月</th>
+                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">👤 社員名</th>
+                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; font-weight: bold; color: var(--text-muted);">🛠️ 作業内容</th>
+                <th style="padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: right; width: 120px; font-weight: bold; color: var(--text-muted);">🕒 合計時間</th>
               </tr>
             </thead>
             <tbody id="admin-reports-tbody">
               <tr>
                 <td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">
-                  「本番データ再読み込み」ボタンを押すと読み込まれます。
+                  会社を選択すると、その会社の日報データが集計されて表示されます。
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </div>
   </div>
 
   <!-- system-admin.jsを読み込む -->
-  <script type="module" src="system-admin.js"></script>
+  <script type="module" src="system-admin.js?v=20260606-003"></script>
 </body>
 </html>

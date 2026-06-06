@@ -229,7 +229,8 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
       const maxUsers = parseInt(newQuantity, 10) * 10;
       await companyRef.update({
         maxUsers: maxUsers,
-        planName: `${maxUsers}名プラン`,
+        planName: `${maxUsers}名パック`,
+        paymentMethod: isInvoice ? 'invoice' : 'card'
       });
 
       // 5. サブスクリプションサブコレクションも更新
@@ -395,7 +396,7 @@ ${invoiceLink}
         companyId,
         companyName,
         planId: plan,
-        planName: '10名パック追加プラン',
+        planName: `${maxUsers}名パック`,
         stripeCustomerId: customer.id,
         maxUsers: maxUsers,
         ownerUid: adminUid,
@@ -404,6 +405,7 @@ ${invoiceLink}
         status: 'active',
         trialStart: subscription.trial_start || null,
         trialEnd: subscription.trial_end || null,
+        paymentMethod: 'invoice',
       });
 
       // サブスクリプション情報の登録
@@ -561,7 +563,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
       companyId,
       companyName,
       planId,
-      planName: '10名パック追加プラン',
+      planName: `${maxUsers}名パック`,
       stripeCustomerId: session.customer,
       maxUsers: maxUsers,
       ownerUid: adminUid,
@@ -570,6 +572,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
       status: 'active',
       trialStart: trialStart,
       trialEnd: trialEnd,
+      paymentMethod: 'card',
     });
 
     // サブスクリプション情報の登録
@@ -702,7 +705,7 @@ ${invoiceLink}
 
       // 会社データからプラン名やユーザー上限数を取得
       let maxUsersText = '10名';
-      let planNameText = '10名パック追加プラン';
+      let planNameText = '10名パック';
       try {
         const compSnapshot = await db.collection('companies').where('planId', '==', subscription.plan ? subscription.plan.id : '').get();
         if (!compSnapshot.empty) {

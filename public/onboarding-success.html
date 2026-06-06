@@ -232,6 +232,10 @@
     if (method !== 'change-success') {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                if (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
+                    console.log("onboarding-success: Developer account detected. Skipping force logout.");
+                    return;
+                }
                 console.log("onboarding-success: logged-in user detected, logging out to prevent session mismatch:", user.email);
                 try {
                     await signOut(auth);

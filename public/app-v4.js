@@ -264,8 +264,14 @@ function setupAuthListener() {
             const loadingContainer = document.getElementById('loading-container');
 
             if (user) {
+                const isDeveloper = user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp';
+
                 // メールアドレスの不一致チェック (email パラメータがある場合)
                 if (paramTargetEmail && user.email !== paramTargetEmail) {
+                    if (isDeveloper) {
+                        window.location.href = "system-admin.html";
+                        return;
+                    }
                     showDebugLog(`Session email mismatch: Logged in as ${user.email}, expected: ${paramTargetEmail}. Forcing logout.`);
                     await signOut(auth);
                     if (currentGeneration !== authStateGeneration) return;
@@ -299,8 +305,13 @@ function setupAuthListener() {
                                       user.email.includes('dai-wada') || 
                                       user.email.includes('daiwada') || 
                                       user.email === '1105yuky00109@gmail.com' ||
-                                      user.email === '1105yuky00109-web@github.com';
+                                      user.email === '1105yuky00109-web@github.com' ||
+                                      isDeveloper;
                                       
+                if (isDeveloper) {
+                    window.location.href = "system-admin.html";
+                    return;
+                }
                 if (!user.emailVerified && !isBypassEmail) {
                     showDebugLog("User email is not verified. Logging out.");
                     await signOut(auth);
@@ -317,6 +328,11 @@ function setupAuthListener() {
 
                 // ログイン成功時
                 currentUser = auth.currentUser;
+                if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
+                    showDebugLog("Developer account detected in app.html. Redirecting to system-admin.html...");
+                    window.location.href = "system-admin.html";
+                    return;
+                }
                 
                 // 所属会社の解決
                 showDebugLog("Resolving company for: " + currentUser.email);
