@@ -134,11 +134,10 @@ function updateReportProjectDropdown() {
         let html = `<option value="">${defaultText}</option>`;
         // 雑務を常にデフォルトの選択肢として追加
         html += `<option value="雑務">雑務</option>`;
-        // 未完了の工事を優先的に上に表示
-        const sortedSchedules = [...allSchedules].sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
+        // 工事名順でソート
+        const sortedSchedules = [...allSchedules].sort((a, b) => (a.project || '').localeCompare(b.project || ''));
         sortedSchedules.forEach(sched => {
-            const completedLabel = sched.completed ? '【完了】' : '';
-            html += `<option value="${sched.id}">${completedLabel}${sched.project} (${sched.projectNumber || '番号なし'})</option>`;
+            html += `<option value="${sched.id}">${sched.project} (${sched.projectNumber || '番号なし'})</option>`;
         });
         return html;
     };
@@ -2613,26 +2612,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 project: getVal('sched-project'),
                 projectNumber: getVal('sched-project-number'),
                 tonnage: parseFloat(getVal('sched-tonnage')) || 0,
-                branch: resolvedBranch, // 判定した支店を自動設定
+                branch: resolvedBranch,
                 author: getVal('sched-author'),
                 start: getValRaw('sched-start'),
                 end: getValRaw('sched-end'),
                 notes: getVal('sched-notes'),
                 client: getVal('sched-client'),
                 address: getVal('sched-address'),
-                supplier1: getVal('sched-supplier1'),
-                supplier2: getVal('sched-supplier2'),
-                supplier3: getVal('sched-supplier3'),
-                subcontractor: getVal('sched-subcontractor'),
-                memoQty: getVal('sched-memo-qty'),
-                salesRep: getValRaw('sched-sales-rep'),
-                constRep: getValRaw('sched-const-rep'),
-                siteRep: getValRaw('sched-site-rep'),
+                drawing: getVal('sched-drawing'),
+                lofting: getVal('sched-lofting'),
+                inspectionCompany: getVal('sched-inspection-company'),
+                generalContractor: getVal('sched-general-contractor'),
+                erectionDate: getVal('sched-erection-date'),
                 chiefTech: getValRaw('sched-chief-tech'),
                 assignType: "none",
-                barColor: getBarColorForSiteRep(getValRaw('sched-site-rep')),
-                barPattern: getValRaw('sched-bar-pattern'),
-                completed: document.getElementById('sched-completed') ? document.getElementById('sched-completed').checked : false,
+                barColor: '#2563eb', // デフォルトは青色
                 timestamp: new Date().toISOString()
             };
             try {
@@ -2903,18 +2897,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let html = '';
         sortedSchedules.forEach(s => {
-            const statusLabel = s.completed 
-                ? '<span class="status-badge" style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.75rem;">完了</span>' 
-                : '<span class="status-badge" style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.75rem;">進行中</span>';
-            
             html += `
                 <tr>
                     <td style="padding: 8px; border: 1px solid var(--border); font-weight: bold; text-align: left;">${s.project || ''}</td>
                     <td style="padding: 8px; border: 1px solid var(--border); text-align: left;">${s.projectNumber || '-'}</td>
                     <td style="padding: 8px; border: 1px solid var(--border); text-align: right;">${s.tonnage || 0} t</td>
-                    <td style="padding: 8px; border: 1px solid var(--border); text-align: left;">${s.siteRep || '-'}</td>
+                    <td style="padding: 8px; border: 1px solid var(--border); text-align: left;">${s.client || '-'}</td>
                     <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">${s.start || ''} 〜 ${s.end || ''}</td>
-                    <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">${statusLabel}</td>
                     <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">
                         <div style="display: flex; gap: 5px; justify-content: center;">
                             <button class="btn btn-secondary btn-small btn-edit-admin-sched" data-id="${s.id}" style="padding: 4px 8px; font-size: 0.75rem; background-color: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">編集</button>
@@ -3171,7 +3160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gridStart = startIdx + 11;
                 const gridEnd = endIdx + 12;
 
-                const color = getBarColorForSiteRep(s.siteRep);
+                const color = s.barColor || '#2563eb';
                 const patternClass = s.barPattern === 'stripe' ? 'pattern-stripe' : '';
                 const completedClass = s.completed ? 'completed-bar' : '';
 
@@ -5365,7 +5354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.height = 24;
 
                 const displayAssign = '';
-                const displayCompleted = s.completed ? '✓' : '-';
+                const displayCompleted = '-';
 
                 const leftValues = [
                     s.project || '', s.client || '-', s.address || '-', s.supplier1 || '-', s.supplier2 || '-', s.supplier3 || '-',
@@ -5388,7 +5377,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         right: { style: 'thin' }
                     };
                     // 完了かつ完了カラムなら緑色太字
-                    if (idx === 13 && s.completed) {
+                    if (false) {
                         cell.font = { name: 'MS Gothic', size: 9, bold: true, color: { argb: 'FF16A34A' } };
                     }
                 });
@@ -5446,7 +5435,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const cell = row.getCell(c);
                         
                         // ストライプか通常塗りつぶしか
-                        if (s.barPattern === 'stripe') {
+                        if (false) {
                             cell.fill = {
                                 type: 'pattern',
                                 pattern: 'lightDown',
@@ -5467,13 +5456,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             size: 8,
                             bold: true,
                             color: { argb: 'FFFFFFFF' }, // 文字は白
-                            strike: s.completed ? true : false
+                            strike: false
                         };
                     }
 
 // 結合後の代表セル（開始セル）にラベルをセット
                     const mergedStartCell = row.getCell(barStartCol);
-                    mergedStartCell.value = `${s.completed ? '[完了] ' : ''}${s.project}${s.notes ? ` (${s.notes})` : ''}`;
+                    mergedStartCell.value = `${s.project}${s.notes ? ` (${s.notes})` : ''}`;
                     mergedStartCell.alignment = { 
                         horizontal: 'center', 
                         vertical: 'middle',
@@ -5644,20 +5633,12 @@ function startEditScheduleMode(sched) {
     setVal('sched-address', sched.address || '');
     setVal('sched-start', sched.start || '');
     setVal('sched-end', sched.end || '');
-    setVal('sched-supplier1', sched.supplier1 || '');
-    setVal('sched-supplier2', sched.supplier2 || '');
-    setVal('sched-supplier3', sched.supplier3 || '');
-    setVal('sched-subcontractor', sched.subcontractor || '');
-    setVal('sched-memo-qty', sched.memoQty || '');
-    setVal('sched-sales-rep', sched.salesRep || '');
-    setVal('sched-const-rep', sched.constRep || '');
-    setVal('sched-site-rep', sched.siteRep || '');
+    setVal('sched-drawing', sched.drawing || '');
+    setVal('sched-lofting', sched.lofting || '');
+    setVal('sched-inspection-company', sched.inspectionCompany || '');
+    setVal('sched-general-contractor', sched.generalContractor || '');
+    setVal('sched-erection-date', sched.erectionDate || '');
     setVal('sched-chief-tech', sched.chiefTech || '');
-    setVal('sched-bar-pattern', sched.barPattern || 'solid');
-    
-    const completedEl = document.getElementById('sched-completed');
-    if (completedEl) completedEl.checked = !!sched.completed;
-    
     setVal('sched-notes', sched.notes || '');
     setVal('sched-author', sched.author || '');
 
@@ -5713,10 +5694,10 @@ function openEditModal(sched) {
 
     const makeOptions = (roleKey, currentVal) => {
         const employees = currentCompany.employees || [];
-        let optHtml = `<option value="">選択してください</option>`;
+        let optHtml = \`<option value="">選択してください</option>\`;
         employees.forEach(emp => {
             const selected = emp.name === currentVal ? 'selected' : '';
-            optHtml += `<option value="${emp.name}" ${selected}>${emp.name}</option>`;
+            optHtml += \`<option value="${emp.name}" ${selected}>${emp.name}</option>\`;
         });
         return optHtml;
     };
@@ -5733,7 +5714,7 @@ function openEditModal(sched) {
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">工事番号 <span style="color:red">*</span></label>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">工事番号・記号 <span style="color:red">*</span></label>
                 <input type="text" id="edit-project-number" value="${(sched.projectNumber || '').replace(/"/g, '&quot;')}"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
@@ -5744,15 +5725,46 @@ function openEditModal(sched) {
             </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">元請</label>
-                <input type="text" id="edit-client" value="${(sched.client || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">現場住所</label>
                 <input type="text" id="edit-address" value="${(sched.address || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">受注先</label>
+                <input type="text" id="edit-client" value="${(sched.client || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">施工図</label>
+                <input type="text" id="edit-drawing" value="${(sched.drawing || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">現寸</label>
+                <input type="text" id="edit-lofting" value="${(sched.lofting || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">第三者検査会社</label>
+                <input type="text" id="edit-inspection-company" value="${(sched.inspectionCompany || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">ゼネコン</label>
+                <input type="text" id="edit-general-contractor" value="${(sched.generalContractor || '').replace(/"/g, '&quot;')}"
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建て方日</label>
+                <input type="text" id="edit-erection-date" value="${(sched.erectionDate || '').replace(/"/g, '&quot;')}"
                     style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
             </div>
         </div>
@@ -5770,65 +5782,7 @@ function openEditModal(sched) {
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">柱脚 (仕入先①)</label>
-                <input type="text" id="edit-supplier1" value="${(sched.supplier1 || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">製作工場① (仕入先②)</label>
-                <input type="text" id="edit-supplier2" value="${(sched.supplier2 || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">製作工場② (仕入先③)</label>
-                <input type="text" id="edit-supplier3" value="${(sched.supplier3 || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
-        </div>
-
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">管理補助</label>
-                <input type="text" id="edit-subcontractor" value="${(sched.subcontractor || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">建・木 数量等</label>
-                <input type="text" id="edit-memo-qty" value="${(sched.memoQty || '').replace(/"/g, '&quot;')}"
-                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; color:#1e293b;">
-            </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:3px; color:#1e293b; font-size:0.85rem;">営業担当</label>
-                <select id="edit-sales-rep" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; color:#1e293b;">
-                    ${makeOptions('sales', sched.salesRep)}
-                </select>
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:3px; color:#1e293b; font-size:0.85rem;">工務担当</label>
-                <select id="edit-const-rep" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; color:#1e293b;">
-                    ${makeOptions('const', sched.constRep)}
-                </select>
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:3px; color:#1e293b; font-size:0.85rem;">工事担当</label>
-                <select id="edit-site-rep" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; color:#1e293b;">
-                    ${makeOptions('site', sched.siteRep)}
-                </select>
-            </div>
-            <div>
-                <label style="display:block; font-weight:600; margin-bottom:3px; color:#1e293b; font-size:0.85rem;">主任技術者</label>
-                <select id="edit-chief-tech" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; color:#1e293b;">
-                    ${makeOptions('tech', sched.chiefTech)}
-                </select>
-            </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 10px; align-items: center; margin-bottom: 15px;">
             <div>
                 <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">バーの色</label>
                 <select id="edit-bar-color" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; color:#1e293b;">
@@ -5841,19 +5795,14 @@ function openEditModal(sched) {
                 </select>
             </div>
             <div>
-                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">バーの模様</label>
-                <select id="edit-bar-pattern" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; color:#1e293b;">
-                    <option value="solid" ${sched.barPattern === 'solid' ? 'selected' : ''}>通常 (塗りつぶし)</option>
-                    <option value="stripe" ${sched.barPattern === 'stripe' ? 'selected' : ''}>ストライプ (斜線)</option>
+                <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">主任技術者</label>
+                <select id="edit-chief-tech" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; color:#1e293b;">
+                    ${makeOptions('tech', sched.chiefTech)}
                 </select>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; margin-top:25px; justify-content:center;">
-                <input type="checkbox" id="edit-completed" style="width:20px; height:20px; margin:0;" ${sched.completed ? 'checked' : ''}>
-                <label for="edit-completed" style="margin:0; font-weight:bold; white-space:nowrap; cursor:pointer; color:#1e293b;">工程完了</label>
             </div>
         </div>
 
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; display: none;">
             <label style="display:block; font-weight:600; margin-bottom:5px; color:#1e293b;">登録者（編集不可）</label>
             <input type="text" id="edit-author" value="${(sched.author || '').replace(/"/g, '&quot;')}" readonly
                 style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; box-sizing:border-box; background:#f1f5f9; color:#64748b;">
@@ -5897,21 +5846,16 @@ function openEditModal(sched) {
             tonnage: parseFloat(document.getElementById('edit-tonnage').value) || 0,
             client: document.getElementById('edit-client').value.trim(),
             address: document.getElementById('edit-address').value.trim(),
+            drawing: document.getElementById('edit-drawing').value.trim(),
+            lofting: document.getElementById('edit-lofting').value.trim(),
+            inspectionCompany: document.getElementById('edit-inspection-company').value.trim(),
+            generalContractor: document.getElementById('edit-general-contractor').value.trim(),
+            erectionDate: document.getElementById('edit-erection-date').value.trim(),
             start: document.getElementById('edit-start').value,
             end: document.getElementById('edit-end').value,
-            supplier1: document.getElementById('edit-supplier1').value.trim(),
-            supplier2: document.getElementById('edit-supplier2').value.trim(),
-            supplier3: document.getElementById('edit-supplier3').value.trim(),
-            subcontractor: document.getElementById('edit-subcontractor').value.trim(),
-            memoQty: document.getElementById('edit-memo-qty').value.trim(),
-            salesRep: document.getElementById('edit-sales-rep').value,
-            constRep: document.getElementById('edit-const-rep').value,
-            siteRep: document.getElementById('edit-site-rep').value,
             chiefTech: document.getElementById('edit-chief-tech').value,
             assignType: "none",
             barColor: document.getElementById('edit-bar-color').value,
-            barPattern: document.getElementById('edit-bar-pattern').value,
-            completed: document.getElementById('edit-completed').checked,
             notes: document.getElementById('edit-notes').value.trim(),
         };
 
@@ -5960,7 +5904,7 @@ function openEditModal(sched) {
             console.error(err);
             alert('削除に失敗しました: ' + err.message);
             delBtn.disabled = false;
-                delBtn.innerHTML = '🗑️ 削除';
+            delBtn.innerHTML = '🗑️ 削除';
         }
     });
 }
