@@ -305,6 +305,55 @@
       color: var(--warning);
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
+
+    .btn-tab {
+      background: #334155;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-tab:hover {
+      background: #475569;
+      color: var(--text);
+    }
+
+    .btn-tab.active {
+      background: var(--primary) !important;
+      color: #fff !important;
+      border-color: var(--primary) !important;
+    }
+
+    .tab-content {
+      display: block;
+    }
+
+    .tab-content.hidden {
+      display: none !important;
+    }
+
+    /* 企業一覧用バッジ */
+    .badge-trial {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+
+    .badge-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>
@@ -338,57 +387,124 @@
       </div>
     </header>
 
-    <!-- コントロールパネル -->
-    <section class="control-panel">
-      <div class="control-title">
-        <span>⚙️</span>
-        <h2>全体コントロール</h2>
-      </div>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">本番環境のデータベース（Firestore）から全体の稼働状況を監視します。</p>
-      
-      <div class="control-actions">
-        <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
-        <button id="admin-view-all-btn" class="btn" style="background:#059669; color:#fff;">🌐 全社データ表示</button>
-        <select id="admin-company-filter" class="btn-select">
-          <option value="">🏢 会社を選択して絞り込み...</option>
-        </select>
-      </div>
-    </section>
+    <!-- タブメニュー -->
+    <div class="tabs no-print" style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+      <button id="tab-btn-companies" class="btn-tab active">🏢 企業一覧（利用状況）</button>
+      <button id="tab-btn-reports" class="btn-tab">📝 全社週報データ</button>
+    </div>
 
-    <!-- 会社別サマリーカード -->
-    <section id="admin-company-cards" class="company-cards">
-      <div style="text-align:center; padding:40px; color: var(--text-muted); grid-column: 1 / -1;">
-        データを読み込んでください。
+    <!-- 企業一覧セクション -->
+    <div id="companies-section" class="tab-content">
+      <!-- 全体サマリーカード -->
+      <div class="company-cards" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 25px;">
+        <div class="company-card" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); pointer-events: none;">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🏢</div>
+          <div style="font-size: 0.8rem; opacity: 0.8;">登録総企業数</div>
+          <div id="summary-total-companies" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 社</div>
+        </div>
+        <div class="company-card" style="background: linear-gradient(135deg, #10b981, #047857); pointer-events: none;">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">👥</div>
+          <div style="font-size: 0.8rem; opacity: 0.8;">総登録社員数</div>
+          <div id="summary-total-employees" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 名</div>
+        </div>
+        <div class="company-card" style="background: linear-gradient(135deg, #f59e0b, #b45309); pointer-events: none;">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🏗️</div>
+          <div style="font-size: 0.8rem; opacity: 0.8;">総工事登録数</div>
+          <div id="summary-total-schedules" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 件</div>
+        </div>
+        <div class="company-card" style="background: linear-gradient(135deg, #ec4899, #be185d); pointer-events: none;">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">📄</div>
+          <div style="font-size: 0.8rem; opacity: 0.8;">総週報提出数</div>
+          <div id="summary-total-reports" style="font-size: 2rem; font-weight: bold; margin-top: 5px;">0 件</div>
+        </div>
       </div>
-    </section>
 
-    <!-- 週報一覧テーブル -->
-    <section class="data-table-card">
-      <div class="table-header">
-        <h3 id="admin-table-title">全社 週報データ一覧</h3>
-        <span id="admin-record-count" style="font-size:0.85rem; color:var(--text-muted);">全 0 件</span>
+      <!-- 企業別利用状況一覧テーブル -->
+      <div class="data-table-card">
+        <div class="table-header">
+          <h3>企業別 利用状況一覧</h3>
+          <span id="admin-companies-count" style="font-size:0.85rem; color:var(--text-muted);">0社</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>🏢 会社ID / 企業名</th>
+                <th>💳 契約プラン / 上限</th>
+                <th style="text-align:center;">👤 社員数</th>
+                <th style="text-align:center;">🏗️ 工事数</th>
+                <th style="text-align:center;">📄 週報数</th>
+                <th>状態 / トライアル期限</th>
+                <th>✉️ 管理者メール</th>
+                <th>📅 登録日</th>
+              </tr>
+            </thead>
+            <tbody id="admin-companies-tbody">
+              <tr>
+                <td colspan="8" style="padding:30px; text-align:center; color:var(--text-muted);">
+                  「本番データ再読み込み」ボタンを押すと読み込まれます。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>🏢 会社ID / 会社名</th>
-              <th>👤 担当者</th>
-              <th>📅 対象月</th>
-              <th style="text-align:center;">ステータス</th>
-              <th>🕒 送信日時</th>
-            </tr>
-          </thead>
-          <tbody id="admin-reports-tbody">
-            <tr>
-              <td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">
-                「本番データ再読み込み」ボタンを押すと読み込まれます。
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </div>
+
+    <!-- 週報一覧セクション -->
+    <div id="reports-section" class="tab-content hidden">
+      <!-- コントロールパネル -->
+      <section class="control-panel">
+        <div class="control-title">
+          <span>⚙️</span>
+          <h2>全体コントロール</h2>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">本番環境のデータベース（Firestore）から全体の稼働状況を監視します。</p>
+        
+        <div class="control-actions">
+          <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
+          <button id="admin-view-all-btn" class="btn" style="background:#059669; color:#fff;">🌐 全社データ表示</button>
+          <select id="admin-company-filter" class="btn-select">
+            <option value="">🏢 会社を選択して絞り込み...</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- 会社別サマリーカード -->
+      <section id="admin-company-cards" class="company-cards">
+        <div style="text-align:center; padding:40px; color: var(--text-muted); grid-column: 1 / -1;">
+          データを読み込んでください。
+        </div>
+      </section>
+
+      <!-- 週報一覧テーブル -->
+      <section class="data-table-card">
+        <div class="table-header">
+          <h3 id="admin-table-title">全社 週報データ一覧</h3>
+          <span id="admin-record-count" style="font-size:0.85rem; color:var(--text-muted);">全 0 件</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>🏢 会社ID / 会社名</th>
+                <th>👤 担当者</th>
+                <th>📅 対象月</th>
+                <th style="text-align:center;">ステータス</th>
+                <th>🕒 送信日時</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reports-tbody">
+              <tr>
+                <td colspan="5" style="padding:30px; text-align:center; color:var(--text-muted);">
+                  「本番データ再読み込み」ボタンを押すと読み込まれます。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- system-admin.jsを読み込む -->

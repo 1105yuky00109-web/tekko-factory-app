@@ -22,6 +22,7 @@ const DEVELOPER_EMAILS = ['1105yuky00109@gmail.com'];
 let currentUser = null;
 let allReports = [];
 let allCompanies = [];
+let allSchedules = [];
 let selectedCompanyFilter = '';
 
 // DOM要素
@@ -86,7 +87,7 @@ btnLogout.addEventListener('click', () => {
 const adminLoadAllReports = async () => {
     try {
         const compSnap = await getDocs(query(collection(db, 'companies')));
-        allCompanies = compSnap.docs.map(d => d.data());
+        allCompanies = compSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch(e) {
         console.error("Error loading companies list: ", e);
     }
@@ -95,6 +96,12 @@ const adminLoadAllReports = async () => {
         allReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch(e) {
         console.error("Error loading reports: ", e);
+    }
+    try {
+        const schedSnap = await getDocs(query(collection(db, 'schedules')));
+        allSchedules = schedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+        console.error("Error loading schedules: ", e);
     }
 };
 
@@ -124,6 +131,7 @@ async function reloadData() {
         const data = buildAdminData();
         renderAdminCards(data);
         renderAdminTable(data, selectedCompanyFilter);
+        renderAdminCompaniesTable();
     } catch (err) {
         alert("データのロードに失敗しました: " + err.message);
     } finally {
@@ -288,3 +296,108 @@ document.getElementById('admin-company-filter').addEventListener('change', (e) =
     const data = buildAdminData();
     renderAdminTable(data, selectedCompanyFilter);
 });
+
+// 企業別利用状況一覧テーブルとサマリーの描画
+const renderAdminCompaniesTable = () => {
+    const tbody = document.getElementById('admin-companies-tbody');
+    const cnt = document.getElementById('admin-companies-count');
+    const sumCompanies = document.getElementById('summary-total-companies');
+    const sumEmployees = document.getElementById('summary-total-employees');
+    const sumSchedules = document.getElementById('summary-total-schedules');
+    const sumReports = document.getElementById('summary-total-reports');
+    if (!tbody) return;
+
+    // 全社統計の計算
+    let totalEmployees = 0;
+    
+    const companyStats = allCompanies.map(c => {
+        const cid = c.companyId || c.id;
+        const compSchedules = allSchedules.filter(s => s.companyId === cid || s.company === cid);
+        const compReports = allReports.filter(r => r.companyId === cid || r.company === cid);
+        const empCount = (c.employees || []).length;
+        totalEmployees += empCount;
+        
+        return {
+            id: cid,
+            name: c.companyName || '(未設定)',
+            planName: c.planName || '10名プラン',
+            maxUsers: c.maxUsers || 10,
+            employeeCount: empCount,
+            scheduleCount: compSchedules.length,
+            reportCount: compReports.length,
+            createdAt: c.createdAt ? new Date(c.createdAt.seconds * 1000) : null,
+            trialEnd: c.trialEnd ? new Date(c.trialEnd.seconds * 1000) : null,
+            adminEmail: (c.adminEmails && c.adminEmails[0]) || '(なし)'
+        };
+    });
+
+    // サマリーカードの描画
+    if (sumCompanies) sumCompanies.textContent = `${allCompanies.length} 社`;
+    if (sumEmployees) sumEmployees.textContent = `${totalEmployees} 名`;
+    if (sumSchedules) sumSchedules.textContent = `${allSchedules.length} 件`;
+    if (sumReports) sumReports.textContent = `${allReports.length} 件`;
+    if (cnt) cnt.textContent = `${allCompanies.length}社`;
+
+    if (!companyStats.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:30px;text-align:center;color:var(--text-muted);">登録されている企業はありません。</td></tr>';
+        return;
+    }
+
+    const fmtDate = d => {
+        if (!d) return '-';
+        return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    };
+
+    const getTrialBadge = (trialEnd) => {
+        if (!trialEnd) return '<span class="badge-active">🟢 本契約</span>';
+        const now = new Date();
+        if (trialEnd < now) {
+            return '<span class="badge-active" style="background:rgba(100,116,139,0.15);color:#94a3b8;border-color:rgba(100,116,139,0.3);">⚫ 期限切れ</span>';
+        }
+        const diffTime = Math.abs(trialEnd - now);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return `<span class="badge-trial">🔴 トライアル (残り${diffDays}日)</span><div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">期限: ${fmtDate(trialEnd)}</div>`;
+    };
+
+    tbody.innerHTML = companyStats.map(c => {
+        const cc = '#93c5fd';
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:12px 15px;">
+                <span class="badge-company" style="color:${cc};">${c.id}</span>
+                <div style="font-weight:bold;margin-top:4px;">${c.name}</div>
+            </td>
+            <td style="padding:12px 15px;">
+                <div style="font-weight:bold;font-size:0.9rem;">${c.planName}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">上限: ${c.maxUsers}名</div>
+            </td>
+            <td style="padding:12px 15px;text-align:center;font-weight:bold;">${c.employeeCount} / ${c.maxUsers} 名</td>
+            <td style="padding:12px 15px;text-align:center;">${c.scheduleCount} 件</td>
+            <td style="padding:12px 15px;text-align:center;">${c.reportCount} 件</td>
+            <td style="padding:12px 15px;font-size:0.85rem;">${getTrialBadge(c.trialEnd)}</td>
+            <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);word-break:break-all;">${c.adminEmail}</td>
+            <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);">${fmtDate(c.createdAt)}</td>
+        </tr>`;
+    }).join('');
+};
+
+// タブ切り替え制御
+const tabBtnCompanies = document.getElementById('tab-btn-companies');
+const tabBtnReports = document.getElementById('tab-btn-reports');
+const companiesSection = document.getElementById('companies-section');
+const reportsSection = document.getElementById('reports-section');
+
+if (tabBtnCompanies && tabBtnReports && companiesSection && reportsSection) {
+    tabBtnCompanies.addEventListener('click', () => {
+        tabBtnCompanies.classList.add('active');
+        tabBtnReports.classList.remove('active');
+        companiesSection.classList.remove('hidden');
+        reportsSection.classList.add('hidden');
+    });
+
+    tabBtnReports.addEventListener('click', () => {
+        tabBtnReports.classList.add('active');
+        tabBtnCompanies.classList.remove('active');
+        reportsSection.classList.remove('hidden');
+        companiesSection.classList.add('hidden');
+    });
+}
