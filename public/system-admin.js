@@ -428,10 +428,41 @@ function aggregateAndRenderReports() {
         tbody.innerHTML = '<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">選択された月に該当する日報データはありません。</td></tr>';
     } else {
         tbody.innerHTML = aggList.map(row => {
+            // schedules から製作期間と加工トン数を取得する
+            const sched = allSchedules.find(s => 
+                (s.project === row.projectName) && 
+                (s.companyId === selectedCompanyId || s.company === selectedCompanyId)
+            );
+
+            let periodText = "-";
+            let tonnageText = "-";
+
+            if (sched) {
+                const startStr = sched.start ? sched.start.replace(/-/g, '/') : '';
+                const endStr = sched.end ? sched.end.replace(/-/g, '/') : '';
+                if (startStr && endStr) {
+                    periodText = `${startStr} 〜 ${endStr}`;
+                } else if (startStr) {
+                    periodText = `${startStr} 〜`;
+                } else if (endStr) {
+                    periodText = `〜 ${endStr}`;
+                }
+                
+                if (sched.tonnage !== undefined && sched.tonnage !== null) {
+                    tonnageText = `${sched.tonnage} t`;
+                }
+            }
+
             return `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:12px 15px; font-weight:bold;">${row.projectName}</td>
-                <td style="padding:12px 15px; color:var(--text-muted); font-size:0.9rem;">${row.month}</td>
-                <td style="padding:12px 15px; text-align:right; font-weight:bold; color:#60a5fa; font-size:1.05rem;">${row.hours.toFixed(1)} h</td>
+                <td style="padding:12px 15px; font-weight:bold;">
+                    <div style="font-size:0.95rem; color:var(--text);">${row.projectName}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-weight:normal; margin-top:4px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <span>📅 期間: ${periodText}</span>
+                        <span>⚖️ トン数: ${tonnageText}</span>
+                    </div>
+                </td>
+                <td style="padding:12px 15px; color:var(--text-muted); font-size:0.9rem; vertical-align:middle;">${row.month}</td>
+                <td style="padding:12px 15px; text-align:right; font-weight:bold; color:#60a5fa; font-size:1.05rem; vertical-align:middle;">${row.hours.toFixed(1)} h</td>
             </tr>`;
         }).join('');
     }
