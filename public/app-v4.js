@@ -6651,7 +6651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const TASK_ORDER = [
             "一次加工", "組立て", "溶接", "塗装", "出荷",
             "積算", "見積作成", "図面作図", "原寸", "打合せ",
-            "自主検査", "検査準備", "検査受検", "出荷準備", "その他"
+            "自主検査", "検査準備", "検査受検", "是正対応", "出荷準備", "その他"
         ];
         const getTaskOrderIndex = (task) => {
             const idx = TASK_ORDER.indexOf(task);
@@ -6989,7 +6989,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const TASK_ORDER = [
             "一次加工", "組立て", "溶接", "塗装", "出荷",
             "積算", "見積作成", "図面作図", "原寸", "打合せ",
-            "自主検査", "検査準備", "検査受検", "出荷準備", "その他"
+            "自主検査", "検査準備", "検査受検", "是正対応", "出荷準備", "その他"
         ];
         const getTaskOrderIndex = (task) => {
             const idx = TASK_ORDER.indexOf(task);
