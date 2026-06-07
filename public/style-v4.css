@@ -1988,17 +1988,17 @@ body:not(.dark-theme) .proj-card-project {
 
 /* 出退勤タブボタンの配色 */
 .tab-btn#tab-attendance {
-    border: 2px solid #a7f3d0; /* 薄い緑の枠線 */
-    background: #ecfdf5;      /* 非常に薄い緑の背景 */
-    color: #064e3b;           /* 濃い緑のテキスト */
+    border: 2px solid #fecdd3; /* 薄い赤（ローズ）の枠線 */
+    background: #fff1f2;      /* 非常に薄い赤の背景 */
+    color: #9f1239;           /* 濃い赤のテキスト */
 }
 .tab-btn#tab-attendance:hover {
-    background: #d1fae5;
-    border-color: #34d399;
+    background: #ffe4e6;
+    border-color: #fda4af;
 }
 .tab-btn#tab-attendance.active {
-    background: #10b981 !important;
-    border-color: #10b981 !important;
+    background: #f43f5e !important;
+    border-color: #f43f5e !important;
     color: white !important;
 }
 
@@ -2059,17 +2059,17 @@ body:not(.dark-theme) .proj-card-project {
 
 /* ダークテーマ対応 */
 body.dark-theme .tab-btn#tab-attendance {
-    border-color: #064e3b;
-    background: #022c22;
-    color: #a7f3d0;
+    border-color: #881337;
+    background: #4c0519;
+    color: #fecdd3;
 }
 body.dark-theme .tab-btn#tab-attendance:hover {
-    background: #064e3b;
-    border-color: #10b981;
+    background: #881337;
+    border-color: #f43f5e;
 }
 body.dark-theme .tab-btn#tab-attendance.active {
-    background: #10b981 !important;
-    border-color: #10b981 !important;
+    background: #f43f5e !important;
+    border-color: #f43f5e !important;
     color: white !important;
 }
 body.dark-theme #settings-btn-change-plan,
