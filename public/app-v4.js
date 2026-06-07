@@ -65,6 +65,7 @@ let allDailyReports = [];
 let currentIsPlanEditable = true;
 let currentIsActualEditable = true;
 let authStateGeneration = 0; // 認証状態の世代カウンタ
+let allAttendanceRecords = []; // 管理者用出退勤月間レコード保管用
 
 // ユーザーの所属する会社をFirestoreから解決する関数 (ownerUid優先)
 async function resolveUserCompany(email, uid) {
@@ -8445,6 +8446,57 @@ document.addEventListener('DOMContentLoaded', () => {
             loadAttendanceAdminData();
         });
     }
+
+    // 表示モード切り替えスイッチ
+    const btnAttendModeList = document.getElementById('btn-attend-mode-list');
+    const btnAttendModeCalendar = document.getElementById('btn-attend-mode-calendar');
+    const containerList = document.getElementById('attend-admin-list-container');
+    const containerCalendar = document.getElementById('attend-admin-calendar-container');
+
+    if (btnAttendModeList && btnAttendModeCalendar) {
+        btnAttendModeList.addEventListener('click', () => {
+            btnAttendModeList.classList.add('active');
+            btnAttendModeList.style.background = 'var(--primary)';
+            btnAttendModeList.style.color = 'white';
+            btnAttendModeCalendar.classList.remove('active');
+            btnAttendModeCalendar.style.background = 'transparent';
+            btnAttendModeCalendar.style.color = 'var(--text-main)';
+
+            if (containerList) containerList.style.display = 'block';
+            if (containerCalendar) containerCalendar.style.display = 'none';
+        });
+
+        btnAttendModeCalendar.addEventListener('click', () => {
+            btnAttendModeCalendar.classList.add('active');
+            btnAttendModeCalendar.style.background = 'var(--primary)';
+            btnAttendModeCalendar.style.color = 'white';
+            btnAttendModeList.classList.remove('active');
+            btnAttendModeList.style.background = 'transparent';
+            btnAttendModeList.style.color = 'var(--text-main)';
+
+            if (containerCalendar) containerCalendar.style.display = 'block';
+            if (containerList) containerList.style.display = 'none';
+
+            // カレンダー再描画
+            renderAttendanceCalendar();
+        });
+    }
+
+    // カレンダー印刷
+    const btnAttendPrintCalendar = document.getElementById('btn-attend-print-calendar');
+    if (btnAttendPrintCalendar) {
+        btnAttendPrintCalendar.addEventListener('click', () => {
+            printAttendanceCalendar();
+        });
+    }
+
+    // Excelエクスポート
+    const btnAttendExportCalendar = document.getElementById('btn-attend-export-calendar');
+    if (btnAttendExportCalendar) {
+        btnAttendExportCalendar.addEventListener('click', () => {
+            exportAttendanceCalendarToExcel();
+        });
+    }
 });
 
 // ==========================================
@@ -8856,6 +8908,13 @@ async function loadAttendanceAdminData() {
         if (totalDaysEl) totalDaysEl.textContent = `${totalDays} 日`;
         if (totalHoursEl) totalHoursEl.textContent = `${totalHours.toFixed(1)} 時間`;
 
+        // データをキャッシュしてカレンダーを描画
+        allAttendanceRecords = allRecords;
+        if (document.getElementById('attend-admin-calendar-container') && 
+            document.getElementById('attend-admin-calendar-container').style.display !== 'none') {
+            renderAttendanceCalendar();
+        }
+
     } catch (error) {
         console.error("Error loading attendance admin data:", error);
         tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">データのロード中にエラーが発生しました。</td></tr>';
@@ -8871,4 +8930,293 @@ window.performCheckIn = performCheckIn;
 window.performCheckOut = performCheckOut;
 window.initAttendanceAdminFilters = initAttendanceAdminFilters;
 window.loadAttendanceAdminData = loadAttendanceAdminData;
+
+// 月間カレンダーのレンダリング
+function renderAttendanceCalendar() {
+    const thead = document.getElementById('attend-calendar-thead');
+    const tbody = document.getElementById('attend-calendar-tbody');
+    if (!thead || !tbody) return;
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    const monthSelect = document.getElementById('attend-admin-filter-month');
+    if (!monthSelect) return;
+    const filterMonth = monthSelect.value;
+    if (!filterMonth) return;
+
+    const parts = filterMonth.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
+    
+    const tr1 = document.createElement('tr');
+    tr1.style.backgroundColor = "var(--primary)";
+    tr1.style.color = "white";
+
+    const thName = document.createElement('th');
+    thName.className = "sticky-col";
+    thName.textContent = "社員名";
+    thName.rowSpan = 2;
+    thName.style.verticalAlign = "middle";
+    tr1.appendChild(thName);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const thDay = document.createElement('th');
+        thDay.textContent = d;
+        thDay.style.minWidth = "30px";
+        const dateObj = new Date(year, month - 1, d);
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 6) thDay.className = "weekend-sat";
+        if (dayOfWeek === 0) thDay.className = "weekend-sun";
+        tr1.appendChild(thDay);
+    }
+
+    const thDaysCount = document.createElement('th');
+    thDaysCount.className = "total-col";
+    thDaysCount.textContent = "出勤日数";
+    thDaysCount.rowSpan = 2;
+    thDaysCount.style.verticalAlign = "middle";
+    tr1.appendChild(thDaysCount);
+
+    const thTotalHours = document.createElement('th');
+    thTotalHours.className = "total-col";
+    thTotalHours.textContent = "合計時間";
+    thTotalHours.rowSpan = 2;
+    thTotalHours.style.verticalAlign = "middle";
+    tr1.appendChild(thTotalHours);
+
+    thead.appendChild(tr1);
+
+    const tr2 = document.createElement('tr');
+    for (let d = 1; d <= daysInMonth; d++) {
+        const thW = document.createElement('th');
+        const dateObj = new Date(year, month - 1, d);
+        const dayOfWeek = dateObj.getDay();
+        thW.textContent = daysOfWeek[dayOfWeek];
+        if (dayOfWeek === 6) thW.className = "weekend-sat";
+        if (dayOfWeek === 0) thW.className = "weekend-sun";
+        tr2.appendChild(thW);
+    }
+    thead.appendChild(tr2);
+
+    const recordsMap = {};
+    allAttendanceRecords.forEach(rec => {
+        if (!recordsMap[rec.memberName]) {
+            recordsMap[rec.memberName] = {};
+        }
+        
+        let workingHours = 0;
+        if (rec.checkIn && rec.checkOut) {
+            const inParts = rec.checkIn.split(':');
+            const outParts = rec.checkOut.split(':');
+            const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
+            const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
+            const diffMin = outMin - inMin;
+            if (diffMin > 0) {
+                workingHours = diffMin / 60;
+            }
+        }
+        recordsMap[rec.memberName][rec.date] = workingHours;
+    });
+
+    const filterMember = document.getElementById('attend-admin-filter-member').value;
+    let targetMembers = [];
+    if (filterMember) {
+        targetMembers.push(filterMember);
+    } else if (currentCompany && currentCompany.employees) {
+        targetMembers = currentCompany.employees.map(emp => emp.name);
+    }
+    targetMembers.sort((a, b) => a.localeCompare(b, 'ja'));
+
+    if (targetMembers.length === 0) {
+        const trEmpty = document.createElement('tr');
+        const tdEmpty = document.createElement('td');
+        tdEmpty.colSpan = daysInMonth + 3;
+        tdEmpty.textContent = "社員が登録されていません。";
+        tdEmpty.style.padding = "20px";
+        tdEmpty.style.color = "var(--text-muted)";
+        trEmpty.appendChild(tdEmpty);
+        tbody.appendChild(trEmpty);
+        return;
+    }
+
+    targetMembers.forEach(memberName => {
+        const tr = document.createElement('tr');
+
+        const tdName = document.createElement('td');
+        tdName.className = "sticky-col";
+        tdName.textContent = memberName;
+        tr.appendChild(tdName);
+
+        let employeeTotalHours = 0;
+        let employeeTotalDays = 0;
+
+        const employeeRecords = recordsMap[memberName] || {};
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${filterMonth}-${String(d).padStart(2, '0')}`;
+            const tdDay = document.createElement('td');
+            
+            const hours = employeeRecords[dateStr];
+            if (hours !== undefined && hours > 0) {
+                tdDay.textContent = hours.toFixed(1);
+                employeeTotalHours += hours;
+                employeeTotalDays++;
+            } else if (hours === 0) {
+                tdDay.textContent = "0.0";
+                employeeTotalDays++;
+            } else {
+                tdDay.textContent = "";
+            }
+
+            const dateObj = new Date(year, month - 1, d);
+            const dayOfWeek = dateObj.getDay();
+            if (dayOfWeek === 6) tdDay.className = "weekend-sat";
+            if (dayOfWeek === 0) tdDay.className = "weekend-sun";
+
+            tr.appendChild(tdDay);
+        }
+
+        const tdDays = document.createElement('td');
+        tdDays.className = "total-col";
+        tdDays.textContent = `${employeeTotalDays}日`;
+        tr.appendChild(tdDays);
+
+        const tdHours = document.createElement('td');
+        tdHours.className = "total-col";
+        tdHours.textContent = `${employeeTotalHours.toFixed(1)}h`;
+        tr.appendChild(tdHours);
+
+        tbody.appendChild(tr);
+    });
+}
+
+// カレンダー印刷処理
+function printAttendanceCalendar() {
+    document.body.classList.add('print-landscape-attendance');
+    window.print();
+    const cleanUp = () => {
+        document.body.classList.remove('print-landscape-attendance');
+        window.removeEventListener('afterprint', cleanUp);
+    };
+    window.addEventListener('afterprint', cleanUp);
+    setTimeout(cleanUp, 3000);
+}
+
+// Excelエクスポート処理
+function exportAttendanceCalendarToExcel() {
+    if (!allAttendanceRecords || allAttendanceRecords.length === 0) {
+        alert("出力するデータがありません。");
+        return;
+    }
+
+    const monthSelect = document.getElementById('attend-admin-filter-month');
+    if (!monthSelect) return;
+    const filterMonth = monthSelect.value;
+    const parts = filterMonth.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const data = [];
+    data.push([`出退勤月間集計表 (${year}年${month}月)`]);
+    data.push([]);
+
+    const headerRow1 = ['社員名'];
+    for (let d = 1; d <= daysInMonth; d++) {
+        headerRow1.push(d);
+    }
+    headerRow1.push('出勤日数');
+    headerRow1.push('合計労働時間');
+    data.push(headerRow1);
+
+    const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
+    const headerRow2 = [''];
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(year, month - 1, d);
+        headerRow2.push(daysOfWeek[dateObj.getDay()]);
+    }
+    headerRow2.push('');
+    headerRow2.push('');
+    data.push(headerRow2);
+
+    const recordsMap = {};
+    allAttendanceRecords.forEach(rec => {
+        if (!recordsMap[rec.memberName]) {
+            recordsMap[rec.memberName] = {};
+        }
+        let workingHours = 0;
+        if (rec.checkIn && rec.checkOut) {
+            const inParts = rec.checkIn.split(':');
+            const outParts = rec.checkOut.split(':');
+            const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
+            const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
+            const diffMin = outMin - inMin;
+            if (diffMin > 0) workingHours = diffMin / 60;
+        }
+        recordsMap[rec.memberName][rec.date] = workingHours;
+    });
+
+    const filterMember = document.getElementById('attend-admin-filter-member').value;
+    let targetMembers = [];
+    if (filterMember) {
+        targetMembers.push(filterMember);
+    } else if (currentCompany && currentCompany.employees) {
+        targetMembers = currentCompany.employees.map(emp => emp.name);
+    }
+    targetMembers.sort((a, b) => a.localeCompare(b, 'ja'));
+
+    targetMembers.forEach(memberName => {
+        const row = [memberName];
+        let employeeTotalHours = 0;
+        let employeeTotalDays = 0;
+        const employeeRecords = recordsMap[memberName] || {};
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${filterMonth}-${String(d).padStart(2, '0')}`;
+            const hours = employeeRecords[dateStr];
+            if (hours !== undefined && hours >= 0) {
+                row.push(parseFloat(hours.toFixed(1)));
+                employeeTotalHours += hours;
+                employeeTotalDays++;
+            } else {
+                row.push('');
+            }
+        }
+        row.push(employeeTotalDays);
+        row.push(parseFloat(employeeTotalHours.toFixed(1)));
+        data.push(row);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    const merges = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: daysInMonth + 2 } },
+        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },
+        { s: { r: 2, c: daysInMonth + 1 }, e: { r: 3, c: daysInMonth + 1 } },
+        { s: { r: 2, c: daysInMonth + 2 }, e: { r: 3, c: daysInMonth + 2 } }
+    ];
+    ws['!merges'] = merges;
+
+    const wscols = [{ wch: 15 }];
+    for (let i = 1; i <= daysInMonth; i++) {
+        wscols.push({ wch: 4 });
+    }
+    wscols.push({ wch: 10 });
+    wscols.push({ wch: 12 });
+    ws['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws, "出退勤カレンダー集計");
+    
+    const fileName = `出退勤月間集計_${filterMonth}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
+
+window.renderAttendanceCalendar = renderAttendanceCalendar;
+window.printAttendanceCalendar = printAttendanceCalendar;
+window.exportAttendanceCalendarToExcel = exportAttendanceCalendarToExcel;
 

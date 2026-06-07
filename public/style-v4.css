@@ -2096,3 +2096,171 @@ body.dark-theme #settings-btn-attendance-admin:hover {
     border-color: #34d399 !important;
     background: #1e293b !important;
 }
+
+/* ============================================================
+   📅 月間出退勤カレンダー用スタイル
+   ============================================================ */
+
+.attendance-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    color: var(--text-main, #1e293b);
+    background-color: var(--card-bg, #ffffff);
+}
+
+.attendance-matrix-table th, 
+.attendance-matrix-table td {
+    border: 1px solid var(--border, #cbd5e1);
+    padding: 8px 4px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.attendance-matrix-table th {
+    font-weight: bold;
+    background-color: var(--bg-muted, #f1f5f9);
+    color: var(--text-main, #1e293b);
+}
+
+/* ヘッダー2行（日付と曜日） */
+.attendance-matrix-table thead tr:first-child th {
+    background-color: var(--primary);
+    color: white;
+}
+
+/* 左端の社員名列を固定 (Sticky) */
+.attendance-matrix-table th.sticky-col,
+.attendance-matrix-table td.sticky-col {
+    position: sticky;
+    left: 0;
+    background-color: var(--card-bg, #ffffff);
+    z-index: 5;
+    font-weight: bold;
+    min-width: 90px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    text-align: left;
+    padding-left: 8px;
+}
+.attendance-matrix-table th.sticky-col {
+    z-index: 6;
+    background-color: var(--bg-muted, #f1f5f9);
+    color: var(--text-main, #1e293b);
+}
+.attendance-matrix-table thead tr:first-child th.sticky-col {
+    background-color: var(--primary);
+    color: white;
+}
+
+/* 土日背景色 */
+.attendance-matrix-table td.weekend-sat,
+.attendance-matrix-table th.weekend-sat {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+    color: #2563eb !important;
+}
+.attendance-matrix-table td.weekend-sun,
+.attendance-matrix-table th.weekend-sun {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+    color: #ef4444 !important;
+}
+
+/* 合計列・出勤日数列 */
+.attendance-matrix-table td.total-col,
+.attendance-matrix-table th.total-col {
+    font-weight: bold;
+    background-color: var(--bg-muted, #f1f5f9);
+    color: var(--text-main, #1e293b);
+}
+
+/* ダークテーマ対応 */
+body.dark-theme .attendance-matrix-table {
+    color: #f1f5f9;
+    background-color: #0f172a;
+}
+body.dark-theme .attendance-matrix-table th {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+body.dark-theme .attendance-matrix-table td {
+    border-color: #334155;
+}
+body.dark-theme .attendance-matrix-table th.sticky-col,
+body.dark-theme .attendance-matrix-table td.sticky-col {
+    background-color: #1e293b;
+}
+body.dark-theme .attendance-matrix-table th.sticky-col {
+    background-color: #334155;
+    color: #f1f5f9;
+}
+body.dark-theme .attendance-matrix-table td.total-col,
+body.dark-theme .attendance-matrix-table th.total-col {
+    background-color: #1e293b;
+    color: #f1f5f9;
+}
+body.dark-theme .attendance-matrix-table td.weekend-sat,
+body.dark-theme .attendance-matrix-table th.weekend-sat {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+}
+body.dark-theme .attendance-matrix-table td.weekend-sun,
+body.dark-theme .attendance-matrix-table th.weekend-sun {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* 印刷レイアウト */
+@media print {
+    /* カレンダー印刷時に横向きにするクラス */
+    body.print-landscape-attendance {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        color: black !important;
+    }
+    body.print-landscape-attendance nav.tabs,
+    body.print-landscape-attendance header,
+    body.print-landscape-attendance .no-print,
+    body.print-landscape-attendance .list-controls,
+    body.print-landscape-attendance #btn-close-admin-mode {
+        display: none !important;
+    }
+    body.print-landscape-attendance #attendance-admin-view {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    body.print-landscape-attendance #attend-admin-calendar-container {
+        display: block !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    body.print-landscape-attendance .attendance-matrix-table {
+        font-size: 7pt !important;
+        width: 100% !important;
+    }
+    body.print-landscape-attendance .attendance-matrix-table th,
+    body.print-landscape-attendance .attendance-matrix-table td {
+        padding: 4px 2px !important;
+        border: 1px solid #000000 !important;
+        color: #000000 !important;
+        background-color: transparent !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    body.print-landscape-attendance .attendance-matrix-table th.sticky-col,
+    body.print-landscape-attendance .attendance-matrix-table td.sticky-col {
+        position: static !important; /* 印刷時は固定解除 */
+        background-color: transparent !important;
+    }
+    /* 土日色強制 */
+    body.print-landscape-attendance .attendance-matrix-table .weekend-sat {
+        background-color: rgba(59, 130, 246, 0.08) !important;
+    }
+    body.print-landscape-attendance .attendance-matrix-table .weekend-sun {
+        background-color: rgba(239, 68, 68, 0.08) !important;
+    }
+}

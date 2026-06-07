@@ -791,6 +791,10 @@
                         <option value="">すべての社員</option>
                     </select>
                 </div>
+                <div class="form-group" style="margin-bottom: 0; margin-left: auto; display: flex; gap: 5px; background: var(--bg-muted, #f1f5f9); padding: 4px; border-radius: 8px; border: 1px solid var(--border);">
+                    <button type="button" id="btn-attend-mode-list" class="btn btn-mode active" style="height: 32px; padding: 0 12px; font-size: 0.85rem; border-radius: 6px; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; background: var(--primary); color: white;">📋 履歴リスト</button>
+                    <button type="button" id="btn-attend-mode-calendar" class="btn btn-mode" style="height: 32px; padding: 0 12px; font-size: 0.85rem; border-radius: 6px; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-main);">📅 月間カレンダー</button>
+                </div>
             </div>
         </div>
 
@@ -807,7 +811,7 @@
         </div>
 
         <!-- 履歴一覧テーブル -->
-        <div class="form-card" style="padding: 20px;">
+        <div id="attend-admin-list-container" class="form-card" style="padding: 20px;">
             <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px;">出退勤履歴一覧</h3>
             <div style="overflow-x: auto; width: 100%;">
                 <table class="summary-table" style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
@@ -824,6 +828,31 @@
                         <tr>
                             <td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td>
                         </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 月間カレンダーテーブル -->
+        <div id="attend-admin-calendar-container" class="form-card" style="padding: 20px; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text);">月間出退勤カレンダー（集計）</h3>
+                <div class="no-print" style="display: flex; gap: 10px;">
+                    <button type="button" id="btn-attend-print-calendar" class="btn" style="background:#3b82f6; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <span>🖨️ カレンダー印刷</span>
+                    </button>
+                    <button type="button" id="btn-attend-export-calendar" class="btn" style="background:#10b981; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <span>📊 Excel出力</span>
+                    </button>
+                </div>
+            </div>
+            <div class="attendance-calendar-scroll-wrapper" style="overflow-x: auto; width: 100%; max-width: 100%;">
+                <table class="attendance-matrix-table" style="width: 100%; font-size: 0.8rem; border-collapse: collapse; min-width: 1000px;">
+                    <thead id="attend-calendar-thead">
+                        <!-- 動的に日付ヘッダーを生成 -->
+                    </thead>
+                    <tbody id="attend-calendar-tbody">
+                        <!-- 動的に社員ごとの労働時間行を生成 -->
                     </tbody>
                 </table>
             </div>
