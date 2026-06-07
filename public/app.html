@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v55';
+            const RESET_KEY = 'sw_reset_v79';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -36,7 +36,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日報管理システム</title>
-    <link rel="stylesheet" href="style-v4.css?v=20260606-002">
+    <link rel="stylesheet" href="style-v4.css?v=20260607-018">
     <link rel="manifest" href="manifest.json">
     <!-- SheetJS for Excel Export -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -239,15 +239,22 @@
                     </div>
                 </div>
 
-                <!-- 5. 建て方開始日 -->
+                <!-- 5. 建て方開始日 & バーの色 -->
                 <div class="form-row">
                     <div class="form-group" style="flex:1;">
                         <label for="sched-erection-date">建て方開始日</label>
                         <input type="date" id="sched-erection-date">
                     </div>
-                    <div class="form-group" style="flex:1; opacity:0; pointer-events:none;">
-                        <label>ダミー</label>
-                        <input type="text" disabled>
+                    <div class="form-group" style="flex:1;">
+                        <label for="sched-bar-color">バーの色</label>
+                        <select id="sched-bar-color" style="width:100%; height:45px; font-size:1rem; border-radius:6px; border:1px solid var(--border); padding:0 10px; background:var(--card-bg); color:var(--text);">
+                            <option value="#16a34a" style="background:#16a34a; color:#fff;">緑</option>
+                            <option value="#2563eb" style="background:#2563eb; color:#fff;" selected>青</option>
+                            <option value="#ea580c" style="background:#ea580c; color:#fff;">オレンジ</option>
+                            <option value="#9333ea" style="background:#9333ea; color:#fff;">紫</option>
+                            <option value="#db2777" style="background:#db2777; color:#fff;">ピンク</option>
+                            <option value="#ca8a04" style="background:#ca8a04; color:#fff;">黄</option>
+                        </select>
                     </div>
                 </div>
 
@@ -331,6 +338,10 @@
         </div>
         <!-- ガントチャートタイトル（印刷用） -->
         <div id="print-gantt-title" class="only-print" style="font-size:1.2rem;font-weight:bold;margin-bottom:10px;"></div>
+        <!-- 凡例注記（画面・印刷共通） -->
+        <div class="gantt-legend-note" style="margin-bottom: 8px; font-size: 0.82rem; color: var(--text-main); font-weight: bold; text-align: left; display: flex; align-items: center; gap: 4px;">
+            <span>※カレンダー内の </span><span style="color: #000000; font-size: 1.1rem; line-height: 1; vertical-align: middle; margin: 0 2px;">★</span><span> は「建て方予定日」を示します。</span>
+        </div>
         <div class="gantt-wrapper" style="overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;">
             <div id="gantt-container"></div>
         </div>
@@ -822,9 +833,10 @@
 </div>
 
 <!-- ======== 管理者画面フローティング終了ボタン ======== -->
-<div id="btn-close-admin-mode" class="no-print" style="display:none; position:fixed; top:20px; right:20px; z-index:9999; box-shadow:0 10px 15px -3px rgba(37,99,235,0.3);">
-    <button type="button" class="btn" style="background:#2563eb; color:white; font-weight:bold; padding:10px 20px; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:0.95rem; border:1px solid #1d4ed8;">
-        <span>🔙 管理者設定メニューへ戻る</span>
+<div id="btn-close-admin-mode" class="no-print" style="display:none; position:fixed; top:75px; right:20px; z-index:9999; box-shadow:0 10px 15px -3px rgba(234,88,12,0.4); transition: transform 0.2s;">
+    <button type="button" class="btn" style="background: linear-gradient(135deg, #f97316, #ea580c); color:white; font-weight:bold; padding:12px 24px; border-radius:30px; display:flex; align-items:center; gap:8px; font-size:1rem; border:none; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.15); transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.filter='brightness(1.1)';" onmouseout="this.style.transform='scale(1)'; this.style.filter='none';">
+        <span style="font-size:1.1rem;">🔙</span>
+        <span style="letter-spacing:0.5px;">管理者設定メニューへ戻る</span>
     </button>
 </div>
 
@@ -832,7 +844,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260607-03"></script>
+<script type="module" src="app-v4.js?v=20260607-22"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>

@@ -49,8 +49,9 @@ h1 { font-size: 1.5rem; }
 
 /* タブをスマホで横スクロール可能に */
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 5px; align-items: center; }
-.tab-btn { padding: 10px 16px; border: 1px solid #e2e8f0; background: transparent; font-weight: bold; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
-.tab-btn:hover { background: #f1f5f9; }
+.tab-btn { padding: 10px 16px; border: 1px solid #e2e8f0; background: transparent; font-weight: bold; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s, opacity 0.2s; white-space: nowrap; flex-shrink: 0; opacity: 0.8; }
+.tab-btn:hover { background: #f1f5f9; opacity: 0.95; }
+.tab-btn.active { opacity: 1 !important; }
 
 /* グループ1: 日報入力 (青系) */
 .tab-btn.tab-group-input {
@@ -148,7 +149,7 @@ input::-ms-clear {
 .summary-section h3 { margin-bottom: 15px; font-size: 1.1rem; }
 
 /* ガントチャートのスタイル */
-.gantt-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.gantt-wrapper { overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .gantt-container {
     background: var(--card-bg); border-radius: 8px; padding: 20px; min-width: 1000px;
 }
@@ -276,6 +277,15 @@ th { background-color: #f1f5f9; font-weight: 600; white-space: nowrap; }
         print-color-adjust: exact !important;
     }
     
+    /* テーブルの改ページ制御（行の途中での分裂を防止し、2枚目以降にも自動でヘッダーを繰り返し表示） */
+    #print-active-area thead {
+        display: table-header-group !important;
+    }
+    #print-active-area tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    
     /* ガントチャート印刷時のレイアウト崩れ（詳細列の潰れ）防止強制スタイル */
     #print-active-area #gantt-container,
     #print-active-area .gantt-container {
@@ -286,13 +296,16 @@ th { background-color: #f1f5f9; font-weight: 600; white-space: nowrap; }
     }
     #print-active-area .gantt-grid {
         /* カレンダー各日の列幅を3pxの固定幅にして、A3横の1ページ内に1年間（365日）が美しく収まるようにする */
-        grid-template-columns: 100px 80px 80px 70px 45px 45px 45px 45px 60px 45px repeat(366, 3px) !important;
+        grid-template-columns: 65px 35px 40px 30px 35px 35px 40px 40px 45px repeat(366, 3px) !important;
         width: max-content !important;
         display: grid !important;
     }
     #print-active-area .gantt-grid > div {
         position: static !important;
         z-index: auto !important;
+    }
+    #print-active-area .gantt-grid > div.gantt-bar-bg-cell {
+        position: relative !important;
     }
     /* バーの中のテキストが極小の列幅を押し広げて比率を崩すのを完全に防ぐ */
     #print-active-area .gantt-bar {
@@ -1253,13 +1266,11 @@ body.dark-theme .status-badge.status-approved {
     padding: 6px 4px;
     font-size: 0.8rem;
     text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     box-sizing: border-box;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal !important;
+    word-break: break-all !important;
+    overflow: visible;
     min-height: 40px;
 }
 
@@ -1313,6 +1324,7 @@ body.dark-theme .status-badge.status-approved {
 
 /* 工程バー */
 .gantt-bar {
+    min-width: 0;
     border-radius: 4px;
     color: white;
     font-size: 0.75rem;
@@ -1952,4 +1964,20 @@ body.dark-theme .tab-btn.tab-group-schedule.active {
 #btn-close-admin-mode button:hover {
     background: #1d4ed8 !important;
     transform: scale(1.03);
+}
+
+/* 管理者画面操作中：ボタン・タブの操作無効化（グレーアウト） */
+.tabs-locked {
+    pointer-events: none !important;
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+}
+
+/* ライトテーマ時のテーブル・ガントチャート文字色の濃色化（#000000） */
+body:not(.dark-theme) .gantt-cell,
+body:not(.dark-theme) .gantt-text-cell,
+body:not(.dark-theme) #summary-table td,
+body:not(.dark-theme) #summary-table th,
+body:not(.dark-theme) .proj-card-project {
+    color: #000000 !important;
 }

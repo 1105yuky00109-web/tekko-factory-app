@@ -9,7 +9,8 @@ const firebaseConfig = {
     projectId: "tekko-factory-app",
     storageBucket: "tekko-factory-app.firebasestorage.app",
     messagingSenderId: "354843914657",
-    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0",
+    measurementId: "G-WYE7P1PP8H"
 };
 
 const showDebugLog = (msg) => {
@@ -2603,7 +2604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 erectionDate: getVal('sched-erection-date'),
                 chiefTech: getValRaw('sched-chief-tech'),
                 assignType: "none",
-                barColor: '#2563eb', // デフォルトは青色
+                barColor: getVal('sched-bar-color') || '#2563eb', // デフォルトは青色
                 timestamp: new Date().toISOString()
             };
             try {
@@ -2956,6 +2957,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedYear = parseInt(ganttYearSelect.value, 10);
         if (isNaN(selectedYear)) return;
 
+        const hslToHex = (h, s, l) => {
+            l /= 100;
+            const a = s * Math.min(l, 1 - l) / 100;
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        };
+
+        const formatDateLocal = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        const normalizeDateStr = (str) => {
+            if (!str) return '';
+            return str.replace(/\//g, '-');
+        };
+
         // 年度期間: 4月1日〜翌年3月31日
         const startStr = `${selectedYear}-04-01`;
         const endStr = `${selectedYear + 1}-03-31`;
@@ -2996,12 +3020,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const wrapper = container.closest('.gantt-wrapper');
         if (wrapper) {
-            wrapper.style.overflowX = 'auto';
+            wrapper.style.overflowX = isMobile ? 'auto' : 'hidden';
             wrapper.style.width = '100%';
         }
 
         // 列定義: 左側詳細テーブル（10カラム、合計615pxに縮小） + 右側カレンダー各日(1frで画面幅に収める)
-        const colWidth = isMobile ? '12px' : '1fr'; let html = `<div class="gantt-grid" style="grid-template-columns: 100px 80px 80px 70px 45px 45px 45px 45px 60px 45px repeat(${dateList.length}, ${colWidth}); width: ${totalWidth};">`;
+        const colWidth = isMobile ? '12px' : 'minmax(0, 1fr)'; let html = `<div class="gantt-grid" style="grid-template-columns: 100px 80px 80px 50px 60px 60px 70px 60px 80px repeat(${dateList.length}, ${colWidth}); width: ${totalWidth};">`;
 
         // ==========================================
         // 行1: ヘッダー (左側：10個の詳細カラムヘッダー、右側：各月)
@@ -3011,26 +3035,25 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 1; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; position: sticky; left: 0px; z-index: 25;">工事名</div>
             <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 2; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(100)}">元請</div>
             <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 3; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(180)}">住所</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 4; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(260)}">仕入</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 5; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(330)}">数量</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 6; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(375)}">営業</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 7; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(420)}">技術者</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 8; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(465)}">工務</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 9; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(510)}">補助</div>
-            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 10; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; border-right: 2px solid var(--border) !important; ${getStickyHeaderStyle(570)}">現場</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 4; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(260)}">t数</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 5; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(310)}">詳細図</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 6; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(370)}">現寸</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 7; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(430)}">第三者検査会社</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 8; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; ${getStickyHeaderStyle(500)}">責任者</div>
+            <div class="gantt-cell gantt-header-cell" style="grid-row: 1; grid-column: 9; font-size: 0.74rem; font-weight: bold; height: 35px; border-bottom: 2px solid #cbd5e1; border-right: 2px solid var(--border) !important; ${getStickyHeaderStyle(560)}">建て方予定</div>
         `;
 
-        // カレンダー部 月ヘッダー (左側10列の次なので 11列目から開始)
-        let startCol = 11;
+        // カレンダー部 月ヘッダー (左側9列の次なので 10列目から開始)
+        let startCol = 10;
         dateList.forEach((d, idx) => {
             const m = d.getMonth() + 1;
             const nextDate = dateList[idx + 1];
             const isLastDayOfMonth = !nextDate || nextDate.getMonth() !== d.getMonth();
 
             if (isLastDayOfMonth) {
-                const endCol = idx + 12;
+                const endCol = idx + 11;
                 const boundaryClass = !nextDate ? '' : 'month-boundary';
-                html += `<div class="gantt-cell gantt-header-cell ${boundaryClass}" style="grid-row: 1; grid-column: ${startCol} / ${endCol}; font-weight: bold; font-size: 0.85rem; height: 35px; border-bottom: 2px solid #cbd5e1;">${m}月</div>`;
+                html += `<div class="gantt-cell gantt-header-cell ${boundaryClass}" style="grid-row: 1; grid-column: ${startCol} / ${endCol}; font-weight: bold; font-size: 0.72rem; height: 35px; border-bottom: 2px solid #cbd5e1; white-space: nowrap; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 0 2px;">${m}月</div>`;
                 startCol = endCol;
             }
         });
@@ -3047,12 +3070,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // ガントチャートからは編集ボタンを排除
             const editBtnHtml = '';
 
-            // 10個の縦割りカラム (sticky固定 & 背景色指定、並び替え・仕入れ複数行対応)
-            const supplierParts = [s.supplier1, s.supplier2, s.supplier3].filter(Boolean);
-            const supplierHtml = supplierParts.length > 0 
-                ? supplierParts.map(sup => `<div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; line-height: 1.2;">${sup}</div>`).join('')
-                : '-';
-            const supplierTitle = supplierParts.length > 0 ? `仕入: ${supplierParts.join(', ')}` : '仕入: -';
             html += `
                 <!-- 1. 工事名 -->
                 <div class="gantt-cell gantt-proj-cell" style="grid-row: ${rowIndex}; grid-column: 1; text-align: left; justify-content: space-between; padding: 6px 2px; font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); position: sticky; left: 0px; z-index: 15; background: var(--card-bg);" title="${s.project || ''}">
@@ -3070,33 +3087,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 3; text-align: left; justify-content: flex-start; padding: 6px 2px; font-size: 0.7rem; white-space: normal; word-break: break-all; border-bottom: 1px solid var(--border); ${getStickyDataStyle(180)}" title="住所: ${s.address || '-'}">
                     ${s.address || '-'}
                 </div>
-                <!-- 4. 仕入 -->
-                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 4; text-align: left; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 4px 2px; font-size: 0.7rem; border-bottom: 1px solid var(--border); ${getStickyDataStyle(260)}" title="${supplierTitle}">
-                    ${supplierHtml}
+                <!-- 4. t数 -->
+                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 4; text-align: right; justify-content: flex-end; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(260)}" title="t数: ${s.tonnage ? s.tonnage + 't' : '-'}">
+                    ${s.tonnage ? s.tonnage + 't' : '-'}
                 </div>
-                <!-- 5. 数量 -->
-                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 5; text-align: right; justify-content: flex-end; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(330)}" title="数量: ${s.memoQty || '-'}">
-                    ${s.memoQty || '-'}
+                <!-- 5. 詳細図 -->
+                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 5; text-align: left; justify-content: flex-start; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(310)}" title="詳細図: ${s.drawing || '-'}">
+                    ${s.drawing || '-'}
                 </div>
-                <!-- 6. 営業 -->
-                <div class="gantt-cell" style="grid-row: ${rowIndex}; grid-column: 6; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(375)}" title="${s.salesRep || ''}">
-                    ${s.salesRep || '-'}
+                <!-- 6. 現寸 -->
+                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 6; text-align: left; justify-content: flex-start; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(370)}" title="現寸: ${s.lofting || '-'}">
+                    ${s.lofting || '-'}
                 </div>
-                <!-- 7. 技術者 -->
-                <div class="gantt-cell" style="grid-row: ${rowIndex}; grid-column: 7; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(420)}" title="${s.chiefTech || ''}">
+                <!-- 7. 製品検査 -->
+                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 7; text-align: left; justify-content: flex-start; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(430)}" title="第三者検査会社: ${s.inspectionCompany || '-'}">
+                    ${s.inspectionCompany || '-'}
+                </div>
+                <!-- 8. 責任者 -->
+                <div class="gantt-cell" style="grid-row: ${rowIndex}; grid-column: 8; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(500)}" title="${s.chiefTech || ''}">
                     ${s.chiefTech || '-'}
                 </div>
-                <!-- 8. 工務 -->
-                <div class="gantt-cell" style="grid-row: ${rowIndex}; grid-column: 8; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(465)}" title="${s.constRep || ''}">
-                    ${s.constRep || '-'}
-                </div>
-                <!-- 9. 補助 -->
-                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 9; text-align: left; justify-content: flex-start; padding: 6px 2px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); ${getStickyDataStyle(510)}" title="補助: ${s.subcontractor || '-'}">
-                    ${s.subcontractor || '-'}
-                </div>
-                <!-- 10. 現場 -->
-                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 10; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 2px solid var(--border) !important; ${getStickyDataStyle(570)}" title="${s.siteRep || ''}">
-                    ${s.siteRep || '-'}
+                <!-- 9. 建て方予定 -->
+                <div class="gantt-cell gantt-text-cell" style="grid-row: ${rowIndex}; grid-column: 9; text-align: center; justify-content: center; padding: 6px 1px; font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 2px solid var(--border) !important; ${getStickyDataStyle(560)}" title="建て方開始日: ${s.erectionDate || '-'}">
+                    ${s.erectionDate || '-'}
                 </div>
             `;
             // カレンダー部分の背景セル (罫線用)
@@ -3109,11 +3122,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isLastDay = !nextDate || nextDate.getMonth() !== d.getMonth();
                 const boundaryClass = isLastDay ? 'month-boundary' : '';
 
-                html += `<div class="gantt-bar-bg-cell ${isSat} ${isSun} ${boundaryClass}" style="grid-row: ${rowIndex}; grid-column: ${idx + 11};"></div>`;
+                // ★マークの表示判定：このカレンダーの日付が「建て方予定日（erectionDate）」と一致する場合
+                const dateStr = formatDateLocal(d);
+                const isErectionDate = (s.erectionDate && s.erectionDate === dateStr);
+                const cellContent = isErectionDate ? '<span style="color: #000000; font-weight: bold; font-size: 1.1rem; line-height: 1; z-index: 12; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; width: 16px; height: 16px; pointer-events: none;">★</span>' : '';
+
+                html += `<div class="gantt-bar-bg-cell ${isSat} ${isSun} ${boundaryClass}" style="grid-row: ${rowIndex}; grid-column: ${idx + 10}; position: relative;">${cellContent}</div>`;
             });
 
             // 工程バーの計算（文字列比較で安全に行い、日付のズレを防ぐ）
-            const normalizeDateStr = (str) => {
+            const normalizeDateStr_old = (str) => {
                 if (!str) return '';
                 return str.replace(/\//g, '-');
             };
@@ -3123,7 +3141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const drawStartStr = sStartStr < startStr ? startStr : (sStartStr > endStr ? endStr : sStartStr);
             const drawEndStr = sEndStr > endStr ? endStr : (sEndStr < startStr ? startStr : sEndStr);
 
-            const formatDateLocal = (date) => {
+            const formatDateLocal_old = (date) => {
                 const y = date.getFullYear();
                 const m = String(date.getMonth() + 1).padStart(2, '0');
                 const d = String(date.getDate()).padStart(2, '0');
@@ -3134,18 +3152,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const endIdx = dateList.findIndex(d => formatDateLocal(d) === drawEndStr);
 
             if (startIdx !== -1 && endIdx !== -1) {
-                const gridStart = startIdx + 11;
-                const gridEnd = endIdx + 12;
+                const gridStart = startIdx + 10;
+                const gridEnd = endIdx + 11;
 
-                const color = s.barColor || '#2563eb';
+                const color = (s.barColor && s.barColor !== '#2563eb') ? s.barColor : hslToHex(Math.round((360 / Math.max(targetSchedules.length, 1)) * index), 70, 45);
                 const patternClass = s.barPattern === 'stripe' ? 'pattern-stripe' : '';
                 const completedClass = s.completed ? 'completed-bar' : '';
 
-                const barText = `${s.completed ? ' [完了] ' : ''}${s.project}${s.notes ? ` (${s.notes})` : ''}`;
-
-                html += `<div class="gantt-bar ${patternClass} ${completedClass}" data-id="${s.id}" style="grid-row: ${rowIndex}; grid-column: ${gridStart} / ${gridEnd}; background-color: ${color};" title="【${s.project}】\n期間: ${s.start} 〜 ${s.end}\n備考: ${s.notes || 'なし'}">
-                            ${barText}
-                         </div>`;
+                html += `<div class="gantt-bar ${patternClass} ${completedClass}" data-id="${s.id}" style="grid-row: ${rowIndex}; grid-column: ${gridStart} / ${gridEnd}; background-color: ${color};" title="【${s.project}】\n期間: ${s.start} 〜 ${s.end}\n備考: ${s.notes || 'なし'}"></div>`;
             }
         });
 
@@ -5214,17 +5228,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const workbook = new ExcelJS.Workbook();
             const sheet = workbook.addWorksheet(`${selectedYear}年度 工程管理表`);
 
+            // A3横・横幅1ページ収まり(フィット印刷)設定の適用 (読み取り専用オブジェクトのため個別メンバへ代入)
+            sheet.pageSetup.paperSize = 8; // A3
+            sheet.pageSetup.orientation = 'landscape';
+            sheet.pageSetup.fitToPage = true;
+            sheet.pageSetup.fitToWidth = 1;
+            sheet.pageSetup.fitToHeight = 0;
+            sheet.pageSetup.scale = undefined; // scaleが設定されているとfitToPageが無視されるため無効化
+
             // カラーコード変換ヘルパー
             const hexToARGB = (hex) => {
                 if (!hex) return 'FF16A34A';
                 return 'FF' + hex.replace('#', '').toUpperCase();
             };
 
+            const hslToHex = (h, s, l) => {
+                l /= 100;
+                const a = s * Math.min(l, 1 - l) / 100;
+                const f = n => {
+                    const k = (n + h / 30) % 12;
+                    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                    return Math.round(255 * color).toString(16).padStart(2, '0');
+                };
+                return `#${f(0)}${f(8)}${f(4)}`;
+            };
+
             // 列幅の設定
-            const leftWidths = [22, 16, 22, 14, 14, 14, 14, 16, 12, 12, 12, 12, 10, 8];
+            const leftWidths = [12, 9, 12, 6, 7, 7, 9, 7, 9, 6];
             sheet.columns = [
                 ...leftWidths.map(w => ({ width: w })),
-                ...dateList.map(() => ({ width: 1.2 })) // タイムライン列は極細
+                ...dateList.map(() => ({ width: 0.5 })) // タイムライン列をさらに極細(0.5)にして全体幅を圧縮
             ];
 
             // ----------------------------------------
@@ -5234,9 +5267,9 @@ document.addEventListener('DOMContentLoaded', () => {
             row1.height = 25;
             
             // 左側結合
-            sheet.mergeCells(1, 1, 1, 14);
+            sheet.mergeCells(1, 1, 1, 10);
             const detailHeaderCell = row1.getCell(1);
-            detailHeaderCell.value = '工程詳細情報';
+            detailHeaderCell.value = `工程管理表　${selectedYear}年度`;
             detailHeaderCell.font = { name: 'MS Gothic', size: 10, bold: true };
             detailHeaderCell.alignment = { horizontal: 'center', vertical: 'middle' };
             detailHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -5245,14 +5278,14 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             // 右側月ヘッダー結合
-            let startCol = 15;
+            let startCol = 11;
             dateList.forEach((d, idx) => {
                 const m = d.getMonth() + 1;
                 const nextDate = dateList[idx + 1];
                 const isLastDay = !nextDate || nextDate.getMonth() !== d.getMonth();
 
                 if (isLastDay) {
-                    const endCol = idx + 15; // 1-indexed column index
+                    const endCol = idx + 11; // 1-indexed column index
                     sheet.mergeCells(1, startCol, 1, endCol);
                     const mCell = row1.getCell(startCol);
                     mCell.value = `${m}月`;
@@ -5264,7 +5297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     mCell.border = {
                         top: { style: 'medium' },
                         bottom: { style: 'thin' },
-                        left: { style: startCol === 15 ? 'thin' : 'none' },
+                        left: { style: startCol === 11 ? 'thin' : 'none' },
                         right: { style: !nextDate ? 'medium' : 'medium' }
                     };
                     startCol = endCol + 1;
@@ -5275,18 +5308,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // 行2: 詳細項目ヘッダー ＆ カレンダー日ヘッダー
             // ----------------------------------------
             const row2 = sheet.getRow(2);
-            row2.height = 20;
+            row2.height = 30;
 
             const leftHeaders = [
-                "工事名", "元請", "現場住所", "仕入先①(柱脚)", "仕入先②(製作1)", "仕入先③(製作2)", 
-                "管理補助", "数量メモ", "営業担当", "工務担当", "工事担当", "主任技術者", "専任区分", "完了"
+                "工事名", "元請", "住所", "t数", "詳細図", "現寸", 
+                "第三者検査会社", "責任者", "建て方予定", "完了"
             ];
             
             leftHeaders.forEach((lh, idx) => {
                 const cell = row2.getCell(idx + 1);
                 cell.value = lh;
                 cell.font = { name: 'MS Gothic', size: 9, bold: true };
-                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
                 cell.border = {
                     top: { style: 'thin' },
@@ -5297,7 +5330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             dateList.forEach((d, idx) => {
-                const colIdx = idx + 15;
+                const colIdx = idx + 11;
                 const cell = row2.getCell(colIdx);
                 const day = d.getDay();
                 const isSat = day === 6;
@@ -5325,18 +5358,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // ----------------------------------------
             // データ行レンダリング
             // ----------------------------------------
+            const leftColCount = 10;
             targetSchedules.forEach((s, index) => {
                 const rowIndex = index + 3;
                 const row = sheet.getRow(rowIndex);
                 row.height = 24;
 
-                const displayAssign = '';
-                const displayCompleted = '-';
+                const displayCompleted = s.completed ? '完了' : '-';
 
                 const leftValues = [
-                    s.project || '', s.client || '-', s.address || '-', s.supplier1 || '-', s.supplier2 || '-', s.supplier3 || '-',
-                    s.subcontractor || '-', s.memoQty || '-', s.salesRep || '-', s.constRep || '-', s.siteRep || '-', s.chiefTech || '-',
-                    displayAssign, displayCompleted
+                    s.project || '',
+                    s.client || '-',
+                    s.address || '-',
+                    s.tonnage ? s.tonnage + 't' : '-',
+                    s.drawing || '-',
+                    s.lofting || '-',
+                    s.inspectionCompany || '-',
+                    s.chiefTech || '-',
+                    s.erectionDate || '-',
+                    displayCompleted
                 ];
 
                 leftValues.forEach((val, idx) => {
@@ -5344,8 +5384,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     cell.value = val;
                     cell.font = { name: 'MS Gothic', size: 9 };
                     cell.alignment = { 
-                        horizontal: (idx >= 12) ? 'center' : 'left',
-                        vertical: 'middle' 
+                        horizontal: (idx >= 8) ? 'center' : ((idx === 3) ? 'right' : 'left'),
+                        vertical: 'middle', wrapText: true 
                     };
                     cell.border = {
                         top: { style: 'thin' },
@@ -5361,7 +5401,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // カレンダー背景セルの初期化 (土日・月境界の描画)
                 dateList.forEach((d, idx) => {
-                    const colIdx = idx + 15;
+                    const colIdx = idx + 11;
                     const cell = row.getCell(colIdx);
                     const day = d.getDay();
                     const isSat = day === 6;
@@ -5402,11 +5442,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const endIdx = dateList.findIndex(d => d.toISOString().split('T')[0] === drawEndStr);
 
                 if (startIdx !== -1 && endIdx !== -1) {
-                    const barStartCol = startIdx + 15;
-                    const barEndCol = endIdx + 15;
+                    const barStartCol = startIdx + 11;
+                    const barEndCol = endIdx + 11;
 
                     // バーに該当する各セルにスタイルを適用 (結合されるため、スタイル共有崩れ対策として個別適用)
-                    const colorARGB = hexToARGB(getBarColorForSiteRep(s.siteRep));
+                    const colorHex = (s.barColor && s.barColor !== '#2563eb') ? s.barColor : hslToHex(Math.round((360 / Math.max(targetSchedules.length, 1)) * index), 70, 45);
+                    const colorARGB = hexToARGB(colorHex);
                     
                     for (let c = barStartCol; c <= barEndCol; c++) {
                         const cell = row.getCell(c);
@@ -5437,14 +5478,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         };
                     }
 
-// 結合後の代表セル（開始セル）にラベルをセット
+// 結合後の代表セル（開始セル）にラベルをセット（バー内テキストは空にする）
                     const mergedStartCell = row.getCell(barStartCol);
-                    mergedStartCell.value = `${s.project}${s.notes ? ` (${s.notes})` : ''}`;
-                    mergedStartCell.alignment = { 
-                        horizontal: 'center', 
-                        vertical: 'middle',
-                        wrapText: false
-                    };
+                    mergedStartCell.value = '';
                 }
             });
 
@@ -5619,6 +5655,7 @@ function startEditScheduleMode(sched) {
     setVal('sched-chief-tech', sched.chiefTech || '');
     setVal('sched-notes', sched.notes || '');
     setVal('sched-author', sched.author || '');
+    setVal('sched-bar-color', sched.barColor || '#2563eb');
 
     // タブ切り替え
     const tabBtn = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
@@ -7609,6 +7646,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let previousActiveTabTarget = 'gantt-view'; // 初期値
 
+    const lockNavAndHeader = (lock) => {
+        const navTabs = document.querySelector('nav.tabs');
+        const btnAdmin = document.getElementById('btn-admin-settings');
+        const themeToggle = document.getElementById('theme-toggle');
+        const btnLogout = document.getElementById('btn-logout');
+        [navTabs, btnAdmin, themeToggle, btnLogout].forEach(el => {
+            if (el) {
+                if (lock) {
+                    el.classList.add('tabs-locked');
+                } else {
+                    el.classList.remove('tabs-locked');
+                }
+            }
+        });
+    };
+
     if (!btnAdminSettings || !adminSettingsModal) return;
 
     // ⚙️設定ボタンをクリックした際
@@ -7727,6 +7780,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnCloseAdminMode) {
                 btnCloseAdminMode.style.display = 'block';
             }
+            lockNavAndHeader(true);
         });
     }
 
@@ -7748,6 +7802,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnCloseAdminMode) {
                 btnCloseAdminMode.style.display = 'block';
             }
+            lockNavAndHeader(true);
         });
     }
 
@@ -7773,6 +7828,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsMenuSection.style.display = 'block';
                 adminSettingsModal.style.display = 'flex';
             }
+            lockNavAndHeader(false);
         });
     }
 });

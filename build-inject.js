@@ -59,7 +59,6 @@ const injectTo = (filename) => {
     console.log(`✅ Firebase設定の注入が完了しました: ${filename}`);
 };
 
-injectTo('app.js');
 injectTo('app-v4.js');
 injectTo('seed.js');
 injectTo('system-admin.js');
