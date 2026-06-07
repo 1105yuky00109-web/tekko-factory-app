@@ -1981,3 +1981,118 @@ body:not(.dark-theme) #summary-table th,
 body:not(.dark-theme) .proj-card-project {
     color: #000000 !important;
 }
+
+/* ============================================================
+   ⏱️ 出退勤打刻画面 & 出退勤管理画面用のスタイル
+   ============================================================ */
+
+/* 出退勤タブボタンの配色 */
+.tab-btn#tab-attendance {
+    border: 2px solid #a7f3d0; /* 薄い緑の枠線 */
+    background: #ecfdf5;      /* 非常に薄い緑の背景 */
+    color: #064e3b;           /* 濃い緑のテキスト */
+}
+.tab-btn#tab-attendance:hover {
+    background: #d1fae5;
+    border-color: #34d399;
+}
+.tab-btn#tab-attendance.active {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: white !important;
+}
+
+/* デジタル時計表示 */
+.digital-clock {
+    font-family: 'Courier New', Courier, monospace;
+    text-shadow: 0 0 10px rgba(37,99,235,0.15);
+}
+
+/* 出勤・退勤ボタンのスタイル */
+.btn-checkin {
+    background: var(--primary-color, #2563eb) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s ease;
+}
+.btn-checkin:hover:not(:disabled) {
+    background: #1d4ed8 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-checkout {
+    background: #ea580c !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 6px rgba(234, 88, 12, 0.2);
+    transition: all 0.2s ease;
+}
+.btn-checkout:hover:not(:disabled) {
+    background: #c2410c !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(234, 88, 12, 0.3);
+}
+
+/* 管理者設定メニュー内の4大ボタンのホバーアニメーション */
+#settings-btn-change-plan,
+#settings-btn-schedule,
+#settings-btn-employee,
+#settings-btn-attendance-admin {
+    transition: all 0.2s ease !important;
+}
+
+#settings-btn-change-plan:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(2, 132, 199, 0.15) !important;
+    border-color: #38bdf8 !important;
+    background: #f0f9ff !important;
+}
+
+#settings-btn-attendance-admin:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(5, 150, 105, 0.15) !important;
+    border-color: #34d399 !important;
+    background: #ecfdf5 !important;
+}
+
+/* ダークテーマ対応 */
+body.dark-theme .tab-btn#tab-attendance {
+    border-color: #064e3b;
+    background: #022c22;
+    color: #a7f3d0;
+}
+body.dark-theme .tab-btn#tab-attendance:hover {
+    background: #064e3b;
+    border-color: #10b981;
+}
+body.dark-theme .tab-btn#tab-attendance.active {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: white !important;
+}
+body.dark-theme #settings-btn-change-plan,
+body.dark-theme #settings-btn-schedule,
+body.dark-theme #settings-btn-employee,
+body.dark-theme #settings-btn-attendance-admin {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+body.dark-theme #settings-btn-change-plan:hover {
+    border-color: #3b82f6 !important;
+    background: #1e293b !important;
+}
+body.dark-theme #settings-btn-schedule:hover {
+    border-color: #fbbf24 !important;
+    background: #1e293b !important;
+}
+body.dark-theme #settings-btn-employee:hover {
+    border-color: #a78bfa !important;
+    background: #1e293b !important;
+}
+body.dark-theme #settings-btn-attendance-admin:hover {
+    border-color: #34d399 !important;
+    background: #1e293b !important;
+}

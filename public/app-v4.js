@@ -1,6 +1,6 @@
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, onSnapshot, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 const firebaseConfig = {
@@ -9,8 +9,7 @@ const firebaseConfig = {
     projectId: "tekko-factory-app",
     storageBucket: "tekko-factory-app.firebasestorage.app",
     messagingSenderId: "354843914657",
-    appId: "1:354843914657:web:fbed32a7bae1c74af35be0",
-    measurementId: "G-WYE7P1PP8H"
+    appId: "1:354843914657:web:fbed32a7bae1c74af35be0"
 };
 
 const showDebugLog = (msg) => {
@@ -1569,6 +1568,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.classList.add('active');
                 document.getElementById(btn.dataset.target).classList.add('active');
                 
+                // 出退勤画面の時計制御
+                if (btn.dataset.target === 'attendance-view') {
+                    startAttendanceClock();
+                    populateAttendanceMemberDropdown();
+                } else {
+                    stopAttendanceClock();
+                }
+
+                // 出退勤管理（管理者用）画面のロード
+                if (btn.dataset.target === 'attendance-admin-view') {
+                    initAttendanceAdminFilters();
+                    loadAttendanceAdminData();
+                }
+
                 if (btn.dataset.target === 'gantt-view' || btn.dataset.target === 'summary-view') {
                     document.body.classList.add('print-a3-landscape');
                     if (btn.dataset.target === 'gantt-view') loadSchedules();
@@ -5525,6 +5538,543 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Excel Export (History - Monthly)
+    const btnExportHistory = document.getElementById('btn-export-history');
+    if (btnExportHistory) {
+        btnExportHistory.addEventListener('click', async () => {
+            if (typeof ExcelJS === 'undefined') return alert('ExcelJSライブラリの読み込みに失敗しました。');
+            
+            const originalText = btnExportHistory.textContent;
+            btnExportHistory.disabled = true;
+            btnExportHistory.textContent = '出力中...';
+
+            try {
+                const filterMonthSelect = document.getElementById('history-filter-month');
+                const filterProjectSelect = document.getElementById('history-filter-project');
+                const filterAuthorSelect = document.getElementById('history-filter-author');
+
+                let selectedMonth = filterMonthSelect ? filterMonthSelect.value : '';
+                const selectedProject = filterProjectSelect ? filterProjectSelect.value : '';
+                const selectedAuthor = filterAuthorSelect ? filterAuthorSelect.value : '';
+
+                if (!selectedMonth) {
+                    const months = [...new Set(allDailyReports.map(r => r.date ? r.date.substring(0, 7) : ''))].filter(Boolean).sort().reverse();
+                    if (months.length > 0) {
+                        selectedMonth = months[0];
+                    } else {
+                        return alert('出力する日報データがありません。');
+                    }
+                }
+
+                const [year, month] = selectedMonth.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
+
+                let filteredReports = allDailyReports.filter(r => r.date && r.date.startsWith(selectedMonth));
+                if (selectedProject) filteredReports = filteredReports.filter(r => r.projectId === selectedProject);
+                if (selectedAuthor) filteredReports = filteredReports.filter(r => r.author === selectedAuthor || r.email === selectedAuthor);
+
+                if (filteredReports.length === 0) {
+                    return alert('出力条件に一致する日報データがありません。');
+                }
+
+                // 集計用マップ
+                const gridData = new Map();
+                filteredReports.forEach(r => {
+                    if (!r.projectName || !r.date) return;
+                    const dayNum = parseInt(r.date.substring(8, 10), 10);
+                    if (isNaN(dayNum) || dayNum < 1 || dayNum > daysInMonth) return;
+
+                    const tasks = Array.isArray(r.tasks) ? r.tasks : (r.tasks ? [r.tasks] : []);
+                    const hours = parseFloat(r.hours) || 0;
+
+                    tasks.forEach(task => {
+                        if (!task) return;
+                        let taskName = task;
+                        if (task === 'その他' && r.notes && r.notes.trim() !== '') {
+                            taskName = `その他（${r.notes.trim()}）`;
+                        }
+
+                        if (!gridData.has(r.projectName)) {
+                            gridData.set(r.projectName, new Map());
+                        }
+                        const projectMap = gridData.get(r.projectName);
+                        if (!projectMap.has(taskName)) {
+                            projectMap.set(taskName, new Array(daysInMonth + 1).fill(0));
+                        }
+                        projectMap.get(taskName)[dayNum] += hours;
+                    });
+                });
+
+                const TASK_ORDER = [
+                    "一次加工", "組立て", "溶接", "塗装", "出荷",
+                    "積算", "見積作成", "図面作図", "原寸", "打合せ",
+                    "自主検査", "検査準備", "検査受検", "是正対応", "出荷準備", "その他"
+                ];
+                const getTaskOrderIndex = (task) => {
+                    const idx = TASK_ORDER.indexOf(task);
+                    return idx === -1 ? 999 : idx;
+                };
+
+                const sortedProjects = [...gridData.keys()].sort();
+                const rows = [];
+                const projectRowSpans = {};
+                sortedProjects.forEach(proj => {
+                    const projectMap = gridData.get(proj);
+                    const sortedTasks = [...projectMap.keys()].sort((a, b) => getTaskOrderIndex(a) - getTaskOrderIndex(b));
+
+                    sortedTasks.forEach(task => {
+                        const dailyHours = projectMap.get(task);
+                        const totalHours = dailyHours.reduce((sum, h) => sum + h, 0);
+                        if (totalHours > 0) {
+                            rows.push({
+                                projectName: proj,
+                                taskName: task,
+                                dailyHours,
+                                totalHours
+                            });
+                            projectRowSpans[proj] = (projectRowSpans[proj] || 0) + 1;
+                        }
+                    });
+                });
+
+                if (rows.length === 0) return alert('稼稼働実績データがありません。');
+
+                const workbook = new ExcelJS.Workbook();
+                const sheet = workbook.addWorksheet('工事別作業集計_月間');
+
+                sheet.pageSetup.paperSize = 8; // A3
+                sheet.pageSetup.orientation = 'landscape';
+                sheet.pageSetup.fitToPage = true;
+                sheet.pageSetup.fitToWidth = 1;
+                sheet.pageSetup.fitToHeight = 0;
+                sheet.pageSetup.scale = undefined;
+
+                const colWidths = [18, 15, ...new Array(daysInMonth).fill(3.2), 8];
+                sheet.columns = colWidths.map(w => ({ width: w }));
+
+                const row1 = sheet.getRow(1);
+                row1.height = 28;
+                sheet.mergeCells(1, 1, 1, 2 + daysInMonth + 1);
+                const titleCell = row1.getCell(1);
+                titleCell.value = `${year}年${month}月 工事別作業集計表（月間）`;
+                titleCell.font = { name: 'MS Gothic', size: 12, bold: true };
+                titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                titleCell.border = {
+                    top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' }
+                };
+
+                const row2 = sheet.getRow(2);
+                const row3 = sheet.getRow(3);
+                row2.height = 20;
+                row3.height = 20;
+
+                sheet.mergeCells(2, 1, 3, 1);
+                const hProj = row2.getCell(1);
+                hProj.value = "工事名";
+                hProj.font = { name: 'MS Gothic', size: 9, bold: true };
+                hProj.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                hProj.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                hProj.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'thin' }
+                };
+                
+                sheet.mergeCells(2, 2, 3, 2);
+                const hTask = row2.getCell(2);
+                hTask.value = "作業内容";
+                hTask.font = { name: 'MS Gothic', size: 9, bold: true };
+                hTask.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                hTask.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                hTask.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' }
+                };
+
+                const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateObj = new Date(year, month - 1, d);
+                    const wday = dateObj.getDay();
+                    const isSat = wday === 6;
+                    const isSun = wday === 0;
+
+                    let bgColor = 'FFF1F5F9';
+                    if (isSat) bgColor = 'FFE0F2FE';
+                    if (isSun) bgColor = 'FFFEE2E2';
+
+                    const cellD = row2.getCell(2 + d);
+                    cellD.value = d;
+                    cellD.font = { name: 'MS Gothic', size: 8, bold: true };
+                    cellD.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cellD.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                    cellD.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+                    const cellW = row3.getCell(2 + d);
+                    cellW.value = dayNames[wday];
+                    cellW.font = { name: 'MS Gothic', size: 8, bold: true };
+                    cellW.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cellW.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                    cellW.border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } };
+                }
+
+                const totColIndex = 2 + daysInMonth + 1;
+                sheet.mergeCells(2, totColIndex, 3, totColIndex);
+                const hTot = row2.getCell(totColIndex);
+                hTot.value = "合計";
+                hTot.font = { name: 'MS Gothic', size: 9, bold: true };
+                hTot.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                hTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                hTot.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'medium' }
+                };
+
+                let currentRowNum = 4;
+                const dailyTotals = new Array(daysInMonth + 1).fill(0);
+                let grandTotal = 0;
+
+                rows.forEach(r => {
+                    const row = sheet.getRow(currentRowNum);
+                    row.height = 24;
+
+                    const cellProj = row.getCell(1);
+                    cellProj.value = r.projectName;
+                    cellProj.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cellProj.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                    cellProj.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'thin' }
+                    };
+
+                    const cellTask = row.getCell(2);
+                    cellTask.value = r.taskName;
+                    cellTask.font = { name: 'MS Gothic', size: 9 };
+                    cellTask.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                    cellTask.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
+                    };
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const hours = r.dailyHours[d];
+                        dailyTotals[d] += hours;
+
+                        const cell = row.getCell(2 + d);
+                        cell.value = hours > 0 ? hours : '';
+                        cell.font = { name: 'MS Gothic', size: 9 };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        cell.border = {
+                            top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
+                        };
+                    }
+
+                    const cellTot = row.getCell(totColIndex);
+                    cellTot.value = r.totalHours;
+                    grandTotal += r.totalHours;
+                    cellTot.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cellTot.alignment = { horizontal: 'right', vertical: 'middle' };
+                    cellTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                    cellTot.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'medium' }
+                    };
+
+                    currentRowNum++;
+                });
+
+                let mergeStart = 4;
+                sortedProjects.forEach(proj => {
+                    const rowspan = projectRowSpans[proj];
+                    if (rowspan > 1) {
+                        sheet.mergeCells(mergeStart, 1, mergeStart + rowspan - 1, 1);
+                    }
+                    mergeStart += rowspan;
+                });
+
+                const totRow = sheet.getRow(currentRowNum);
+                totRow.height = 24;
+                
+                sheet.mergeCells(currentRowNum, 1, currentRowNum, 2);
+                const labelCell = totRow.getCell(1);
+                labelCell.value = "合計";
+                labelCell.font = { name: 'MS Gothic', size: 9, bold: true };
+                labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                labelCell.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'thin' }
+                };
+                totRow.getCell(2).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const cell = totRow.getCell(2 + d);
+                    cell.value = dailyTotals[d] > 0 ? dailyTotals[d] : '';
+                    cell.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = {
+                        top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' }
+                    };
+                }
+
+                const cellGrandTot = totRow.getCell(totColIndex);
+                cellGrandTot.value = grandTotal;
+                cellGrandTot.font = { name: 'MS Gothic', size: 9, bold: true };
+                cellGrandTot.alignment = { horizontal: 'right', vertical: 'middle' };
+                cellGrandTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                cellGrandTot.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'medium' }
+                };
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = window.URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `工事別作業集計_月間_${selectedMonth}.xlsx`;
+                anchor.click();
+                window.URL.revokeObjectURL(url);
+
+            } catch (err) {
+                console.error('Excel Export Error:', err);
+                alert('Excel出力中にエラーが発生しました: ' + err.message);
+            } finally {
+                btnExportHistory.disabled = false;
+                btnExportHistory.textContent = originalText;
+            }
+        });
+    }
+
+    // Excel Export (Total - Cumulative)
+    const btnExportTotal = document.getElementById('btn-export-total');
+    if (btnExportTotal) {
+        btnExportTotal.addEventListener('click', async () => {
+            if (typeof ExcelJS === 'undefined') return alert('ExcelJSライブラリの読み込みに失敗しました。');
+            
+            const originalText = btnExportTotal.textContent;
+            btnExportTotal.disabled = true;
+            btnExportTotal.textContent = '出力中...';
+
+            try {
+                const filterProjectSelect = document.getElementById('total-filter-project');
+                const filterAuthorSelect = document.getElementById('total-filter-author');
+
+                const selectedProject = filterProjectSelect ? filterProjectSelect.value : '';
+                const selectedAuthor = filterAuthorSelect ? filterAuthorSelect.value : '';
+
+                let filteredReports = allDailyReports;
+                if (selectedProject) filteredReports = filteredReports.filter(r => r.projectId === selectedProject);
+                if (selectedAuthor) filteredReports = filteredReports.filter(r => r.author === selectedAuthor || r.email === selectedAuthor);
+
+                if (filteredReports.length === 0) {
+                    return alert('出力条件に一致する日報データがありません。');
+                }
+
+                const totalData = new Map();
+                filteredReports.forEach(r => {
+                    if (!r.projectName) return;
+                    const tasks = Array.isArray(r.tasks) ? r.tasks : (r.tasks ? [r.tasks] : []);
+                    const hours = parseFloat(r.hours) || 0;
+
+                    tasks.forEach(task => {
+                        if (!task) return;
+                        let taskName = task;
+                        if (task === 'その他' && r.notes && r.notes.trim() !== '') {
+                            taskName = `その他（${r.notes.trim()}）`;
+                        }
+
+                        if (!totalData.has(r.projectName)) {
+                            totalData.set(r.projectName, new Map());
+                        }
+                        const projectMap = totalData.get(r.projectName);
+                        const currentHours = projectMap.get(taskName) || 0;
+                        projectMap.set(taskName, currentHours + hours);
+                    });
+                });
+
+                const TASK_ORDER = [
+                    "一次加工", "組立て", "溶接", "塗装", "出荷",
+                    "積算", "見積作成", "図面作図", "原寸", "打合せ",
+                    "自主検査", "検査準備", "検査受検", "是正対応", "出荷準備", "その他"
+                ];
+                const getTaskOrderIndex = (task) => {
+                    const idx = TASK_ORDER.indexOf(task);
+                    return idx === -1 ? 999 : idx;
+                };
+
+                const sortedProjects = [...totalData.keys()].sort();
+                const rows = [];
+                const projectRowSpans = {};
+                const projectTotals = {};
+                let grandTotal = 0;
+
+                sortedProjects.forEach(proj => {
+                    const projectMap = totalData.get(proj);
+                    const sortedTasks = [...projectMap.keys()].sort((a, b) => getTaskOrderIndex(a) - getTaskOrderIndex(b));
+
+                    let projTotal = 0;
+                    sortedTasks.forEach(task => {
+                        const hours = projectMap.get(task);
+                        if (hours > 0) {
+                            rows.push({
+                                projectName: proj,
+                                taskName: task,
+                                hours
+                            });
+                            projTotal += hours;
+                            projectRowSpans[proj] = (projectRowSpans[proj] || 0) + 1;
+                        }
+                    });
+                    projectTotals[proj] = projTotal;
+                    grandTotal += projTotal;
+                });
+
+                if (rows.length === 0) return alert('稼働実績データがありません。');
+
+                const workbook = new ExcelJS.Workbook();
+                const sheet = workbook.addWorksheet('工事別作業集計_累計');
+
+                sheet.pageSetup.paperSize = 8; // A3
+                sheet.pageSetup.orientation = 'landscape';
+                sheet.pageSetup.fitToPage = true;
+                sheet.pageSetup.fitToWidth = 1;
+                sheet.pageSetup.fitToHeight = 0;
+                sheet.pageSetup.scale = undefined;
+
+                const colWidths = [30, 25, 15, 15];
+                sheet.columns = colWidths.map(w => ({ width: w }));
+
+                const row1 = sheet.getRow(1);
+                row1.height = 28;
+                sheet.mergeCells(1, 1, 1, 4);
+                const selectedProjName = selectedProject && selectedProject !== '' ? (allDailyReports.find(r => r.projectId === selectedProject)?.projectName || '') : '';
+                const titleText = selectedProjName ? `${selectedProjName} 工事別作業集計表（累計）` : '工事別作業集計表（累計）';
+                
+                const titleCell = row1.getCell(1);
+                titleCell.value = titleText;
+                titleCell.font = { name: 'MS Gothic', size: 12, bold: true };
+                titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                titleCell.border = {
+                    top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' }
+                };
+
+                const row2 = sheet.getRow(2);
+                row2.height = 20;
+
+                const headers = ["工事名", "作業内容", "作業合計 (h)", "工事合計 (h)"];
+                headers.forEach((h, idx) => {
+                    const cell = row2.getCell(idx + 1);
+                    cell.value = h;
+                    cell.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cell.alignment = { 
+                        horizontal: (idx >= 2) ? 'right' : 'left', 
+                        vertical: 'middle',
+                        wrapText: true
+                    };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                    cell.border = {
+                        top: { style: 'thin' },
+                        bottom: { style: 'medium' },
+                        left: idx === 0 ? { style: 'medium' } : { style: 'thin' },
+                        right: idx === 3 ? { style: 'medium' } : { style: 'thin' }
+                    };
+                });
+
+                let currentRowNum = 3;
+                rows.forEach(r => {
+                    const row = sheet.getRow(currentRowNum);
+                    row.height = 24;
+
+                    const cellProj = row.getCell(1);
+                    cellProj.value = r.projectName;
+                    cellProj.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cellProj.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                    cellProj.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'thin' }
+                    };
+
+                    const cellTask = row.getCell(2);
+                    cellTask.value = r.taskName;
+                    cellTask.font = { name: 'MS Gothic', size: 9 };
+                    cellTask.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                    cellTask.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
+                    };
+
+                    const cellTaskHours = row.getCell(3);
+                    cellTaskHours.value = r.hours;
+                    cellTaskHours.font = { name: 'MS Gothic', size: 9 };
+                    cellTaskHours.alignment = { horizontal: 'right', vertical: 'middle' };
+                    cellTaskHours.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' }
+                    };
+
+                    const cellProjHours = row.getCell(4);
+                    cellProjHours.value = projectTotals[r.projectName];
+                    cellProjHours.font = { name: 'MS Gothic', size: 9, bold: true };
+                    cellProjHours.alignment = { horizontal: 'right', vertical: 'middle' };
+                    cellProjHours.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                    cellProjHours.border = {
+                        top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'medium' }
+                    };
+
+                    currentRowNum++;
+                });
+
+                let mergeStart = 3;
+                sortedProjects.forEach(proj => {
+                    const rowspan = projectRowSpans[proj];
+                    if (rowspan > 1) {
+                        sheet.mergeCells(mergeStart, 1, mergeStart + rowspan - 1, 1);
+                        sheet.mergeCells(mergeStart, 4, mergeStart + rowspan - 1, 4);
+                    }
+                    mergeStart += rowspan;
+                });
+
+                const totRow = sheet.getRow(currentRowNum);
+                totRow.height = 24;
+
+                sheet.mergeCells(currentRowNum, 1, currentRowNum, 2);
+                const labelCell = totRow.getCell(1);
+                labelCell.value = "総合計";
+                labelCell.font = { name: 'MS Gothic', size: 9, bold: true };
+                labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                labelCell.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'thin' }
+                };
+                totRow.getCell(2).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+                const cellEmpty = totRow.getCell(3);
+                cellEmpty.value = "";
+                cellEmpty.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                cellEmpty.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'thin' }
+                };
+
+                const cellGrandTot = totRow.getCell(4);
+                cellGrandTot.value = grandTotal;
+                cellGrandTot.font = { name: 'MS Gothic', size: 9, bold: true };
+                cellGrandTot.alignment = { horizontal: 'right', vertical: 'middle' };
+                cellGrandTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                cellGrandTot.border = {
+                    top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'thin' }, right: { style: 'medium' }
+                };
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = window.URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                const fileLabel = selectedProjName ? `_${selectedProjName}` : '';
+                anchor.download = `工事別作業集計_累計${fileLabel}.xlsx`;
+                anchor.click();
+                window.URL.revokeObjectURL(url);
+
+            } catch (err) {
+                console.error('Excel Export Error:', err);
+                alert('Excel出力中にエラーが発生しました: ' + err.message);
+            } finally {
+                btnExportTotal.disabled = false;
+                btnExportTotal.textContent = originalText;
+            }
+        });
+    }
+
     // Excel Export (List)
     const btnExportList = document.getElementById('btn-export');
     if (btnExportList) {
@@ -7788,13 +8338,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnEmployee) {
         settingsBtnEmployee.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
 
             adminSettingsModal.style.display = 'none';
 
             const targetTab = document.getElementById('tab-employee-manage');
+            if (targetTab) {
+                targetTab.click();
+            }
+
+            if (btnCloseAdminMode) {
+                btnCloseAdminMode.style.display = 'block';
+            }
+            lockNavAndHeader(true);
+        });
+    }
+
+    // メニュー：出退勤管理へ
+    const settingsBtnAttendanceAdmin = document.getElementById('settings-btn-attendance-admin');
+    if (settingsBtnAttendanceAdmin) {
+        settingsBtnAttendanceAdmin.addEventListener('click', () => {
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view') {
+                previousActiveTabTarget = activeTab.dataset.target;
+            }
+
+            adminSettingsModal.style.display = 'none';
+
+            const targetTab = document.getElementById('tab-attendance-admin-hidden');
             if (targetTab) {
                 targetTab.click();
             }
@@ -7831,5 +8404,469 @@ document.addEventListener('DOMContentLoaded', () => {
             lockNavAndHeader(false);
         });
     }
+
+    // ==========================================
+    // 出退勤打刻画面のイベント紐付け
+    // ==========================================
+    const attendMemberSelect = document.getElementById('attend-member-select');
+    if (attendMemberSelect) {
+        attendMemberSelect.addEventListener('change', () => {
+            loadAttendanceData(attendMemberSelect.value);
+        });
+    }
+
+    const btnAttendCheckin = document.getElementById('btn-attend-checkin');
+    if (btnAttendCheckin) {
+        btnAttendCheckin.addEventListener('click', () => {
+            performCheckIn();
+        });
+    }
+
+    const btnAttendCheckout = document.getElementById('btn-attend-checkout');
+    if (btnAttendCheckout) {
+        btnAttendCheckout.addEventListener('click', () => {
+            performCheckOut();
+        });
+    }
+
+    // ==========================================
+    // 管理者出退勤管理画面のイベント紐付け
+    // ==========================================
+    const attendAdminFilterMonth = document.getElementById('attend-admin-filter-month');
+    if (attendAdminFilterMonth) {
+        attendAdminFilterMonth.addEventListener('change', () => {
+            loadAttendanceAdminData();
+        });
+    }
+
+    const attendAdminFilterMember = document.getElementById('attend-admin-filter-member');
+    if (attendAdminFilterMember) {
+        attendAdminFilterMember.addEventListener('change', () => {
+            loadAttendanceAdminData();
+        });
+    }
 });
+
+// ==========================================
+// 出退勤打刻・管理機能ロジック
+// ==========================================
+
+// 現在日付取得用ヘルパー (YYYY-MM-DD)
+function getTodayStr(dateObj = new Date()) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+// 現在月取得用ヘルパー (YYYY-MM)
+function getTodayMonthStr(dateObj = new Date()) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+}
+
+// 出退勤用デジタル時計の制御
+let attendanceClockInterval = null;
+
+function startAttendanceClock() {
+    if (attendanceClockInterval) clearInterval(attendanceClockInterval);
+    
+    const updateClock = () => {
+        const now = new Date();
+        const dateEl = document.getElementById('attend-current-date');
+        if (dateEl) {
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            dateEl.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 (${days[now.getDay()]})`;
+        }
+        const timeEl = document.getElementById('attend-current-time');
+        if (timeEl) {
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            timeEl.textContent = `${h}:${m}:${s}`;
+        }
+    };
+    
+    updateClock();
+    attendanceClockInterval = setInterval(updateClock, 1000);
+}
+
+function stopAttendanceClock() {
+    if (attendanceClockInterval) {
+        clearInterval(attendanceClockInterval);
+        attendanceClockInterval = null;
+    }
+}
+
+// 打刻画面の社員名プルダウン生成
+function populateAttendanceMemberDropdown() {
+    const select = document.getElementById('attend-member-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">打刻する社員を選択してください</option>';
+    
+    if (!currentCompany || !currentCompany.employees) return;
+    
+    const employees = [...currentCompany.employees].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+    employees.forEach(emp => {
+        const opt = document.createElement('option');
+        opt.value = emp.name;
+        opt.textContent = emp.name;
+        select.appendChild(opt);
+    });
+
+    select.value = "";
+    resetAttendanceButtons();
+}
+
+function resetAttendanceButtons() {
+    const btnCheckin = document.getElementById('btn-attend-checkin');
+    const btnCheckout = document.getElementById('btn-attend-checkout');
+    const checkinTimeEl = document.getElementById('attend-checkin-time');
+    const checkoutTimeEl = document.getElementById('attend-checkout-time');
+    const messageEl = document.getElementById('attend-message');
+
+    if (btnCheckin) btnCheckin.disabled = true;
+    if (btnCheckout) btnCheckout.disabled = true;
+    if (checkinTimeEl) checkinTimeEl.textContent = "- - : - -";
+    if (checkoutTimeEl) checkoutTimeEl.textContent = "- - : - -";
+    if (messageEl) {
+        messageEl.textContent = "";
+        messageEl.className = "message hidden";
+    }
+}
+
+// 社員選択時の打刻状況ロード
+async function loadAttendanceData(memberName) {
+    if (!memberName) {
+        resetAttendanceButtons();
+        return;
+    }
+
+    const btnCheckin = document.getElementById('btn-attend-checkin');
+    const btnCheckout = document.getElementById('btn-attend-checkout');
+    const checkinTimeEl = document.getElementById('attend-checkin-time');
+    const checkoutTimeEl = document.getElementById('attend-checkout-time');
+    const messageEl = document.getElementById('attend-message');
+    
+    if (!currentCompany || !currentCompany.companyId) return;
+
+    try {
+        const todayStr = getTodayStr();
+        const docRef = doc(db, "companies", currentCompany.companyId, "attendance", memberName, "daily", todayStr);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const checkIn = data.checkIn || "";
+            const checkOut = data.checkOut || "";
+
+            if (checkinTimeEl) checkinTimeEl.textContent = checkIn ? checkIn : "- - : - -";
+            if (checkoutTimeEl) checkoutTimeEl.textContent = checkOut ? checkOut : "- - : - -";
+
+            if (!checkIn) {
+                if (btnCheckin) btnCheckin.disabled = false;
+                if (btnCheckout) btnCheckout.disabled = true;
+                if (messageEl) {
+                    messageEl.textContent = "";
+                    messageEl.className = "message hidden";
+                }
+            } else if (checkIn && !checkOut) {
+                if (btnCheckin) btnCheckin.disabled = true;
+                if (btnCheckout) btnCheckout.disabled = false;
+                if (messageEl) {
+                    messageEl.textContent = "";
+                    messageEl.className = "message hidden";
+                }
+            } else {
+                if (btnCheckin) btnCheckin.disabled = true;
+                if (btnCheckout) btnCheckout.disabled = true;
+                if (messageEl) {
+                    messageEl.textContent = "本日の打刻（出勤・退勤）は完了しています。";
+                    messageEl.className = "message info";
+                }
+            }
+        } else {
+            if (checkinTimeEl) checkinTimeEl.textContent = "- - : - -";
+            if (checkoutTimeEl) checkoutTimeEl.textContent = "- - : - -";
+            if (btnCheckin) btnCheckin.disabled = false;
+            if (btnCheckout) btnCheckout.disabled = true;
+            if (messageEl) {
+                messageEl.textContent = "";
+                messageEl.className = "message hidden";
+            }
+        }
+    } catch (error) {
+        console.error("Error loading attendance data:", error);
+        if (messageEl) {
+            messageEl.textContent = "打刻データの取得に失敗しました。";
+            messageEl.className = "message error";
+        }
+    }
+}
+
+// 出勤打刻処理
+async function performCheckIn() {
+    const select = document.getElementById('attend-member-select');
+    if (!select) return;
+    const memberName = select.value;
+    if (!memberName) return;
+
+    const btnCheckin = document.getElementById('btn-attend-checkin');
+    if (!currentCompany || !currentCompany.companyId) return;
+
+    try {
+        if (btnCheckin) btnCheckin.disabled = true;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const todayStr = getTodayStr();
+
+        const docRef = doc(db, "companies", currentCompany.companyId, "attendance", memberName, "daily", todayStr);
+        
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().checkIn) {
+            alert("すでに出勤打刻が記録されています。");
+            await loadAttendanceData(memberName);
+            return;
+        }
+
+        await setDoc(docRef, {
+            checkIn: timeStr,
+            date: todayStr,
+            memberName: memberName,
+            updatedAt: now.getTime()
+        }, { merge: true });
+
+        if (typeof showToast === 'function') {
+            showToast(`${memberName}さん、出勤打刻完了しました (${timeStr})`);
+        } else {
+            alert(`${memberName}さん、出勤打刻完了しました (${timeStr})`);
+        }
+        await loadAttendanceData(memberName);
+    } catch (error) {
+        console.error("Error checking in:", error);
+        alert("打刻に失敗しました。もう一度お試しください。");
+        if (btnCheckin) btnCheckin.disabled = false;
+    }
+}
+
+// 退勤打刻処理
+async function performCheckOut() {
+    const select = document.getElementById('attend-member-select');
+    if (!select) return;
+    const memberName = select.value;
+    if (!memberName) return;
+
+    const btnCheckout = document.getElementById('btn-attend-checkout');
+    if (!currentCompany || !currentCompany.companyId) return;
+
+    try {
+        if (btnCheckout) btnCheckout.disabled = true;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const todayStr = getTodayStr();
+
+        const docRef = doc(db, "companies", currentCompany.companyId, "attendance", memberName, "daily", todayStr);
+
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists() || !docSnap.data().checkIn) {
+            alert("出勤打刻が記録されていません。出勤打刻から行ってください。");
+            await loadAttendanceData(memberName);
+            return;
+        }
+        if (docSnap.exists() && docSnap.data().checkOut) {
+            alert("すでに退勤打刻が記録されています。");
+            await loadAttendanceData(memberName);
+            return;
+        }
+
+        await setDoc(docRef, {
+            checkOut: timeStr,
+            updatedAt: now.getTime()
+        }, { merge: true });
+
+        if (typeof showToast === 'function') {
+            showToast(`${memberName}さん、退勤打刻完了しました (${timeStr})`);
+        } else {
+            alert(`${memberName}さん、退勤打刻完了しました (${timeStr})`);
+        }
+        await loadAttendanceData(memberName);
+    } catch (error) {
+        console.error("Error checking out:", error);
+        alert("打刻に失敗しました。もう一度お試しください。");
+        if (btnCheckout) btnCheckout.disabled = false;
+    }
+}
+
+// 管理者画面のフィルター初期化
+function initAttendanceAdminFilters() {
+    const monthSelect = document.getElementById('attend-admin-filter-month');
+    const memberSelect = document.getElementById('attend-admin-filter-member');
+
+    if (monthSelect && monthSelect.children.length === 0) {
+        const now = new Date();
+        for (let i = 0; i < 6; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const val = getTodayMonthStr(d);
+            const text = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = text;
+            monthSelect.appendChild(opt);
+        }
+    }
+
+    if (memberSelect) {
+        memberSelect.innerHTML = '<option value="">すべての社員</option>';
+        if (currentCompany && currentCompany.employees) {
+            const employees = [...currentCompany.employees].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+            employees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.name;
+                opt.textContent = emp.name;
+                memberSelect.appendChild(opt);
+            });
+        }
+    }
+}
+
+// 管理者画面のデータロードと一覧表示
+async function loadAttendanceAdminData() {
+    const tbody = document.getElementById('attend-admin-tbody');
+    const totalDaysEl = document.getElementById('attend-admin-total-days');
+    const totalHoursEl = document.getElementById('attend-admin-total-hours');
+    
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td></tr>';
+    if (totalDaysEl) totalDaysEl.textContent = '0 日';
+    if (totalHoursEl) totalHoursEl.textContent = '0.0 時間';
+
+    if (!currentCompany || !currentCompany.companyId) return;
+
+    const monthSelect = document.getElementById('attend-admin-filter-month');
+    const memberSelect = document.getElementById('attend-admin-filter-member');
+    if (!monthSelect || !memberSelect) return;
+
+    const filterMonth = monthSelect.value;
+    const filterMember = memberSelect.value;
+
+    const targetMembers = [];
+    if (filterMember) {
+        targetMembers.push(filterMember);
+    } else if (currentCompany.employees) {
+        currentCompany.employees.forEach(emp => {
+            targetMembers.push(emp.name);
+        });
+    }
+
+    if (targetMembers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">社員が登録されていません。</td></tr>';
+        return;
+    }
+
+    try {
+        const startDay = `${filterMonth}-01`;
+        const parts = filterMonth.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const lastDate = new Date(year, month, 0).getDate();
+        const endDay = `${filterMonth}-${String(lastDate).padStart(2, '0')}`;
+
+        const promises = targetMembers.map(async (memberName) => {
+            const collRef = collection(db, "companies", currentCompany.companyId, "attendance", memberName, "daily");
+            const q = query(collRef, where("date", ">=", startDay), where("date", "<=", endDay));
+            const querySnapshot = await getDocs(q);
+            const records = [];
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                records.push({
+                    date: data.date,
+                    memberName: memberName,
+                    checkIn: data.checkIn || "",
+                    checkOut: data.checkOut || "",
+                });
+            });
+            return records;
+        });
+
+        const results = await Promise.all(promises);
+        let allRecords = results.flat();
+
+        allRecords.sort((a, b) => {
+            if (a.date !== b.date) {
+                return b.date.localeCompare(a.date);
+            }
+            return a.memberName.localeCompare(b.memberName, 'ja');
+        });
+
+        let totalDays = 0;
+        let totalHours = 0;
+        
+        tbody.innerHTML = "";
+        
+        if (allRecords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">対象期間の打刻データはありません。</td></tr>';
+            return;
+        }
+
+        allRecords.forEach(rec => {
+            let workingHoursStr = "-";
+            let workingHours = 0;
+
+            if (rec.checkIn && rec.checkOut) {
+                const inParts = rec.checkIn.split(':');
+                const outParts = rec.checkOut.split(':');
+                const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
+                const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
+                const diffMin = outMin - inMin;
+
+                if (diffMin > 0) {
+                    workingHours = diffMin / 60;
+                    workingHoursStr = workingHours.toFixed(1) + " h";
+                } else {
+                    workingHoursStr = "0.0 h";
+                }
+            }
+
+            if (rec.checkIn) {
+                totalDays++;
+            }
+            totalHours += workingHours;
+
+            const tr = document.createElement('tr');
+            const dateObj = new Date(rec.date);
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const dateText = `${dateObj.getMonth() + 1}/${dateObj.getDate()} (${days[dateObj.getDay()]})`;
+
+            tr.innerHTML = `
+                <td style="padding: 10px; border: 1px solid var(--border); text-align: center;">${dateText}</td>
+                <td style="padding: 10px; border: 1px solid var(--border); text-align: left; font-weight: bold;">${rec.memberName}</td>
+                <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #1e3a8a; font-weight: 500;">${rec.checkIn || "- - : - -"}</td>
+                <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #9a3412; font-weight: 500;">${rec.checkOut || "- - : - -"}</td>
+                <td style="padding: 10px; border: 1px solid var(--border); text-align: right; font-weight: bold; color: var(--primary);">${workingHoursStr}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        if (totalDaysEl) totalDaysEl.textContent = `${totalDays} 日`;
+        if (totalHoursEl) totalHoursEl.textContent = `${totalHours.toFixed(1)} 時間`;
+
+    } catch (error) {
+        console.error("Error loading attendance admin data:", error);
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">データのロード中にエラーが発生しました。</td></tr>';
+    }
+}
+
+// グローバルアタッチ
+window.startAttendanceClock = startAttendanceClock;
+window.stopAttendanceClock = stopAttendanceClock;
+window.populateAttendanceMemberDropdown = populateAttendanceMemberDropdown;
+window.loadAttendanceData = loadAttendanceData;
+window.performCheckIn = performCheckIn;
+window.performCheckOut = performCheckOut;
+window.initAttendanceAdminFilters = initAttendanceAdminFilters;
+window.loadAttendanceAdminData = loadAttendanceAdminData;
 

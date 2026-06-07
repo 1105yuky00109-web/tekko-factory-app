@@ -161,6 +161,7 @@
             </div>
         </div>
         <nav class="tabs">
+            <button class="tab-btn tab-group-input" id="tab-attendance" data-target="attendance-view">出退勤</button>
             <button class="tab-btn active tab-group-input" data-target="daily-report-input-view">日報入力</button>
             <button class="tab-btn tab-group-history" data-target="daily-report-history-view">工事別作業集計（月間）</button>
             <button class="tab-btn tab-group-history" data-target="daily-report-total-view">工事別作業集計（累計）</button>
@@ -168,6 +169,7 @@
             <!-- 管理者用タブ・ボタン（JS参照用・強制非表示） -->
             <button class="tab-btn admin-only tab-group-schedule" id="tab-schedule-input-hidden" data-target="schedule-input-view" style="display:none !important;">工事登録</button>
             <button class="tab-btn admin-only tab-group-history" id="tab-summary-hidden" data-target="summary-view" style="display:none !important;">日報集計</button>
+            <button class="tab-btn admin-only tab-group-history" id="tab-attendance-admin-hidden" data-target="attendance-admin-view" style="display:none !important;">出退勤管理</button>
             <div id="plan-status-badge" class="admin-only" style="display:none !important;">
                 契約プラン: <span id="current-plan-limit">10</span>名プラン
             </div>
@@ -347,7 +349,54 @@
         </div>
     </main>
 
+    <!-- ======== 出退勤打刻画面 ======== -->
+    <main id="attendance-view" class="view no-print" style="display: none;">
+        <div class="form-card" style="max-width: 500px; margin: 0 auto; padding: 25px;">
+            <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                ⏱️ 出退勤打刻
+            </h2>
+            
+            <!-- 時計・日付表示 -->
+            <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: var(--bg-muted, #f8fafc); border-radius: 12px; border: 1px solid var(--border);">
+                <div id="attend-current-date" style="font-size: 1.1rem; font-weight: bold; color: var(--text-main, #1e293b); margin-bottom: 5px;">- - - - 年 - - 月 - - 日</div>
+                <div id="attend-current-time" class="digital-clock" style="font-family: monospace; font-size: 2.2rem; font-weight: bold; color: var(--primary-color, #2563eb); letter-spacing: 2px;">00:00:00</div>
+            </div>
 
+            <!-- 社員名選択 -->
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label for="attend-member-select" style="font-weight: bold; font-size: 1rem; margin-bottom: 8px; display: block;">社員名 <span style="color:red">*</span></label>
+                <select id="attend-member-select" required style="width:100%; height:48px; font-size:1.1rem; border-radius:8px; border:1px solid var(--border); padding:0 12px; background:var(--card-bg); color:var(--text);">
+                    <option value="">打刻する社員を選択してください</option>
+                </select>
+            </div>
+
+            <!-- 本日の記録表示 -->
+            <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; font-size: 0.95rem; color: var(--text-muted); border-bottom: 1px dashed var(--border); padding-bottom: 6px;">本日の打刻記録</h4>
+                <div style="display: flex; justify-content: space-around; gap: 10px;">
+                    <div style="text-align: center; flex: 1; padding: 10px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                        <div style="font-size: 0.8rem; color: #1e40af; font-weight: bold;">出勤時刻</div>
+                        <div id="attend-checkin-time" style="font-size: 1.25rem; font-weight: bold; color: #1e3a8a; margin-top: 4px;">- - : - -</div>
+                    </div>
+                    <div style="text-align: center; flex: 1; padding: 10px; background: #fff7ed; border-radius: 8px; border: 1px solid #ffedd5;">
+                        <div style="font-size: 0.8rem; color: #c2410c; font-weight: bold;">退勤時刻</div>
+                        <div id="attend-checkout-time" style="font-size: 1.25rem; font-weight: bold; color: #9a3412; margin-top: 4px;">- - : - -</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 打刻ボタンエリア -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <button type="button" id="btn-attend-checkin" class="btn btn-checkin" disabled style="height: 60px; font-size: 1.25rem; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px;">
+                    <span>出 勤</span>
+                </button>
+                <button type="button" id="btn-attend-checkout" class="btn btn-checkout" disabled style="height: 60px; font-size: 1.25rem; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px;">
+                    <span>退 勤</span>
+                </button>
+            </div>
+            <div id="attend-message" class="message hidden" style="margin-top: 15px; text-align: center; font-weight: bold;"></div>
+        </div>
+    </main>
 
     <!-- ======== 日報入力画面 (職人・社員・管理者共通) ======== -->
     <main id="daily-report-input-view" class="view active no-print">
@@ -566,6 +615,7 @@
                 </div>
             </div>
             <div class="actions">
+                <button id="btn-export-history" class="btn btn-secondary btn-small">📊 Excel出力</button>
                 <button id="btn-print-history" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
             </div>
         </div>
@@ -602,6 +652,7 @@
                 </div>
             </div>
             <div class="actions">
+                <button id="btn-export-total" class="btn btn-secondary btn-small">📊 Excel出力</button>
                 <button id="btn-print-total" class="btn btn-secondary btn-small no-print">🖨️ 印刷</button>
             </div>
         </div>
@@ -722,6 +773,60 @@
             </div>
 
 
+    </main>
+
+    <!-- ======== 出退勤管理画面 (管理者専用) ======== -->
+    <main id="attendance-admin-view" class="view" style="display: none;">
+        <div class="list-controls no-print" style="margin-bottom: 20px;">
+            <div class="filters" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="attend-admin-filter-month" style="font-weight: bold;">対象月</label>
+                    <select id="attend-admin-filter-month" style="height: 40px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text);">
+                        <!-- 動的に月を追加 -->
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="attend-admin-filter-member" style="font-weight: bold;">社員で絞込み</label>
+                    <select id="attend-admin-filter-member" style="height: 40px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text);">
+                        <option value="">すべての社員</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 集計結果サマリーパネル -->
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 180px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #065f46; font-weight: bold;">出勤日数</div>
+                <div id="attend-admin-total-days" style="font-size: 1.8rem; font-weight: 800; color: #047857; margin-top: 5px;">0 日</div>
+            </div>
+            <div style="flex: 1; min-width: 180px; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 15px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #0d9488; font-weight: bold;">総労働時間</div>
+                <div id="attend-admin-total-hours" style="font-size: 1.8rem; font-weight: 800; color: #0f766e; margin-top: 5px;">0.0 時間</div>
+            </div>
+        </div>
+
+        <!-- 履歴一覧テーブル -->
+        <div class="form-card" style="padding: 20px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px;">出退勤履歴一覧</h3>
+            <div style="overflow-x: auto; width: 100%;">
+                <table class="summary-table" style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: var(--primary); color: white;">
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 15%;">日付</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 25%;">社員名</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 20%;">出勤時刻</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 20%;">退勤時刻</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 20%;">労働時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attend-admin-tbody">
+                        <tr>
+                            <td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 </div>
@@ -802,18 +907,19 @@
             <h3 style="margin-bottom:10px; font-size:1.25rem; color:var(--primary); display:flex; align-items:center; gap:8px;">⚙️ 管理者設定メニュー</h3>
             <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">管理者専用の機能を選択してください。</p>
             
-            <!-- 契約プラン表示 ＆ 変更 -->
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;">
-                <div style="text-align:left;">
-                    <div style="font-size:0.8rem; color:#1e40af; font-weight:bold;">現在の契約</div>
-                    <div style="font-size:1.1rem; color:#1e3a8a; font-weight:800; margin-top:2px;"><span id="settings-plan-limit">10</span>名プラン</div>
-                    <div id="settings-trial-info" style="font-size:0.75rem; color:#e11d48; font-weight:bold; margin-top:4px; display:none;">無料トライアル中 <span id="settings-trial-period"></span></div>
-                </div>
-                <button id="settings-btn-change-plan" class="btn" style="background:#0284c7; color:white; padding:8px 16px; font-size:0.85rem; font-weight:bold;">💳 プラン変更</button>
+            <!-- 契約プラン表示 -->
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:15px; text-align:left; box-sizing:border-box;">
+                <span style="font-size:0.8rem; color:#1e40af; font-weight:bold; margin-right:8px;">現在の契約:</span>
+                <span style="font-size:1rem; color:#1e3a8a; font-weight:800;"><span id="settings-plan-limit">10</span>名プラン</span>
+                <div id="settings-trial-info" style="font-size:0.75rem; color:#e11d48; font-weight:bold; margin-top:4px; display:none;">無料トライアル中 <span id="settings-trial-period"></span></div>
             </div>
 
             <!-- メニューボタン一覧 -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <button id="settings-btn-change-plan" class="btn" style="background:#fff; color:#0284c7; border:1px solid #bae6fd; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
+                    <span style="font-size:1.75rem;">💳</span>
+                    <span>プラン変更</span>
+                </button>
                 <button id="settings-btn-schedule" class="btn" style="background:#fff; color:#d97706; border:1px solid #fde68a; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
                     <span style="font-size:1.75rem;">📁</span>
                     <span>工事登録</span>
@@ -821,6 +927,10 @@
                 <button id="settings-btn-employee" class="btn" style="background:#fff; color:#7c3aed; border:1px solid #ddd6fe; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
                     <span style="font-size:1.75rem;">👥</span>
                     <span>社員登録</span>
+                </button>
+                <button id="settings-btn-attendance-admin" class="btn" style="background:#fff; color:#059669; border:1px solid #a7f3d0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
+                    <span style="font-size:1.75rem;">⏱️</span>
+                    <span>出退勤管理</span>
                 </button>
             </div>
 
