@@ -845,20 +845,35 @@ function initEmployeeManagePanel() {
             btn.onclick = async () => {
                 const nameToDelete = btn.dataset.name;
                 if (confirm(`社員「${nameToDelete}」を削除しますか？\n（日報データ自体は削除されませんが、選択肢から消えます）`)) {
+                    // ローカルから即座に削除して描画を更新（楽観的アップデート）
+                    const originalEmployees = [...(currentCompany.employees || [])];
+                    const updatedEmployees = originalEmployees.filter(emp => emp.name !== nameToDelete);
+                    currentCompany.employees = updatedEmployees;
+                    renderEmployeeList();
+                    populateMemberDropdowns();
+
                     try {
+                        // 最新の情報をロードしてマージの上、Firestoreを更新
                         await loadLatestCompanyInfo();
-                        const employees = currentCompany.employees || [];
-                        const updatedEmployees = employees.filter(emp => emp.name !== nameToDelete);
+                        const latestEmployees = currentCompany.employees || [];
+                        const finalEmployees = latestEmployees.filter(emp => emp.name !== nameToDelete);
 
                         const compDocRef = doc(db, "companies", currentCompany.companyId);
-                        await updateDoc(compDocRef, { employees: updatedEmployees });
-                        currentCompany.employees = updatedEmployees;
+                        await updateDoc(compDocRef, { employees: finalEmployees });
+                        currentCompany.employees = finalEmployees;
 
-                        alert(`社員「${nameToDelete}」を削除しました。`);
                         renderEmployeeList();
                         populateMemberDropdowns();
+
+                        if (typeof showToast === 'function') {
+                            showToast(`社員「${nameToDelete}」を削除しました。`, 'success');
+                        }
                     } catch (err) {
                         console.error("Error deleting employee:", err);
+                        // エラー時はロールバックして再描画
+                        currentCompany.employees = originalEmployees;
+                        renderEmployeeList();
+                        populateMemberDropdowns();
                         alert(`削除に失敗しました: ${err.message}`);
                     }
                 }
