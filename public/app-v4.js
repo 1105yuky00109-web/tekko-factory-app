@@ -8962,13 +8962,13 @@ function renderAttendanceCalendar() {
             table.insertBefore(colgroup, thead);
         }
     }
-    let colgroupHtml = `<col style="width: 10%;">`; // 社員名
-    const dayColWidth = (82 / daysInMonth).toFixed(2);
+    let colgroupHtml = `<col style="width: 9%;">`; // 社員名
+    const dayColWidth = (81 / daysInMonth).toFixed(2);
     for (let d = 1; d <= daysInMonth; d++) {
         colgroupHtml += `<col style="width: ${dayColWidth}%;">`;
     }
-    colgroupHtml += `<col style="width: 4%;">`; // 出勤日数
-    colgroupHtml += `<col style="width: 4%;">`; // 合計時間
+    colgroupHtml += `<col style="width: 5%;">`; // 出勤日数
+    colgroupHtml += `<col style="width: 5%;">`; // 合計時間
     colgroup.innerHTML = colgroupHtml;
 
     const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
@@ -8996,14 +8996,14 @@ function renderAttendanceCalendar() {
 
     const thDaysCount = document.createElement('th');
     thDaysCount.className = "total-col";
-    thDaysCount.textContent = "出勤日数";
+    thDaysCount.innerHTML = "出勤<br>日数";
     thDaysCount.rowSpan = 2;
     thDaysCount.style.verticalAlign = "middle";
     tr1.appendChild(thDaysCount);
 
     const thTotalHours = document.createElement('th');
     thTotalHours.className = "total-col";
-    thTotalHours.textContent = "合計時間";
+    thTotalHours.innerHTML = "合計<br>時間";
     thTotalHours.rowSpan = 2;
     thTotalHours.style.verticalAlign = "middle";
     tr1.appendChild(thTotalHours);

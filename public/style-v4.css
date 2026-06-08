@@ -2168,6 +2168,8 @@ body.dark-theme #settings-btn-attendance-admin:hover {
     font-weight: bold;
     background-color: var(--bg-muted, #f1f5f9);
     color: var(--text-main, #1e293b);
+    white-space: normal !important;
+    line-height: 1.1 !important;
 }
 
 /* ダークテーマ対応 */
@@ -2228,6 +2230,11 @@ body.dark-theme .attendance-matrix-table th.weekend-sun {
         overflow: hidden !important;
         text-overflow: clip !important;
         white-space: nowrap !important;
+    }
+    /* 合計列の改行強制 */
+    #print-active-area .attendance-matrix-table .total-col {
+        white-space: normal !important;
+        line-height: 1.1 !important;
     }
     /* 土日色強制 */
     #print-active-area .attendance-matrix-table .weekend-sat {
