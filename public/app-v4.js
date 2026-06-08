@@ -4437,7 +4437,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 横向き印刷用の@pageスタイルを動的に追加
         const style = document.createElement('style');
         style.id = 'print-dynamic-style';
-        if (isLandscape) {
+        if (isLandscape === 'A4 landscape') {
+            style.innerHTML = '@media print { @page { size: A4 landscape !important; margin: 10mm !important; } }';
+        } else if (isLandscape) {
             style.innerHTML = '@media print { @page { size: A3 landscape !important; margin: 10mm !important; } }';
         } else {
             style.innerHTML = '@media print { @page { size: A4 portrait !important; margin: 10mm !important; } }';
@@ -9122,7 +9124,7 @@ function printAttendanceCalendar() {
         title += ` (${parts[0]}年${parts[1]}月)`;
     }
     // システム共通印刷ヘルパー doPrint を実行
-    doPrint('attend-admin-calendar-container', title, true);
+    doPrint('attend-admin-calendar-container', title, 'A4 landscape');
 }
 
 // Excelエクスポート処理
