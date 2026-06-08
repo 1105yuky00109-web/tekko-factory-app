@@ -9150,6 +9150,16 @@ function exportAttendanceCalendarToExcel() {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("出退勤月間集計");
 
+    // A4横、1ページ幅にフィット、枠線表示設定を追加
+    worksheet.pageSetup = {
+        orientation: 'landscape',
+        paperSize: 9, // A4
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+    };
+    worksheet.views = [{ showGridLines: true }];
+
     // 2. タイトル行 (A1)
     worksheet.mergeCells(1, 1, 1, daysInMonth + 3);
     const titleCell = worksheet.getCell(1, 1);
@@ -9234,8 +9244,16 @@ function exportAttendanceCalendarToExcel() {
                 row.getCell(d + 1).value = '';
             }
         }
-        row.getCell(daysInMonth + 2).value = employeeTotalDays;
-        row.getCell(daysInMonth + 3).value = parseFloat(employeeTotalHours.toFixed(1));
+        const startColLetter = "B";
+        const endColLetter = getExcelColumnLetter(daysInMonth + 1);
+        row.getCell(daysInMonth + 2).value = {
+            formula: `=COUNT(${startColLetter}${currentRow}:${endColLetter}${currentRow})`,
+            result: employeeTotalDays
+        };
+        row.getCell(daysInMonth + 3).value = {
+            formula: `=SUM(${startColLetter}${currentRow}:${endColLetter}${currentRow})`,
+            result: parseFloat(employeeTotalHours.toFixed(1))
+        };
 
         currentRow++;
     });
@@ -9343,4 +9361,16 @@ function exportAttendanceCalendarToExcel() {
 window.renderAttendanceCalendar = renderAttendanceCalendar;
 window.printAttendanceCalendar = printAttendanceCalendar;
 window.exportAttendanceCalendarToExcel = exportAttendanceCalendarToExcel;
+
+// Excelのインデックス(1-based)を列名(A, B... Z, AA, AB...)に変換するヘルパー
+function getExcelColumnLetter(colIndex) {
+    let letter = "";
+    let temp = colIndex;
+    while (temp > 0) {
+        let modulo = (temp - 1) % 26;
+        letter = String.fromCharCode(65 + modulo) + letter;
+        temp = Math.floor((temp - modulo) / 26);
+    }
+    return letter;
+}
 
