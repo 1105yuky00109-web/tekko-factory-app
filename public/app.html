@@ -837,17 +837,13 @@
         <div id="attend-admin-calendar-container" class="form-card" style="padding: 20px; display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--text);">月間出退勤カレンダー（集計）</h3>
-                <div class="no-print" style="display: flex; gap: 10px;">
-                    <button type="button" id="btn-attend-print-calendar" class="btn" style="background:#3b82f6; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-                        <span>🖨️ カレンダー印刷</span>
-                    </button>
-                    <button type="button" id="btn-attend-export-calendar" class="btn" style="background:#10b981; color:white; font-weight:bold; padding:8px 16px; border-radius:6px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-                        <span>📊 Excel出力</span>
-                    </button>
+                <div class="actions no-print" style="display: flex; gap: 8px;">
+                    <button type="button" id="btn-attend-export-calendar" class="btn btn-secondary btn-small">📊 Excel出力</button>
+                    <button type="button" id="btn-attend-print-calendar" class="btn btn-secondary btn-small">🖨️ 印刷</button>
                 </div>
             </div>
-            <div class="attendance-calendar-scroll-wrapper" style="overflow-x: auto; width: 100%; max-width: 100%;">
-                <table class="attendance-matrix-table" style="width: 100%; font-size: 0.8rem; border-collapse: collapse; min-width: 1000px;">
+            <div class="attendance-calendar-scroll-wrapper" style="width: 100%; overflow: hidden;">
+                <table class="attendance-matrix-table" style="width: 100%; font-size: 0.75rem; border-collapse: collapse;">
                     <thead id="attend-calendar-thead">
                         <!-- 動的に日付ヘッダーを生成 -->
                     </thead>

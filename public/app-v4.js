@@ -8950,6 +8950,25 @@ function renderAttendanceCalendar() {
     const month = parseInt(parts[1], 10);
     const daysInMonth = new Date(year, month, 0).getDate();
 
+    // colgroupによる列幅均等割りの適用
+    let colgroup = document.getElementById('attend-calendar-colgroup');
+    if (!colgroup) {
+        colgroup = document.createElement('colgroup');
+        colgroup.id = 'attend-calendar-colgroup';
+        const table = document.querySelector('.attendance-matrix-table');
+        if (table) {
+            table.insertBefore(colgroup, thead);
+        }
+    }
+    let colgroupHtml = `<col style="width: 10%;">`; // 社員名
+    const dayColWidth = (82 / daysInMonth).toFixed(2);
+    for (let d = 1; d <= daysInMonth; d++) {
+        colgroupHtml += `<col style="width: ${dayColWidth}%;">`;
+    }
+    colgroupHtml += `<col style="width: 4%;">`; // 出勤日数
+    colgroupHtml += `<col style="width: 4%;">`; // 合計時間
+    colgroup.innerHTML = colgroupHtml;
+
     const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
     
     const tr1 = document.createElement('tr');
@@ -8966,7 +8985,6 @@ function renderAttendanceCalendar() {
     for (let d = 1; d <= daysInMonth; d++) {
         const thDay = document.createElement('th');
         thDay.textContent = d;
-        thDay.style.minWidth = "30px";
         const dateObj = new Date(year, month - 1, d);
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 6) thDay.className = "weekend-sat";
@@ -9096,18 +9114,23 @@ function renderAttendanceCalendar() {
 
 // カレンダー印刷処理
 function printAttendanceCalendar() {
-    document.body.classList.add('print-landscape-attendance');
-    window.print();
-    const cleanUp = () => {
-        document.body.classList.remove('print-landscape-attendance');
-        window.removeEventListener('afterprint', cleanUp);
-    };
-    window.addEventListener('afterprint', cleanUp);
-    setTimeout(cleanUp, 3000);
+    const monthSelect = document.getElementById('attend-admin-filter-month');
+    const filterMonth = monthSelect ? monthSelect.value : "";
+    let title = "出退勤月間集計表";
+    if (filterMonth) {
+        const parts = filterMonth.split('-');
+        title += ` (${parts[0]}年${parts[1]}月)`;
+    }
+    // システム共通印刷ヘルパー doPrint を実行
+    doPrint('attend-admin-calendar-container', title, true);
 }
 
 // Excelエクスポート処理
 function exportAttendanceCalendarToExcel() {
+    if (typeof ExcelJS === 'undefined') {
+        alert('ExcelJSライブラリの読み込みに失敗しました。');
+        return;
+    }
     if (!allAttendanceRecords || allAttendanceRecords.length === 0) {
         alert("出力するデータがありません。");
         return;
@@ -9121,28 +9144,47 @@ function exportAttendanceCalendarToExcel() {
     const month = parseInt(parts[1], 10);
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    const data = [];
-    data.push([`出退勤月間集計表 (${year}年${month}月)`]);
-    data.push([]);
+    // 1. ワークブックとワークシートの初期化
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("出退勤月間集計");
 
-    const headerRow1 = ['社員名'];
+    // 2. タイトル行 (A1)
+    worksheet.mergeCells(1, 1, 1, daysInMonth + 3);
+    const titleCell = worksheet.getCell(1, 1);
+    titleCell.value = `出退勤月間集計表 (${year}年${month}月)`;
+    titleCell.font = { name: 'MS Gothic', size: 14, bold: true };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).height = 30;
+
+    // 3. ヘッダー行1 (日付)
+    const headerRow1 = worksheet.getRow(3);
+    headerRow1.height = 20;
+    
+    const cellName = headerRow1.getCell(1);
+    cellName.value = "社員名";
+    
     for (let d = 1; d <= daysInMonth; d++) {
-        headerRow1.push(d);
+        headerRow1.getCell(d + 1).value = d;
     }
-    headerRow1.push('出勤日数');
-    headerRow1.push('合計労働時間');
-    data.push(headerRow1);
+    headerRow1.getCell(daysInMonth + 2).value = "出勤日数";
+    headerRow1.getCell(daysInMonth + 3).value = "合計時間";
 
+    // 4. ヘッダー行2 (曜日)
+    const headerRow2 = worksheet.getRow(4);
+    headerRow2.height = 20;
     const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
-    const headerRow2 = [''];
+    
     for (let d = 1; d <= daysInMonth; d++) {
         const dateObj = new Date(year, month - 1, d);
-        headerRow2.push(daysOfWeek[dateObj.getDay()]);
+        headerRow2.getCell(d + 1).value = daysOfWeek[dateObj.getDay()];
     }
-    headerRow2.push('');
-    headerRow2.push('');
-    data.push(headerRow2);
 
+    // セルの縦結合 (社員名、出勤日数、合計時間)
+    worksheet.mergeCells(3, 1, 4, 1);
+    worksheet.mergeCells(3, daysInMonth + 2, 4, daysInMonth + 2);
+    worksheet.mergeCells(3, daysInMonth + 3, 4, daysInMonth + 3);
+
+    // 5. 社員データの書き込み
     const recordsMap = {};
     allAttendanceRecords.forEach(rec => {
         if (!recordsMap[rec.memberName]) {
@@ -9169,8 +9211,12 @@ function exportAttendanceCalendarToExcel() {
     }
     targetMembers.sort((a, b) => a.localeCompare(b, 'ja'));
 
+    let currentRow = 5;
     targetMembers.forEach(memberName => {
-        const row = [memberName];
+        const row = worksheet.getRow(currentRow);
+        row.height = 22;
+
+        row.getCell(1).value = memberName;
         let employeeTotalHours = 0;
         let employeeTotalDays = 0;
         const employeeRecords = recordsMap[memberName] || {};
@@ -9179,41 +9225,117 @@ function exportAttendanceCalendarToExcel() {
             const dateStr = `${filterMonth}-${String(d).padStart(2, '0')}`;
             const hours = employeeRecords[dateStr];
             if (hours !== undefined && hours >= 0) {
-                row.push(parseFloat(hours.toFixed(1)));
+                row.getCell(d + 1).value = parseFloat(hours.toFixed(1));
                 employeeTotalHours += hours;
                 employeeTotalDays++;
             } else {
-                row.push('');
+                row.getCell(d + 1).value = '';
             }
         }
-        row.push(employeeTotalDays);
-        row.push(parseFloat(employeeTotalHours.toFixed(1)));
-        data.push(row);
+        row.getCell(daysInMonth + 2).value = employeeTotalDays;
+        row.getCell(daysInMonth + 3).value = parseFloat(employeeTotalHours.toFixed(1));
+
+        currentRow++;
     });
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(data);
-
-    const merges = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: daysInMonth + 2 } },
-        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },
-        { s: { r: 2, c: daysInMonth + 1 }, e: { r: 3, c: daysInMonth + 1 } },
-        { s: { r: 2, c: daysInMonth + 2 }, e: { r: 3, c: daysInMonth + 2 } }
-    ];
-    ws['!merges'] = merges;
-
-    const wscols = [{ wch: 15 }];
-    for (let i = 1; i <= daysInMonth; i++) {
-        wscols.push({ wch: 4 });
-    }
-    wscols.push({ wch: 10 });
-    wscols.push({ wch: 12 });
-    ws['!cols'] = wscols;
-
-    XLSX.utils.book_append_sheet(wb, ws, "出退勤カレンダー集計");
+    // 6. スタイル・枠線・色の適用
+    const borderDef = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
     
-    const fileName = `出退勤月間集計_${filterMonth}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    const headerBorderDef = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+    };
+
+    const headerFill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF3B82F6' }
+    };
+
+    const headerTextFont = { name: 'MS Gothic', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    const normalTextFont = { name: 'MS Gothic', size: 10 };
+    const boldTextFont = { name: 'MS Gothic', size: 10, bold: true };
+
+    for (let r = 3; r <= 4; r++) {
+        const row = worksheet.getRow(r);
+        for (let c = 1; c <= daysInMonth + 3; c++) {
+            const cell = row.getCell(c);
+            
+            cell.font = headerTextFont;
+            cell.fill = headerFill;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = headerBorderDef;
+
+            if (r === 4 && c > 1 && c <= daysInMonth + 1) {
+                const dateObj = new Date(year, month - 1, c - 1);
+                const dayOfWeek = dateObj.getDay();
+                if (dayOfWeek === 6) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+                    cell.font = { name: 'MS Gothic', size: 10, bold: true, color: { argb: 'FF2563EB' } };
+                } else if (dayOfWeek === 0) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    cell.font = { name: 'MS Gothic', size: 10, bold: true, color: { argb: 'FFEF4444' } };
+                }
+            }
+        }
+    }
+
+    for (let r = 5; r < currentRow; r++) {
+        const row = worksheet.getRow(r);
+        for (let c = 1; c <= daysInMonth + 3; c++) {
+            const cell = row.getCell(c);
+            
+            cell.font = normalTextFont;
+            cell.border = borderDef;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            if (c === 1) {
+                cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                cell.font = boldTextFont;
+            }
+            
+            if (c > 1 && c <= daysInMonth + 1) {
+                const dateObj = new Date(year, month - 1, c - 1);
+                const dayOfWeek = dateObj.getDay();
+                if (dayOfWeek === 6) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F7FF' } };
+                } else if (dayOfWeek === 0) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF5F5' } };
+                }
+            }
+
+            if (c === daysInMonth + 2 || c === daysInMonth + 3) {
+                cell.font = boldTextFont;
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+            }
+        }
+    }
+
+    worksheet.getColumn(1).width = 16;
+    for (let c = 2; c <= daysInMonth + 1; c++) {
+        worksheet.getColumn(c).width = 4.5;
+    }
+    worksheet.getColumn(daysInMonth + 2).width = 10;
+    worksheet.getColumn(daysInMonth + 3).width = 12;
+
+    workbook.xlsx.writeBuffer().then(buffer => {
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `出退勤月間集計_${filterMonth}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }).catch(err => {
+        console.error("Excel書き込みエラー:", err);
+        alert("Excelファイルの生成に失敗しました。");
+    });
 }
 
 window.renderAttendanceCalendar = renderAttendanceCalendar;
