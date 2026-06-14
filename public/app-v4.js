@@ -8713,8 +8713,8 @@ async function performCheckIn() {
         } else {
             alert(`${memberName}さん、出勤打刻完了しました (${timeStr})`);
         }
-        select.value = "";
-        resetAttendanceButtons();
+        await loadAttendanceData(memberName);
+
     } catch (error) {
         console.error("Error checking in:", error);
         alert("打刻に失敗しました。もう一度お試しください。");
@@ -8763,8 +8763,8 @@ async function performCheckOut() {
         } else {
             alert(`${memberName}さん、退勤打刻完了しました (${timeStr})`);
         }
-        select.value = "";
-        resetAttendanceButtons();
+        await loadAttendanceData(memberName);
+
     } catch (error) {
         console.error("Error checking out:", error);
         alert("打刻に失敗しました。もう一度お試しください。");
