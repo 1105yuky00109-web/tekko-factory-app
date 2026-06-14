@@ -2246,3 +2246,38 @@ body.dark-theme .attendance-matrix-table th.weekend-sun {
         color: #ef4444 !important;
     }
 }
+
+/* ============================================================
+   💲 原価管理・月次収支画面用のスタイル
+   ============================================================ */
+
+/* 原価管理メニューボタンのホバーアニメーション */
+#settings-btn-cost {
+    transition: all 0.2s ease !important;
+}
+#settings-btn-cost:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(13, 148, 136, 0.15) !important;
+    border-color: #2dd4bf !important;
+    background: #f0fdfa !important;
+}
+
+/* 粗利マイナス時の赤字強調クラス */
+.text-danger {
+    color: #ef4444 !important;
+    font-weight: bold;
+}
+body.dark-theme .text-danger {
+    color: #f87171 !important;
+}
+
+/* 労務費内訳リストのスタイル */
+#cost-labor-detail-list div {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border);
+}
+#cost-labor-detail-list div:last-child {
+    border-bottom: none;
+}

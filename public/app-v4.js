@@ -735,12 +735,14 @@ function initEmployeeManagePanel() {
         const ageInp = document.getElementById('emp-age');
         const natInp = document.getElementById('emp-nationality');
         const statusInp = document.getElementById('emp-status-class');
+        const salaryInp = document.getElementById('emp-monthly-salary');
 
         if (nameInp) nameInp.value = '';
         if (joinInp) joinInp.value = '';
         if (ageInp) ageInp.value = '';
         if (natInp) natInp.value = '日本';
         if (statusInp) statusInp.value = '該当なし';
+        if (salaryInp) salaryInp.value = '';
 
         if (empOriginalNameInput) empOriginalNameInput.value = '';
         if (empFormTitle) empFormTitle.textContent = '新しい社員を追加';
@@ -779,7 +781,7 @@ function initEmployeeManagePanel() {
         if (employees.length === 0) {
             empListTbody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted, #64748b);">登録されている社員はいません。</td>
+                    <td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted, #64748b);">登録されている社員はいません。</td>
                 </tr>
             `;
             return;
@@ -793,6 +795,7 @@ function initEmployeeManagePanel() {
             const age = emp.age ? `${emp.age} 歳` : '-';
             const nationality = emp.nationality || '-';
             const statusClass = emp.statusClass || '-';
+            const monthlySalary = emp.monthlySalary ? `¥${Number(emp.monthlySalary).toLocaleString()}` : '-';
 
             return `
                 <tr style="background: ${bg}; border-bottom: 1px solid var(--border);">
@@ -801,6 +804,7 @@ function initEmployeeManagePanel() {
                     <td style="padding: 10px 12px; text-align: center; color: var(--text-muted, #64748b);">${age}</td>
                     <td style="padding: 10px 12px; text-align: center; color: var(--text-muted, #64748b);">${nationality}</td>
                     <td style="padding: 10px 12px; color: var(--text-muted, #64748b);">${statusClass}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: var(--text-muted, #64748b); font-weight: 500;">${monthlySalary}</td>
                     <td style="padding: 10px 12px; text-align: center; display: flex; gap: 6px; justify-content: center;">
                         <button class="btn-edit-employee btn btn-secondary btn-small" data-name="${emp.name.replace(/"/g, '&quot;')}" style="padding: 4px 8px; font-size: 0.75rem; cursor: pointer;">編集</button>
                         <button class="btn-delete-employee btn btn-danger btn-small" data-name="${emp.name.replace(/"/g, '&quot;')}" style="background:#ef4444; color:white; border:none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">削除</button>
@@ -822,6 +826,9 @@ function initEmployeeManagePanel() {
                 document.getElementById('emp-age').value = emp.age || '';
                 document.getElementById('emp-nationality').value = emp.nationality || '日本';
                 document.getElementById('emp-status-class').value = emp.statusClass || '該当なし';
+                if (document.getElementById('emp-monthly-salary')) {
+                    document.getElementById('emp-monthly-salary').value = emp.monthlySalary || '';
+                }
 
                 // 編集モードUIに切り替え
                 if (empOriginalNameInput) empOriginalNameInput.value = emp.name;
@@ -903,6 +910,8 @@ function initEmployeeManagePanel() {
             const age = ageInput ? parseInt(ageInput, 10) : '';
             const nationality = document.getElementById('emp-nationality').value;
             const statusClass = document.getElementById('emp-status-class').value;
+            const salaryInput = document.getElementById('emp-monthly-salary') ? document.getElementById('emp-monthly-salary').value : '';
+            const monthlySalary = salaryInput ? parseInt(salaryInput, 10) : '';
 
             const editOrigName = empOriginalNameInput ? empOriginalNameInput.value : '';
             const isEditMode = !!editOrigName;
@@ -927,7 +936,8 @@ function initEmployeeManagePanel() {
                                 joinDate,
                                 age,
                                 nationality,
-                                statusClass
+                                statusClass,
+                                monthlySalary
                             };
                         }
                         return emp;
@@ -950,6 +960,7 @@ function initEmployeeManagePanel() {
                         age,
                         nationality,
                         statusClass,
+                        monthlySalary,
                         createdAt: new Date().toISOString()
                     };
                     updatedEmployees = [...employees, newEmpObj];
@@ -8209,6 +8220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsBtnChangePlan = document.getElementById('settings-btn-change-plan');
     const settingsBtnSchedule = document.getElementById('settings-btn-schedule');
     const settingsBtnEmployee = document.getElementById('settings-btn-employee');
+    const settingsBtnCost = document.getElementById('settings-btn-cost');
     const btnCloseAdminMode = document.getElementById('btn-close-admin-mode');
     const settingsBtnCloseMenu = document.getElementById('settings-btn-close-menu');
 
@@ -8332,7 +8344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsBtnSchedule.addEventListener('click', () => {
             // 現在アクティブな一般タブを退避（戻る時のため）
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
             
@@ -8356,7 +8368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnEmployee) {
         settingsBtnEmployee.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
 
@@ -8379,17 +8391,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnAttendanceAdmin) {
         settingsBtnAttendanceAdmin.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
-
             adminSettingsModal.style.display = 'none';
-
             const targetTab = document.getElementById('tab-attendance-admin-hidden');
             if (targetTab) {
                 targetTab.click();
             }
+            if (btnCloseAdminMode) {
+                btnCloseAdminMode.style.display = 'block';
+            }
+            lockNavAndHeader(true);
+        });
+    }
 
+    // メニュー：原価管理へ
+    if (settingsBtnCost) {
+        settingsBtnCost.addEventListener('click', () => {
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
+                previousActiveTabTarget = activeTab.dataset.target;
+            }
+            adminSettingsModal.style.display = 'none';
+            const targetTab = document.getElementById('tab-cost-hidden');
+            if (targetTab) {
+                targetTab.click();
+            }
             if (btnCloseAdminMode) {
                 btnCloseAdminMode.style.display = 'block';
             }
@@ -8514,6 +8542,9 @@ document.addEventListener('DOMContentLoaded', () => {
             exportAttendanceCalendarToExcel();
         });
     }
+
+    // 原価管理・月次収支の初期化
+    initCostManagePanel();
 });
 
 // ==========================================
@@ -9389,3 +9420,821 @@ function getExcelColumnLetter(colIndex) {
     return letter;
 }
 
+
+
+// ============================================================
+// 💲 原価管理・月次収支機能 関連ロジック
+// ============================================================
+
+// 日本の祝日名取得
+function getJapaneseHolidayName(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const w = date.getDay();
+
+    if (month === 1 && day === 1) return "元日";
+    if (month === 2 && day === 11) return "建国記念の日";
+    if (month === 2 && day === 23 && year >= 2020) return "天皇誕生日";
+    if (month === 4 && day === 29) return "昭和の日";
+    if (month === 5 && day === 3) return "憲法記念日";
+    if (month === 5 && day === 4) return "みどりの日";
+    if (month === 5 && day === 5) return "こどもの日";
+    if (month === 8 && day === 11 && year >= 2016) return "山の日";
+    if (month === 11 && day === 3) return "文化の日";
+    if (month === 11 && day === 23) return "勤労感謝の日";
+
+    if (month === 1 && w === 1 && Math.floor((day - 1) / 7) === 1) return "成人の日";
+    if (month === 7 && w === 1 && Math.floor((day - 1) / 7) === 2) return "海の日";
+    if (month === 9 && w === 1 && Math.floor((day - 1) / 7) === 2) return "敬老の日";
+    if (month === 10 && w === 1 && Math.floor((day - 1) / 7) === 1) return "スポーツの日";
+
+    if (month === 3) {
+        const equinoxDay = Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+        if (day === equinoxDay) return "春分の日";
+    }
+    if (month === 9) {
+        const equinoxDay = Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+        if (day === equinoxDay) return "秋分の日";
+    }
+    return null;
+}
+
+// 日本の祝日判定（振替休日・国民の休日含む）
+function isJapaneseHoliday(date) {
+    if (getJapaneseHolidayName(date)) return true;
+
+    const w = date.getDay();
+    if (w !== 0) {
+        let checkDate = new Date(date.getTime());
+        let isFurikae = false;
+        while (true) {
+            checkDate.setDate(checkDate.getDate() - 1);
+            const checkW = checkDate.getDay();
+            const hasHoliday = !!getJapaneseHolidayName(checkDate);
+            
+            if (hasHoliday && checkW === 0) {
+                isFurikae = true;
+                break;
+            }
+            if (!hasHoliday) break;
+        }
+        if (isFurikae) return true;
+    }
+
+    const prevDate = new Date(date.getTime());
+    prevDate.setDate(prevDate.getDate() - 1);
+    const nextDate = new Date(date.getTime());
+    nextDate.setDate(nextDate.getDate() + 1);
+
+    if (getJapaneseHolidayName(prevDate) && getJapaneseHolidayName(nextDate) && w !== 0 && w !== 6) {
+        return true;
+    }
+    return false;
+}
+
+// 月の実稼働日数（土日祝を除く）を計算
+function getWorkingDaysInMonth(year, month) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    let count = 0;
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const w = d.getDay();
+        if (w === 0 || w === 6) continue;
+        if (isJapaneseHoliday(d)) continue;
+        count++;
+    }
+    return count;
+}
+
+// 年月形式（YYYY-MM）から year, month をパース
+function parseYearMonth(ymStr) {
+    const parts = ymStr.split('-');
+    return {
+        year: parseInt(parts[0], 10),
+        month: parseInt(parts[1], 10)
+    };
+}
+
+// 対象年月の社員別・工事別労務費の自動計算
+async function calculateMonthlyLaborCosts(yearMonthStr) {
+    const { year, month } = parseYearMonth(yearMonthStr);
+    const workingDays = getWorkingDaysInMonth(year, month);
+    
+    if (workingDays === 0) {
+        return {
+            workingDaysInMonth: 0,
+            projectCosts: {},
+            laborDetail: {}
+        };
+    }
+
+    const employees = currentCompany.employees || [];
+    const monthlySalaryEmployees = employees.filter(emp => emp.monthlySalary && emp.monthlySalary > 0);
+    
+    if (monthlySalaryEmployees.length === 0) {
+        return {
+            workingDaysInMonth: workingDays,
+            projectCosts: {},
+            laborDetail: {}
+        };
+    }
+
+    const employeeRates = {};
+    monthlySalaryEmployees.forEach(emp => {
+        employeeRates[emp.name] = {
+            name: emp.name,
+            monthlySalary: emp.monthlySalary,
+            dailyRate: emp.monthlySalary / workingDays
+        };
+    });
+
+    const reportsRef = collection(db, "reports");
+    const q = query(reportsRef, where("companyId", "==", currentCompany.companyId));
+    const querySnapshot = await getDocs(q);
+    
+    const dailyWorkHours = {};
+    const dailyTotalHours = {};
+    const paidLeavesCount = {};
+
+    querySnapshot.forEach(docSnap => {
+        const r = docSnap.data();
+        if (!r.week || !r.author) return;
+        
+        const rateInfo = employeeRates[r.author];
+        if (!rateInfo) return;
+
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const dates = getDaysOfWeek(r.week);
+        if (!dates) return;
+
+        days.forEach((day, idx) => {
+            const dateObj = dates[idx];
+            const dYear = dateObj.getFullYear();
+            const dMonth = dateObj.getMonth() + 1;
+            
+            if (dYear === year && dMonth === month) {
+                const dateStr = dateObj.toISOString().split('T')[0];
+                const dayLog = r.dailyLogs ? r.dailyLogs[day] : null;
+                const tasks = normalizeDailyTasks(dayLog);
+
+                let dayTotal = 0;
+                const dayProjects = {};
+                let isLeave = false;
+
+                tasks.forEach(t => {
+                    const proj = t.project || '';
+                    if (!proj) return;
+
+                    if (proj === '有給' || proj === '有休' || (dayLog && dayLog.leaveType === '有給')) {
+                        isLeave = true;
+                        return;
+                    }
+
+                    if (['欠勤', '休日'].includes(proj) || (dayLog && ['欠勤', '休日'].includes(dayLog.leaveType))) {
+                        return;
+                    }
+
+                    let hrs = 0;
+                    if (t.timeline) {
+                        hrs = t.timeline.split('').filter(s => s === '1' || s === '3' || s === '5').length * 0.5;
+                    } else {
+                        hrs = parseFloat(t.hours || 0);
+                    }
+
+                    if (hrs > 0) {
+                        dayProjects[proj] = (dayProjects[proj] || 0) + hrs;
+                        dayTotal += hrs;
+                    }
+                });
+
+                if (isLeave) {
+                    paidLeavesCount[r.author] = (paidLeavesCount[r.author] || 0) + 1;
+                }
+
+                if (dayTotal > 0) {
+                    if (!dailyWorkHours[r.author]) dailyWorkHours[r.author] = {};
+                    if (!dailyTotalHours[r.author]) dailyTotalHours[r.author] = {};
+                    
+                    dailyWorkHours[r.author][dateStr] = dayProjects;
+                    dailyTotalHours[r.author][dateStr] = dayTotal;
+                }
+            }
+        });
+    });
+
+    const projectCosts = {};
+    const laborDetail = {};
+
+    for (const empName in employeeRates) {
+        const rateInfo = employeeRates[empName];
+        const empWork = dailyWorkHours[empName] || {};
+        const empTotals = dailyTotalHours[empName] || {};
+        
+        for (const dateStr in empWork) {
+            const projects = empWork[dateStr];
+            const dayTotal = empTotals[dateStr];
+            
+            if (dayTotal > 0) {
+                for (const proj in projects) {
+                    const hrs = projects[proj];
+                    const cost = rateInfo.dailyRate * (hrs / dayTotal);
+                    
+                    projectCosts[proj] = (projectCosts[proj] || 0) + cost;
+                    
+                    if (!laborDetail[proj]) laborDetail[proj] = [];
+                    let detailObj = laborDetail[proj].find(d => d.employeeName === empName);
+                    if (!detailObj) {
+                        detailObj = {
+                            employeeName: empName,
+                            workDays: 0,
+                            laborCost: 0
+                        };
+                        laborDetail[proj].push(detailObj);
+                    }
+                    detailObj.laborCost += cost;
+                    detailObj.workDays += (hrs / dayTotal);
+                }
+            }
+        }
+    }
+
+    for (const proj in projectCosts) {
+        projectCosts[proj] = Math.round(projectCosts[proj]);
+    }
+    for (const proj in laborDetail) {
+        laborDetail[proj].forEach(d => {
+            d.laborCost = Math.round(d.laborCost);
+            d.workDays = Math.round(d.workDays * 10) / 10;
+        });
+    }
+
+    return {
+        workingDaysInMonth: workingDays,
+        projectCosts,
+        laborDetail
+    };
+}
+
+// 原価管理・月次収支画面の初期化
+function initCostManagePanel() {
+    const tabCostHidden = document.getElementById('tab-cost-hidden');
+    if (!tabCostHidden) return;
+
+    const btnTabForm = document.getElementById('btn-cost-tab-form');
+    const btnTabList = document.getElementById('btn-cost-tab-list');
+    const btnTabSummary = document.getElementById('btn-cost-tab-summary');
+
+    const sectionForm = document.getElementById('cost-section-form');
+    const sectionList = document.getElementById('cost-section-list');
+    const sectionSummary = document.getElementById('cost-section-summary');
+
+    const switchSubTab = (activeBtn, activeSection) => {
+        [btnTabForm, btnTabList, btnTabSummary].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--text-main)';
+            }
+        });
+        [sectionForm, sectionList, sectionSummary].forEach(sec => {
+            if (sec) sec.style.display = 'none';
+        });
+
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.background = 'var(--primary)';
+            activeBtn.style.color = 'white';
+        }
+        if (activeSection) activeSection.style.display = 'block';
+    };
+
+    if (btnTabForm) {
+        btnTabForm.addEventListener('click', () => {
+            switchSubTab(btnTabForm, sectionForm);
+            loadCostInputFormDependencies();
+        });
+    }
+    if (btnTabList) {
+        btnTabList.addEventListener('click', () => {
+            switchSubTab(btnTabList, sectionList);
+            loadCostList();
+        });
+    }
+    if (btnTabSummary) {
+        btnTabSummary.addEventListener('click', () => {
+            switchSubTab(btnTabSummary, sectionSummary);
+            initCostSummaryFilters().then(() => loadCostSummary());
+        });
+    }
+
+    const costProjectSelect = document.getElementById('cost-project-select');
+    const costYearMonth = document.getElementById('cost-year-month');
+    const costLaborCost = document.getElementById('cost-labor-cost');
+    const costLaborDetailArea = document.getElementById('cost-labor-detail-area');
+    const costLaborDetailList = document.getElementById('cost-labor-detail-list');
+
+    const loadCostInputFormDependencies = async () => {
+        if (!currentCompany) return;
+
+        const schedulesRef = collection(db, "companies", currentCompany.companyId, "schedules");
+        const querySnapshot = await getDocs(schedulesRef);
+        
+        costProjectSelect.innerHTML = '<option value="">工事を選択してください</option>';
+        querySnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const opt = document.createElement('option');
+            opt.value = docSnap.id;
+            opt.textContent = `${data.project} (${data.projectNumber || '番号なし'})`;
+            costProjectSelect.appendChild(opt);
+        });
+
+        if (!costYearMonth.value) {
+            const now = new Date();
+            costYearMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        costProjectSelect.onchange = () => loadExistingCostRecord();
+        costYearMonth.onchange = () => loadExistingCostRecord();
+    };
+
+    const loadExistingCostRecord = async () => {
+        const workId = costProjectSelect.value;
+        const ymStr = costYearMonth.value;
+        if (!workId || !ymStr || !currentCompany) {
+            resetCostInputFields(true);
+            return;
+        }
+
+        const yyyymm = ymStr.replace('-', '');
+        costLaborCost.value = "計算中...";
+        costLaborDetailArea.style.display = 'none';
+
+        try {
+            const laborResults = await calculateMonthlyLaborCosts(ymStr);
+            const projectCosts = laborResults.projectCosts || {};
+            const laborDetail = laborResults.laborDetail || {};
+
+            const optText = costProjectSelect.options[costProjectSelect.selectedIndex].textContent;
+            const projectName = optText.split(' (')[0];
+
+            let calculatedLaborCost = 0;
+            let detailList = [];
+
+            if (projectCosts[projectName]) {
+                calculatedLaborCost = projectCosts[projectName];
+                detailList = laborDetail[projectName] || [];
+            }
+
+            costLaborCost.value = calculatedLaborCost.toLocaleString();
+            costLaborCost.dataset.value = calculatedLaborCost;
+
+            if (detailList.length > 0) {
+                costLaborDetailList.innerHTML = detailList.map(d => `
+                    <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--border);">
+                        <span>👤 ${d.employeeName} (実作業: ${d.workDays}日)</span>
+                        <strong>¥${d.laborCost.toLocaleString()}</strong>
+                    </div>
+                `).join('');
+                costLaborDetailArea.style.display = 'block';
+            } else {
+                costLaborDetailList.innerHTML = '<p style="color:var(--text-muted);margin:0;font-size:0.8rem;">月給制社員の従事実績はありませんでした。</p>';
+                costLaborDetailArea.style.display = 'block';
+            }
+
+            const docRef = doc(db, "companies", currentCompany.companyId, "costRecords", `${workId}_${yyyymm}`);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                document.getElementById('cost-billing-amount').value = data.revenue?.billingAmount || '';
+                document.getElementById('cost-billing-date').value = data.revenue?.billingDate || '';
+                document.getElementById('cost-payment-amount').value = data.revenue?.paymentAmount || '';
+                document.getElementById('cost-payment-date').value = data.revenue?.paymentDate || '';
+                document.getElementById('cost-material-cost').value = data.cost?.materialCost || '';
+                document.getElementById('cost-subcontract-cost').value = data.cost?.subcontractCost || '';
+                document.getElementById('cost-expense-cost').value = data.cost?.expenseCost || '';
+                document.getElementById('cost-memo').value = data.memo || '';
+            } else {
+                resetCostInputFields(false);
+            }
+        } catch (err) {
+            console.error("Error loading cost record:", err);
+            costLaborCost.value = "計算エラー";
+        }
+    };
+
+    const resetCostInputFields = (clearLabor = false) => {
+        document.getElementById('cost-billing-amount').value = '';
+        document.getElementById('cost-billing-date').value = '';
+        document.getElementById('cost-payment-amount').value = '';
+        document.getElementById('cost-payment-date').value = '';
+        document.getElementById('cost-material-cost').value = '';
+        document.getElementById('cost-subcontract-cost').value = '';
+        document.getElementById('cost-expense-cost').value = '';
+        document.getElementById('cost-memo').value = '';
+        if (clearLabor) {
+            costLaborCost.value = '0';
+            costLaborCost.dataset.value = 0;
+            costLaborDetailArea.style.display = 'none';
+        }
+    };
+
+    const costInputForm = document.getElementById('cost-input-form');
+    const costSaveMsg = document.getElementById('cost-save-message');
+    if (costInputForm) {
+        costInputForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const workId = costProjectSelect.value;
+            const ymStr = costYearMonth.value;
+            if (!workId || !ymStr || !currentCompany) return;
+
+            const yyyymm = ymStr.replace('-', '');
+            const optText = costProjectSelect.options[costProjectSelect.selectedIndex].textContent;
+            const workName = optText.split(' (')[0];
+
+            costSaveMsg.className = 'message';
+            costSaveMsg.textContent = '保存中...';
+            costSaveMsg.classList.remove('hidden');
+
+            const billingAmount = document.getElementById('cost-billing-amount').value ? parseInt(document.getElementById('cost-billing-amount').value, 10) : 0;
+            const billingDate = document.getElementById('cost-billing-date').value;
+            const paymentAmount = document.getElementById('cost-payment-amount').value ? parseInt(document.getElementById('cost-payment-amount').value, 10) : 0;
+            const paymentDate = document.getElementById('cost-payment-date').value;
+
+            const materialCost = document.getElementById('cost-material-cost').value ? parseInt(document.getElementById('cost-material-cost').value, 10) : 0;
+            const subcontractCost = document.getElementById('cost-subcontract-cost').value ? parseInt(document.getElementById('cost-subcontract-cost').value, 10) : 0;
+            const expenseCost = document.getElementById('cost-expense-cost').value ? parseInt(document.getElementById('cost-expense-cost').value, 10) : 0;
+            const laborCost = parseInt(costLaborCost.dataset.value || 0, 10);
+            const memo = document.getElementById('cost-memo').value.trim();
+
+            const laborResults = await calculateMonthlyLaborCosts(ymStr);
+            const detailList = laborResults.laborDetail[workName] || [];
+
+            const docRef = doc(db, "companies", currentCompany.companyId, "costRecords", `${workId}_${yyyymm}`);
+            
+            const costRecord = {
+                workId,
+                workName,
+                yearMonth: yyyymm,
+                revenue: {
+                    billingAmount,
+                    billingDate,
+                    paymentAmount,
+                    paymentDate
+                },
+                cost: {
+                    materialCost,
+                    subcontractCost,
+                    expenseCost,
+                    laborCost
+                },
+                laborCostDetail: detailList.map(d => ({
+                    employeeName: d.employeeName,
+                    laborCost: d.laborCost,
+                    workDays: d.workDays
+                })),
+                workingDaysInMonth: laborResults.workingDaysInMonth,
+                memo,
+                updatedBy: currentUser.displayName || currentUser.email.split('@')[0],
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                await setDoc(docRef, costRecord, { merge: true });
+                costSaveMsg.className = 'message success';
+                costSaveMsg.textContent = '原価情報を保存しました！';
+                setTimeout(() => costSaveMsg.classList.add('hidden'), 3000);
+            } catch (err) {
+                console.error("Error saving cost record:", err);
+                costSaveMsg.className = 'message error';
+                costSaveMsg.textContent = `保存に失敗しました: ${err.message}`;
+            }
+        };
+    }
+
+    const costListTbody = document.getElementById('cost-list-tbody');
+    const loadCostList = async () => {
+        if (!currentCompany || !costListTbody) return;
+        costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td></tr>';
+
+        try {
+            const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
+            const querySnapshot = await getDocs(costRecordsRef);
+
+            const projectSummary = {};
+
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const workId = data.workId;
+                if (!workId) return;
+
+                if (!projectSummary[workId]) {
+                    projectSummary[workId] = {
+                        workName: data.workName || '不明な工事',
+                        billingAmount: 0,
+                        material: 0,
+                        subcontract: 0,
+                        expense: 0,
+                        labor: 0
+                    };
+                }
+
+                const s = projectSummary[workId];
+                s.billingAmount += data.revenue?.billingAmount || 0;
+                s.material += data.cost?.materialCost || 0;
+                s.subcontract += data.cost?.subcontractCost || 0;
+                s.expense += data.cost?.expenseCost || 0;
+                s.labor += data.cost?.laborCost || 0;
+            });
+
+            const keys = Object.keys(projectSummary);
+            if (keys.length === 0) {
+                costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">登録されている原価データがありません。</td></tr>';
+                return;
+            }
+
+            costListTbody.innerHTML = keys.map(workId => {
+                const s = projectSummary[workId];
+                const costTotal = s.material + s.subcontract + s.expense + s.labor;
+                const profit = s.billingAmount - costTotal;
+                const profitRate = s.billingAmount > 0 ? (profit / s.billingAmount) * 100 : 0;
+                
+                const isLoss = profit < 0;
+                const profitClass = isLoss ? 'text-danger' : '';
+                const profitRateText = s.billingAmount > 0 ? `${profitRate.toFixed(1)}%` : '-';
+
+                return `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px 12px; font-weight: bold; color: var(--text-main); text-align: left;">${s.workName}</td>
+                        <td style="padding: 10px 12px; text-align: right;">¥${s.billingAmount.toLocaleString()}</td>
+                        <td style="padding: 10px 12px; text-align: right;">¥${costTotal.toLocaleString()}</td>
+                        <td style="padding: 10px 12px; text-align: right;" class="${profitClass}">¥${profit.toLocaleString()}</td>
+                        <td style="padding: 10px 12px; text-align: center;" class="${profitClass}">${profitRateText}</td>
+                        <td style="padding: 10px 12px; text-align: center;">
+                            <button class="btn btn-secondary btn-small" onclick="viewCostDetailModal('${workId}')" style="padding: 2px 8px; font-size:0.75rem;">内訳</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+        } catch (err) {
+            console.error("Error loading cost list:", err);
+            costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-danger);">データの読み込みに失敗しました。</td></tr>';
+        }
+    };
+
+    const summaryMonthFilter = document.getElementById('cost-summary-month-filter');
+    const initCostSummaryFilters = async () => {
+        if (!currentCompany || !summaryMonthFilter) return;
+        
+        const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
+        const querySnapshot = await getDocs(costRecordsRef);
+
+        const monthsSet = new Set();
+        querySnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.yearMonth) {
+                const yyyymm = data.yearMonth;
+                const ymStr = `${yyyymm.substring(0, 4)}-${yyyymm.substring(4, 6)}`;
+                monthsSet.add(ymStr);
+            }
+        });
+
+        const now = new Date();
+        const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        monthsSet.add(currentYm);
+
+        const sortedMonths = Array.from(monthsSet).sort().reverse();
+        summaryMonthFilter.innerHTML = sortedMonths.map(ym => `<option value="${ym}">${ym.replace('-', '年')}分</option>`).join('');
+
+        summaryMonthFilter.onchange = () => loadCostSummary();
+    };
+
+    const loadCostSummary = async () => {
+        const ymStr = summaryMonthFilter.value;
+        if (!ymStr || !currentCompany) return;
+
+        const yyyymm = ymStr.replace('-', '');
+
+        const totalBillingEl = document.getElementById('cost-summary-total-billing');
+        const totalPaymentEl = document.getElementById('cost-summary-total-payment');
+        const totalUnpaidEl = document.getElementById('cost-summary-total-unpaid');
+        const totalProfitEl = document.getElementById('cost-summary-total-profit');
+
+        const breakdownBillingEl = document.getElementById('cost-breakdown-billing');
+        const breakdownPaymentEl = document.getElementById('cost-breakdown-payment');
+        const breakdownUnpaidEl = document.getElementById('cost-breakdown-unpaid');
+        const breakdownTotalCostEl = document.getElementById('cost-breakdown-total-cost');
+        const breakdownMaterialEl = document.getElementById('cost-breakdown-material');
+        const breakdownSubcontractEl = document.getElementById('cost-breakdown-subcontract');
+        const breakdownExpenseEl = document.getElementById('cost-breakdown-expense');
+        const breakdownLaborEl = document.getElementById('cost-breakdown-labor');
+        const breakdownProfitEl = document.getElementById('cost-breakdown-profit');
+
+        try {
+            const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
+            const q = query(costRecordsRef, where("yearMonth", "==", yyyymm));
+            const querySnapshot = await getDocs(q);
+
+            let billingSum = 0;
+            let paymentSum = 0;
+            let materialSum = 0;
+            let subcontractSum = 0;
+            let expenseSum = 0;
+            let laborSum = 0;
+
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                billingSum += data.revenue?.billingAmount || 0;
+                paymentSum += data.revenue?.paymentAmount || 0;
+                materialSum += data.cost?.materialCost || 0;
+                subcontractSum += data.cost?.subcontractCost || 0;
+                expenseSum += data.cost?.expenseCost || 0;
+                laborSum += data.cost?.laborCost || 0;
+            });
+
+            const unpaidSum = billingSum - paymentSum;
+            const costSum = materialSum + subcontractSum + expenseSum + laborSum;
+            const profitSum = billingSum - costSum;
+            const profitRate = billingSum > 0 ? (profitSum / billingSum) * 100 : 0;
+
+            totalBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
+            totalPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
+            totalUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
+            
+            const profitRateText = billingSum > 0 ? `${profitRate.toFixed(1)}%` : '0%';
+            totalProfitEl.textContent = `¥${profitSum.toLocaleString()} (${profitRateText})`;
+
+            const profitCard = document.getElementById('cost-summary-total-profit-card');
+            if (profitCard) {
+                if (profitSum < 0) {
+                    profitCard.style.background = '#fef2f2';
+                    profitCard.style.borderColor = '#fee2e2';
+                    totalProfitEl.style.color = '#ef4444';
+                } else {
+                    profitCard.style.background = '#f0fdfa';
+                    profitCard.style.borderColor = '#99f6e4';
+                    totalProfitEl.style.color = '#0f766e';
+                }
+            }
+
+            const unpaidCard = document.getElementById('cost-summary-total-unpaid-card');
+            if (unpaidCard) {
+                if (unpaidSum > 0) {
+                    unpaidCard.style.background = '#fff7ed';
+                    unpaidCard.style.borderColor = '#ffedd5';
+                } else {
+                    unpaidCard.style.background = '#f8fafc';
+                    unpaidCard.style.borderColor = '#e2e8f0';
+                }
+            }
+
+            breakdownBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
+            breakdownPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
+            breakdownUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
+            breakdownTotalCostEl.textContent = `¥${costSum.toLocaleString()}`;
+            breakdownMaterialEl.textContent = `¥${materialSum.toLocaleString()}`;
+            breakdownSubcontractEl.textContent = `¥${subcontractSum.toLocaleString()}`;
+            breakdownExpenseEl.textContent = `¥${expenseSum.toLocaleString()}`;
+            breakdownLaborEl.textContent = `¥${laborSum.toLocaleString()}`;
+            
+            const tableProfitClass = profitSum < 0 ? 'text-danger' : '';
+            breakdownProfitEl.textContent = `¥${profitSum.toLocaleString()} (利益率: ${profitRateText})`;
+            breakdownProfitEl.className = tableProfitClass;
+
+        } catch (err) {
+            console.error("Error loading cost summary:", err);
+        }
+    };
+
+    tabCostHidden.addEventListener('click', () => {
+        loadLatestCompanyInfo().then(() => {
+            switchSubTab(btnTabForm, sectionForm);
+            loadCostInputFormDependencies();
+        });
+    });
+}
+
+// 工事別の費用内訳詳細モーダル表示
+async function viewCostDetailModal(workId) {
+    let modal = document.getElementById('cost-detail-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cost-detail-modal';
+        modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:11000;padding:15px;box-sizing:border-box;";
+        modal.innerHTML = `
+            <div style="background:var(--card-bg);padding:25px;border-radius:12px;width:100%;max-width:550px;box-shadow:0 10px 25px rgba(0,0,0,0.2);color:var(--text-main);max-height:85vh;overflow-y:auto;display:flex;flex-direction:column;gap:15px;box-sizing:border-box;">
+                <h3 id="cost-detail-modal-title" style="margin-top:0;margin-bottom:0;border-bottom:1px solid var(--border);padding-bottom:12px;font-size:1.2rem;color:var(--primary);">工事別原価内訳</h3>
+                <div id="cost-detail-modal-body" style="display:flex;flex-direction:column;gap:15px;"></div>
+                <div style="text-align:right;border-top:1px solid var(--border);padding-top:15px;margin-top:5px;">
+                    <button class="btn btn-secondary" onclick="closeCostDetailModal()" style="background:#64748b;color:white;padding:8px 20px;border-radius:6px;border:none;font-weight:bold;cursor:pointer;">閉じる</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const bodyEl = document.getElementById('cost-detail-modal-body');
+    bodyEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);">内訳をロード中...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
+        const q = query(costRecordsRef, where("workId", "==", workId));
+        const querySnapshot = await getDocs(q);
+
+        let billingSum = 0;
+        let materialSum = 0;
+        let subcontractSum = 0;
+        let expenseSum = 0;
+        let laborSum = 0;
+        let workName = '不明な工事';
+
+        const monthlyBreakdown = [];
+
+        querySnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            workName = data.workName || workName;
+
+            const b = data.revenue?.billingAmount || 0;
+            const m = data.cost?.materialCost || 0;
+            const s = data.cost?.subcontractCost || 0;
+            const e = data.cost?.expenseCost || 0;
+            const l = data.cost?.laborCost || 0;
+            const total = m + s + e + l;
+
+            billingSum += b;
+            materialSum += m;
+            subcontractSum += s;
+            expenseSum += e;
+            laborSum += l;
+
+            const yyyymm = data.yearMonth || '';
+            const label = yyyymm ? `${yyyymm.substring(0, 4)}年${yyyymm.substring(4, 6)}月` : '不明';
+
+            monthlyBreakdown.push({
+                label,
+                billing: b,
+                material: m,
+                subcontract: s,
+                expense: e,
+                labor: l,
+                total
+            });
+        });
+
+        document.getElementById('cost-detail-modal-title').textContent = `📊 内訳: ${workName}`;
+
+        const totalCost = materialSum + subcontractSum + expenseSum + laborSum;
+        const profit = billingSum - totalCost;
+        const profitRate = billingSum > 0 ? (profit / billingSum) * 100 : 0;
+        const profitClass = profit < 0 ? 'text-danger' : '';
+
+        let html = `
+            <div style="background:var(--bg-muted, #f1f5f9);padding:15px;border-radius:8px;font-size:0.9rem;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>総請求金額:</span><strong>¥${billingSum.toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#b91c1c;"><span>総原価:</span><strong>¥${totalCost.toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;" class="${profitClass}"><span>総粗利:</span><strong>¥${profit.toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;" class="${profitClass}"><span>総粗利益率:</span><strong>${billingSum > 0 ? profitRate.toFixed(1) + '%' : '0%'}</strong></div>
+            </div>
+            
+            <h4 style="margin:10px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--primary);padding-left:6px;">📅 月別原価詳細</h4>
+            <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:220px;padding-right:5px;">
+        `;
+
+        if (monthlyBreakdown.length === 0) {
+            html += '<p style="color:var(--text-muted);text-align:center;margin:10px 0;">月別の原価データがありません。</p>';
+        } else {
+            monthlyBreakdown.sort((a, b) => a.label.localeCompare(b.label));
+            html += monthlyBreakdown.map(mb => `
+                <div style="border:1px solid var(--border);padding:10px;border-radius:6px;background:var(--card-bg);font-size:0.82rem;line-height:1.4;">
+                    <div style="font-weight:bold;color:var(--primary);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:3px;">${mb.label}分</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 15px;">
+                        <div style="display:flex;justify-content:space-between;"><span>請求:</span><span>¥${mb.billing.toLocaleString()}</span></div>
+                        <div style="display:flex;justify-content:space-between;"><span>原価計:</span><span style="font-weight:bold;color:#b91c1c;">¥${mb.total.toLocaleString()}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:var(--text-muted);padding-left:8px;"><span>└ 材料費:</span><span>¥${mb.material.toLocaleString()}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:var(--text-muted);padding-left:8px;"><span>└ 外注費:</span><span>¥${mb.subcontract.toLocaleString()}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:var(--text-muted);padding-left:8px;"><span>└ 経費:</span><span>¥${mb.expense.toLocaleString()}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:var(--text-muted);padding-left:8px;"><span>└ 労務費:</span><span>¥${mb.labor.toLocaleString()}</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        html += '</div>';
+        bodyEl.innerHTML = html;
+
+    } catch (err) {
+        console.error("Error loading cost detail modal:", err);
+        bodyEl.innerHTML = '<p style="color:var(--text-danger);text-align:center;">読み込みに失敗しました。</p>';
+    }
+}
+
+function closeCostDetailModal() {
+    const modal = document.getElementById('cost-detail-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+window.viewCostDetailModal = viewCostDetailModal;
+window.closeCostDetailModal = closeCostDetailModal;

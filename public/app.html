@@ -170,6 +170,7 @@
             <button class="tab-btn admin-only tab-group-schedule" id="tab-schedule-input-hidden" data-target="schedule-input-view" style="display:none !important;">工事登録</button>
             <button class="tab-btn admin-only tab-group-history" id="tab-summary-hidden" data-target="summary-view" style="display:none !important;">日報集計</button>
             <button class="tab-btn admin-only tab-group-history" id="tab-attendance-admin-hidden" data-target="attendance-admin-view" style="display:none !important;">出退勤管理</button>
+            <button class="tab-btn admin-only tab-group-history" id="tab-cost-hidden" data-target="cost-manage-view" style="display:none !important;">原価管理</button>
             <div id="plan-status-badge" class="admin-only" style="display:none !important;">
                 契約プラン: <span id="current-plan-limit">10</span>名プラン
             </div>
@@ -729,22 +730,26 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1;">
                         <label for="emp-nationality">国籍</label>
-                        <select id="emp-nationality">
+                        <select id="emp-nationality" style="width: 100%;">
                             <option value="日本">日本</option>
                             <option value="ベトナム">ベトナム</option>
                             <option value="その他">その他</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1;">
                         <label for="emp-status-class">区分</label>
-                        <select id="emp-status-class">
+                        <select id="emp-status-class" style="width: 100%;">
                             <option value="該当なし">該当なし</option>
                             <option value="研修生">研修生</option>
                             <option value="特定技能者">特定技能者</option>
                             <option value="エンジニア">エンジニア</option>
                         </select>
+                    </div>
+                    <div class="form-group" style="flex: 1.2;">
+                        <label for="emp-monthly-salary">月給 (円)</label>
+                        <input type="number" id="emp-monthly-salary" placeholder="例: 300000" min="0" style="width: 100%;">
                     </div>
                 </div>
                 <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
@@ -764,6 +769,7 @@
                             <th style="padding:10px;text-align:center;">年齢</th>
                             <th style="padding:10px;text-align:center;">国籍</th>
                             <th style="padding:10px;text-align:left;">区分</th>
+                            <th style="padding:10px;text-align:right;">月給</th>
                             <th style="padding:10px;text-align:center;width:120px;">操作</th>
                         </tr>
                     </thead>
@@ -849,6 +855,221 @@
                     </thead>
                     <tbody id="attend-calendar-tbody">
                         <!-- 動的に社員ごとの労働時間行を生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ======== 原価管理・月次収支画面 (管理者専用) ======== -->
+    <main id="cost-manage-view" class="view no-print">
+        <!-- 画面上部 サブタブ切り替え -->
+        <div class="list-controls no-print" style="margin-bottom: 20px;">
+            <div class="filters" style="display: flex; gap: 10px; align-items: center; justify-content: flex-start; width: 100%;">
+                <div style="display: flex; gap: 5px; background: var(--bg-muted, #f1f5f9); padding: 4px; border-radius: 8px; border: 1px solid var(--border);">
+                    <button type="button" id="btn-cost-tab-form" class="btn btn-mode active" style="height: 36px; padding: 0 16px; font-size: 0.9rem; border-radius: 6px; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; background: var(--primary); color: white;">📝 費用入力</button>
+                    <button type="button" id="btn-cost-tab-list" class="btn btn-mode" style="height: 36px; padding: 0 16px; font-size: 0.9rem; border-radius: 6px; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-main);">📊 工事別損益</button>
+                    <button type="button" id="btn-cost-tab-summary" class="btn btn-mode" style="height: 36px; padding: 0 16px; font-size: 0.9rem; border-radius: 6px; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-main);">📅 月次収支サマリー</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 1. 費用入力フォーム ==================== -->
+        <div id="cost-section-form" class="form-card">
+            <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📝 費用入力フォーム</span>
+            </h3>
+            <form id="cost-input-form">
+                <!-- 工事選択 & 対象年月 -->
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="cost-project-select">工事名 <span style="color:red">*</span></label>
+                        <select id="cost-project-select" required style="width:100%; height:45px; font-size:1rem; border-radius:6px; border:1px solid var(--border); padding:0 10px; background:var(--card-bg); color:var(--text);">
+                            <option value="">工事を選択してください</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="cost-year-month">対象年月 <span style="color:red">*</span></label>
+                        <input type="month" id="cost-year-month" required style="width:100%; height:45px; font-size:1rem; border-radius:6px; border:1px solid var(--border); padding:0 10px; background:var(--card-bg); color:var(--text);">
+                    </div>
+                </div>
+
+                <!-- 収入情報（請求金額・入金金額） -->
+                <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary); border-left: 4px solid var(--primary); padding-left: 8px; font-size: 1rem;">💰 収入情報</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cost-billing-amount">請求金額 (円)</label>
+                        <input type="number" id="cost-billing-amount" placeholder="例: 1000000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="cost-billing-date">請求日</label>
+                        <input type="date" id="cost-billing-date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cost-payment-amount">入金金額 (円)</label>
+                        <input type="number" id="cost-payment-amount" placeholder="例: 1000000" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="cost-payment-date">入金日</label>
+                        <input type="date" id="cost-payment-date">
+                    </div>
+                </div>
+
+                <!-- 原価情報（材料費・外注費・経費・労務費） -->
+                <h4 style="margin-top: 20px; margin-bottom: 10px; color: #ea580c; border-left: 4px solid #ea580c; padding-left: 8px; font-size: 1rem;">🛠️ 原価情報</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cost-material-cost">材料費 (円)</label>
+                        <input type="number" id="cost-material-cost" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="cost-subcontract-cost">外注費 (円)</label>
+                        <input type="number" id="cost-subcontract-cost" placeholder="0" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cost-expense-cost">経費 (円)</label>
+                        <input type="number" id="cost-expense-cost" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="cost-labor-cost">労務費 (円) <span style="font-size: 0.8rem; color: var(--text-muted);">※自動計算・編集不可</span></label>
+                        <input type="text" id="cost-labor-cost" value="0" readonly style="background-color: var(--bg-muted, #f1f5f9); font-weight: bold; color: var(--text-main);">
+                    </div>
+                </div>
+
+                <!-- 労務費内訳（自動計算結果のプレビュー表示エリア） -->
+                <div id="cost-labor-detail-area" style="margin-top: 15px; margin-bottom: 20px; display: none;">
+                    <h5 style="margin: 0 0 8px 0; font-size: 0.85rem; color: var(--text-muted);">👥 労務費内訳（月給按分対象社員）:</h5>
+                    <div id="cost-labor-detail-list" style="font-size: 0.82rem; background: var(--bg-muted, #f8fafc); border: 1px solid var(--border); padding: 10px; border-radius: 6px; max-height: 150px; overflow-y: auto;">
+                        <!-- JSで動的に内訳を挿入 -->
+                    </div>
+                </div>
+
+                <!-- 備考 -->
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="cost-memo">備考</label>
+                        <input type="text" id="cost-memo" placeholder="特記事項やメモなど">
+                    </div>
+                </div>
+
+                <!-- ボタン -->
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button type="submit" id="btn-cost-save" class="btn btn-primary btn-large" style="background:#2563eb; color:white; font-weight:bold; height:48px; min-width:140px;">原価情報を保存</button>
+                    <div id="cost-save-message" class="message hidden" style="align-self: center; margin-top: 0; font-weight: bold;"></div>
+                </div>
+            </form>
+        </div>
+
+        <!-- ==================== 2. 工事別損益一覧 ==================== -->
+        <div id="cost-section-list" class="form-card" style="display: none;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>📊 工事別損益一覧</span>
+                <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted);">（月次で登録された費用の合計値）</span>
+            </h3>
+            <div style="overflow-x: auto; width: 100%;">
+                <table class="summary-table" style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: var(--primary); color: white;">
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 25%;">工事名</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 18%;">請求金額</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 18%;">原価合計</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 18%;">粗利 (利益)</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 13%;">粗利率</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 8%;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cost-list-tbody">
+                        <tr>
+                            <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== 3. 月次収支サマリー ==================== -->
+        <div id="cost-section-summary" class="form-card" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text);">📅 月次収支サマリー</h3>
+                <!-- 月選択フィルター -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select id="cost-summary-month-filter" style="height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-weight: bold;">
+                        <!-- 動的に月を追加 -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- サマリーカードグリッド -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="font-size: 0.82rem; color: #1e40af; font-weight: bold;">請求合計</div>
+                    <div id="cost-summary-total-billing" style="font-size: 1.6rem; font-weight: 800; color: #1e3a8a; margin-top: 5px;">¥0</div>
+                </div>
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="font-size: 0.82rem; color: #065f46; font-weight: bold;">入金合計</div>
+                    <div id="cost-summary-total-payment" style="font-size: 1.6rem; font-weight: 800; color: #047857; margin-top: 5px;">¥0</div>
+                </div>
+                <div id="cost-summary-total-unpaid-card" style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="font-size: 0.82rem; color: #c2410c; font-weight: bold;">未入金</div>
+                    <div id="cost-summary-total-unpaid" style="font-size: 1.6rem; font-weight: 800; color: #ea580c; margin-top: 5px;">¥0</div>
+                </div>
+                <div id="cost-summary-total-profit-card" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 15px; text-align: center;">
+                    <div style="font-size: 0.82rem; color: #0d9488; font-weight: bold;">粗利合計 (利益率)</div>
+                    <div id="cost-summary-total-profit" style="font-size: 1.6rem; font-weight: 800; color: #0f766e; margin-top: 5px;">¥0 (0%)</div>
+                </div>
+            </div>
+
+            <!-- 内訳詳細テーブル -->
+            <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--text); font-size: 1rem; border-left: 4px solid var(--primary); padding-left: 8px;">📊 収支内訳</h4>
+            <div style="overflow-x: auto; width: 100%;">
+                <table class="summary-table" style="width: 100%; font-size: 0.85rem; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                        <tr style="background-color: var(--bg-muted, #f1f5f9); color: var(--text-main);">
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; width: 40%;">項目</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; width: 60%;">金額 (円)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid var(--border); font-weight: bold;">請求合計</td>
+                            <td id="cost-breakdown-billing" style="padding: 10px; border: 1px solid var(--border); text-align: right; font-weight: bold; color: #1e3a8a;">¥0</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid var(--border); font-weight: bold;">入金合計</td>
+                            <td id="cost-breakdown-payment" style="padding: 10px; border: 1px solid var(--border); text-align: right; font-weight: bold; color: #047857;">¥0</td>
+                        </tr>
+                        <tr style="background-color: #fafafa;">
+                            <td style="padding: 10px; border: 1px solid var(--border); padding-left: 20px; color: var(--text-muted);">└ 未入金</td>
+                            <td id="cost-breakdown-unpaid" style="padding: 10px; border: 1px solid var(--border); text-align: right; color: #ea580c;">¥0</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid var(--border); font-weight: bold; color: #b91c1c;">原価合計</td>
+                            <td id="cost-breakdown-total-cost" style="padding: 10px; border: 1px solid var(--border); text-align: right; font-weight: bold; color: #b91c1c;">¥0</td>
+                        </tr>
+                        <tr style="background-color: #fafafa;">
+                            <td style="padding: 10px; border: 1px solid var(--border); padding-left: 20px; color: var(--text-muted);">├ 材料費合計</td>
+                            <td id="cost-breakdown-material" style="padding: 10px; border: 1px solid var(--border); text-align: right;">¥0</td>
+                        </tr>
+                        <tr style="background-color: #fafafa;">
+                            <td style="padding: 10px; border: 1px solid var(--border); padding-left: 20px; color: var(--text-muted);">├ 外注費合計</td>
+                            <td id="cost-breakdown-subcontract" style="padding: 10px; border: 1px solid var(--border); text-align: right;">¥0</td>
+                        </tr>
+                        <tr style="background-color: #fafafa;">
+                            <td style="padding: 10px; border: 1px solid var(--border); padding-left: 20px; color: var(--text-muted);">├ 経費合計</td>
+                            <td id="cost-breakdown-expense" style="padding: 10px; border: 1px solid var(--border); text-align: right;">¥0</td>
+                        </tr>
+                        <tr style="background-color: #fafafa;">
+                            <td style="padding: 10px; border: 1px solid var(--border); padding-left: 20px; color: var(--text-muted);">└ 労務費合計</td>
+                            <td id="cost-breakdown-labor" style="padding: 10px; border: 1px solid var(--border); text-align: right;">¥0</td>
+                        </tr>
+                        <tr style="background-color: var(--bg-muted, #f1f5f9); font-weight: bold;">
+                            <td style="padding: 12px 10px; border: 1px solid var(--border); font-size: 0.95rem;">粗利合計 (利益)</td>
+                            <td id="cost-breakdown-profit" style="padding: 12px 10px; border: 1px solid var(--border); text-align: right; font-size: 0.95rem;">¥0 (利益率: 0%)</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -956,6 +1177,10 @@
                 <button id="settings-btn-attendance-admin" class="btn" style="background:#fff; color:#059669; border:1px solid #a7f3d0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
                     <span style="font-size:1.75rem;">⏱️</span>
                     <span>出退勤管理</span>
+                </button>
+                <button id="settings-btn-cost" class="btn" style="background:#fff; color:#0d9488; border:1px solid #99f6e4; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:12px; padding:20px 10px; border-radius:10px; font-size:1rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s; grid-column: span 2;">
+                    <span style="font-size:1.75rem;">💲</span>
+                    <span>原価管理・収支</span>
                 </button>
             </div>
 
