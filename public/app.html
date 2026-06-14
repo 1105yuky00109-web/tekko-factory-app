@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v81';
+            const RESET_KEY = 'sw_reset_v82';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -176,6 +176,7 @@
             </div>
             <button id="btn-change-plan" class="tab-btn admin-only" style="display:none !important;">💳 プラン変更</button>
             <button id="tab-employee-manage" class="tab-btn admin-only" data-target="employee-manage-view" style="display:none !important;">👥 社員登録</button>
+            <button id="tab-vendor-hidden" class="tab-btn admin-only" data-target="vendor-manage-view" style="display:none !important;">🏢 仕入れ業者管理</button>
         </nav>
     </header>
 
@@ -781,6 +782,83 @@
 
     </main>
 
+    <!-- 🏢 仕入れ業者登録画面 -->
+    <main id="vendor-manage-view" class="view no-print" style="display:none;">
+        <div class="form-card">
+            <h2>🏢 仕入れ業者管理</h2>
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:15px;">登録された業者は、原価入力の取引先選択プルダウンに反映されます。</p>
+            
+            <h3 id="vendor-form-title">新しい仕入れ業者を追加</h3>
+            <form id="vendor-add-form">
+                <!-- 編集用隠しフィールド -->
+                <input type="hidden" id="vendor-edit-id" value="">
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="vendor-name">業者名 <span style="color:red">*</span></label>
+                        <input type="text" id="vendor-name" placeholder="例: ○○建材株式会社" required style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="flex: 1.5;">
+                        <label for="vendor-type">業者区分 <span style="color:red">*</span></label>
+                        <select id="vendor-type" required style="width: 100%;">
+                            <option value="material">材料業者</option>
+                            <option value="subcontract">外注業者</option>
+                            <option value="expense">経費</option>
+                            <option value="other">その他</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1.5;">
+                        <label for="vendor-contact">担当者名</label>
+                        <input type="text" id="vendor-contact" placeholder="例: 佐藤 太郎" style="width: 100%;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1.5;">
+                        <label for="vendor-phone">電話番号</label>
+                        <input type="tel" id="vendor-phone" placeholder="例: 03-1234-5678" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label for="vendor-email">メールアドレス</label>
+                        <input type="email" id="vendor-email" placeholder="例: vendor@example.com" style="width: 100%;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="vendor-memo">備考</label>
+                        <input type="text" id="vendor-memo" placeholder="取引条件や特記事項など" style="width: 100%;">
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                    <button type="submit" id="vendor-add-btn" class="btn btn-primary" style="background:#2563eb; color:white; font-weight:bold; height:40px; padding:0 20px; border-radius:6px; border:none; cursor:pointer;">業者を追加</button>
+                    <button type="button" id="btn-vendor-cancel-edit" class="btn btn-secondary" style="display: none; height:40px; padding:0 20px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer;">キャンセル</button>
+                </div>
+                <div id="vendor-add-message" class="message hidden" style="margin-top:15px; padding:10px; font-weight:bold; border-radius:6px;"></div>
+            </form>
+            
+            <h3 style="margin-top: 30px; margin-bottom: 15px;">🏢 登録業者一覧</h3>
+            <div style="overflow-x: auto; width: 100%;">
+                <table class="summary-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="background-color: var(--primary); color: white;">
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 25%;">業者名</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 15%;">業者区分</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 15%;">担当者名</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 15%;">電話番号</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 20%;">備考</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 10%;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendor-list-tbody">
+                        <tr>
+                            <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
     <!-- ======== 出退勤管理画面 (管理者専用) ======== -->
     <main id="attendance-admin-view" class="view">
         <div class="list-controls no-print" style="margin-bottom: 20px;">
@@ -1223,6 +1301,10 @@
                     <span style="font-size:1.75rem;">⏱️</span>
                     <span>出退勤管理</span>
                 </button>
+                <button id="settings-btn-vendor" class="btn" style="background:#fff; color:#ea580c; border:1px solid #ffedd5; display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 10px; border-radius:10px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s;">
+                    <span style="font-size:1.75rem;">🏢</span>
+                    <span>仕入れ業者管理</span>
+                </button>
                 <button id="settings-btn-cost" class="btn" style="background:#fff; color:#0d9488; border:1px solid #99f6e4; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:12px; padding:20px 10px; border-radius:10px; font-size:1rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:all 0.2s; grid-column: span 2;">
                     <span style="font-size:1.75rem;">💲</span>
                     <span>原価管理・収支</span>
@@ -1249,7 +1331,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260615-02"></script>
+<script type="module" src="app-v4.js?v=20260615-03"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>

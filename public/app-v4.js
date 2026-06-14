@@ -426,6 +426,25 @@ function setupAuthListener() {
                             showDebugLog("Loading reports...");
                             await window.loadReports(false);
                         }
+                        
+                        // 管理者関連のタブはヘッダーからは常に非表示（管理者設定モーダルからのみ遷移させるため）
+                        const empTab = document.getElementById('tab-employee-manage');
+                        const vendorTab = document.getElementById('tab-vendor-hidden');
+                        const configTab = document.querySelector('.tab-btn[data-target="qualifications-view"]');
+                        const registerTab = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
+
+                        if (empTab) empTab.style.display = 'none';
+                        if (vendorTab) vendorTab.style.display = 'none';
+                        if (configTab) configTab.style.display = 'none';
+                        if (registerTab) registerTab.style.display = 'none';
+
+                        if (currentCompany && currentCompany.role === 'admin') {
+                            setTimeout(() => {
+                                initEmployeeManagePanel();
+                                initVendorManagePanel();
+                            }, 200);
+                        }
+                        
                         // 世代チェック
                         if (currentGeneration !== authStateGeneration) {
                             showDebugLog("safeLoadAll: Generation changed during data loading. Aborting.");
@@ -460,11 +479,16 @@ function setupAuthListener() {
 
                 // 管理者関連のタブはヘッダーからは常に非表示（管理者設定モーダルからのみ遷移させるため）
                 if (empTab) empTab.style.display = 'none';
+                const vendorTab = document.getElementById('tab-vendor-hidden');
+                if (vendorTab) vendorTab.style.display = 'none';
                 if (configTab) configTab.style.display = 'none';
                 if (registerTab) registerTab.style.display = 'none';
 
                 if (currentCompany && currentCompany.role === 'admin') {
-                    setTimeout(() => initEmployeeManagePanel(), 200);
+                    setTimeout(() => {
+                        initEmployeeManagePanel();
+                        initVendorManagePanel();
+                    }, 200);
                 } else {
                     // 現在アクティブなタブが管理・登録用のものの場合は、工程管理表に切り替える
                     const activeTab = document.querySelector('.tab-btn.active');
@@ -8221,6 +8245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsBtnSchedule = document.getElementById('settings-btn-schedule');
     const settingsBtnEmployee = document.getElementById('settings-btn-employee');
     const settingsBtnCost = document.getElementById('settings-btn-cost');
+    const settingsBtnVendor = document.getElementById('settings-btn-vendor');
     const btnCloseAdminMode = document.getElementById('btn-close-admin-mode');
     const settingsBtnCloseMenu = document.getElementById('settings-btn-close-menu');
 
@@ -8344,7 +8369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsBtnSchedule.addEventListener('click', () => {
             // 現在アクティブな一般タブを退避（戻る時のため）
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view' && activeTab.dataset.target !== 'vendor-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
             
@@ -8368,7 +8393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnEmployee) {
         settingsBtnEmployee.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view' && activeTab.dataset.target !== 'vendor-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
 
@@ -8391,7 +8416,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnAttendanceAdmin) {
         settingsBtnAttendanceAdmin.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view' && activeTab.dataset.target !== 'vendor-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
             adminSettingsModal.style.display = 'none';
@@ -8410,11 +8435,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtnCost) {
         settingsBtnCost.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view') {
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view' && activeTab.dataset.target !== 'vendor-manage-view') {
                 previousActiveTabTarget = activeTab.dataset.target;
             }
             adminSettingsModal.style.display = 'none';
             const targetTab = document.getElementById('tab-cost-hidden');
+            if (targetTab) {
+                targetTab.click();
+            }
+            if (btnCloseAdminMode) {
+                btnCloseAdminMode.style.display = 'block';
+            }
+            lockNavAndHeader(true);
+        });
+    }
+
+    // メニュー：外注先管理へ
+    if (settingsBtnVendor) {
+        settingsBtnVendor.addEventListener('click', () => {
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.target !== 'schedule-input-view' && activeTab.dataset.target !== 'employee-manage-view' && activeTab.dataset.target !== 'attendance-admin-view' && activeTab.dataset.target !== 'cost-manage-view' && activeTab.dataset.target !== 'vendor-manage-view') {
+                previousActiveTabTarget = activeTab.dataset.target;
+            }
+            adminSettingsModal.style.display = 'none';
+            const targetTab = document.getElementById('tab-vendor-hidden');
             if (targetTab) {
                 targetTab.click();
             }
@@ -9681,6 +9725,8 @@ function initCostManagePanel() {
     const tabCostHidden = document.getElementById('tab-cost-hidden');
     if (!tabCostHidden) return;
 
+    let companyVendors = [];
+
     const btnTabForm = document.getElementById('btn-cost-tab-form');
     const btnTabList = document.getElementById('btn-cost-tab-list');
     const btnTabSummary = document.getElementById('btn-cost-tab-summary');
@@ -9750,6 +9796,22 @@ function initCostManagePanel() {
             costProjectSelect.appendChild(opt);
         });
 
+        // 外注先リストを Firestore から取得
+        try {
+            const vendorsRef = collection(db, "companies", currentCompany.companyId, "vendors");
+            const vendorsSnap = await getDocs(vendorsRef);
+            companyVendors = [];
+            vendorsSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                companyVendors.push({
+                    id: docSnap.id,
+                    name: data.name
+                });
+            });
+        } catch (err) {
+            console.error("Error loading vendors for cost input dependency:", err);
+        }
+
         if (!costYearMonth.value) {
             const now = new Date();
             costYearMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -9781,7 +9843,7 @@ function initCostManagePanel() {
                     <option value="expense">経費</option>
                 </select>
             </td>
-            <td style="padding: 8px; border: 1px solid var(--border);">
+            <td style="padding: 8px; border: 1px solid var(--border);" class="supplier-cell-container">
                 <input type="text" class="detail-supplier" placeholder="例: ○○商事" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
             </td>
             <td style="padding: 8px; border: 1px solid var(--border);">
@@ -9799,19 +9861,51 @@ function initCostManagePanel() {
         `;
 
         const categorySelect = tr.querySelector('.detail-category');
-        const supplierInput = tr.querySelector('.detail-supplier');
         const contentInput = tr.querySelector('.detail-content');
         const amountInput = tr.querySelector('.detail-amount');
         const dateInput = tr.querySelector('.detail-date');
         const deleteBtn = tr.querySelector('.btn-detail-delete');
 
+        const updateSupplierInput = (category, existingVal = '') => {
+            const container = tr.querySelector('.supplier-cell-container');
+            if (!container) return;
+
+            if (category === 'subcontract') {
+                let optionsHtml = '<option value="">外注先を選択してください</option>';
+                companyVendors.forEach(vendor => {
+                    optionsHtml += `<option value="${vendor.name}">${vendor.name}</option>`;
+                });
+                container.innerHTML = `
+                    <select class="detail-supplier" required style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
+                        ${optionsHtml}
+                    </select>
+                `;
+            } else {
+                container.innerHTML = `
+                    <input type="text" class="detail-supplier" placeholder="例: ○○商事" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
+                `;
+            }
+
+            const supplierInput = container.querySelector('.detail-supplier');
+            if (supplierInput && existingVal) {
+                supplierInput.value = existingVal;
+            }
+        };
+
         if (data) {
             categorySelect.value = data.category || 'material';
-            supplierInput.value = data.supplier || '';
+            updateSupplierInput(categorySelect.value, data.supplier || '');
             contentInput.value = data.content || '';
             amountInput.value = data.amount || '';
             dateInput.value = data.date || '';
+        } else {
+            updateSupplierInput(categorySelect.value);
         }
+
+        categorySelect.addEventListener('change', () => {
+            updateSupplierInput(categorySelect.value);
+            calculateAndDisplayCostSummary();
+        });
 
         [categorySelect, amountInput].forEach(elem => {
             elem.addEventListener('change', () => calculateAndDisplayCostSummary());
