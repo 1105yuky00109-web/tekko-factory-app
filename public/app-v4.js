@@ -9737,8 +9737,9 @@ function initCostManagePanel() {
     const loadCostInputFormDependencies = async () => {
         if (!currentCompany) return;
 
-        const schedulesRef = collection(db, "companies", currentCompany.companyId, "schedules");
-        const querySnapshot = await getDocs(schedulesRef);
+        const schedulesRef = collection(db, "schedules");
+        const q = query(schedulesRef, where("companyId", "==", currentCompany.companyId));
+        const querySnapshot = await getDocs(q);
         
         costProjectSelect.innerHTML = '<option value="">工事を選択してください</option>';
         querySnapshot.forEach(docSnap => {

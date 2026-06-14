@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v79';
+            const RESET_KEY = 'sw_reset_v80';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -1204,7 +1204,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260607-22"></script>
+<script type="module" src="app-v4.js?v=20260615-01"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>
