@@ -9759,6 +9759,141 @@ function initCostManagePanel() {
         costYearMonth.onchange = () => loadExistingCostRecord();
     };
 
+    const costDetailsTbody = document.getElementById('cost-details-tbody');
+    const btnCostAddDetail = document.getElementById('btn-cost-add-detail');
+    const costBillingAmount = document.getElementById('cost-billing-amount');
+    const costTotalDisplay = document.getElementById('cost-total-display');
+    const costProfitDisplay = document.getElementById('cost-profit-display');
+    const costProfitRateDisplay = document.getElementById('cost-profit-rate-display');
+
+    const addCostDetailRow = (data = null) => {
+        if (!costDetailsTbody) return;
+
+        const tr = document.createElement('tr');
+        tr.className = 'cost-detail-row';
+        tr.style.borderBottom = '1px solid var(--border)';
+
+        tr.innerHTML = `
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <select class="detail-category" required style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
+                    <option value="material">材料費</option>
+                    <option value="subcontract">外注費</option>
+                    <option value="expense">経費</option>
+                </select>
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="text" class="detail-supplier" placeholder="例: ○○商事" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="text" class="detail-content" placeholder="例: 鋼材一式" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="number" class="detail-amount" required placeholder="0" min="0" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; text-align: right; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="date" class="detail-date" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">
+                <button type="button" class="btn-detail-delete" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center;" title="削除">🗑️</button>
+            </td>
+        `;
+
+        const categorySelect = tr.querySelector('.detail-category');
+        const supplierInput = tr.querySelector('.detail-supplier');
+        const contentInput = tr.querySelector('.detail-content');
+        const amountInput = tr.querySelector('.detail-amount');
+        const dateInput = tr.querySelector('.detail-date');
+        const deleteBtn = tr.querySelector('.btn-detail-delete');
+
+        if (data) {
+            categorySelect.value = data.category || 'material';
+            supplierInput.value = data.supplier || '';
+            contentInput.value = data.content || '';
+            amountInput.value = data.amount || '';
+            dateInput.value = data.date || '';
+        }
+
+        [categorySelect, amountInput].forEach(elem => {
+            elem.addEventListener('change', () => calculateAndDisplayCostSummary());
+        });
+        amountInput.addEventListener('input', () => calculateAndDisplayCostSummary());
+
+        deleteBtn.addEventListener('click', () => {
+            tr.remove();
+            calculateAndDisplayCostSummary();
+        });
+
+        costDetailsTbody.appendChild(tr);
+    };
+
+    if (btnCostAddDetail) {
+        btnCostAddDetail.onclick = () => {
+            addCostDetailRow();
+            calculateAndDisplayCostSummary();
+        };
+    }
+    if (costBillingAmount) {
+        costBillingAmount.oninput = () => {
+            calculateAndDisplayCostSummary();
+        };
+    }
+
+    const calculateAndDisplayCostSummary = () => {
+        let materialSum = 0;
+        let subcontractSum = 0;
+        let expenseSum = 0;
+
+        if (costDetailsTbody) {
+            const rows = costDetailsTbody.querySelectorAll('.cost-detail-row');
+            rows.forEach(row => {
+                const category = row.querySelector('.detail-category').value;
+                const val = parseInt(row.querySelector('.detail-amount').value, 10) || 0;
+                if (category === 'material') {
+                    materialSum += val;
+                } else if (category === 'subcontract') {
+                    subcontractSum += val;
+                } else if (category === 'expense') {
+                    expenseSum += val;
+                }
+            });
+        }
+
+        const materialInput = document.getElementById('cost-material-cost');
+        const subcontractInput = document.getElementById('cost-subcontract-cost');
+        const expenseInput = document.getElementById('cost-expense-cost');
+
+        if (materialInput) materialInput.value = materialSum.toLocaleString();
+        if (subcontractInput) subcontractInput.value = subcontractSum.toLocaleString();
+        if (expenseInput) expenseInput.value = expenseSum.toLocaleString();
+
+        const billingAmount = parseInt(costBillingAmount.value, 10) || 0;
+        const laborCostVal = parseInt(costLaborCost.dataset.value || 0, 10);
+        const totalCost = materialSum + subcontractSum + expenseSum + laborCostVal;
+        const profit = billingAmount - totalCost;
+        let profitRate = 0;
+        if (billingAmount > 0) {
+            profitRate = (profit / billingAmount) * 100;
+        }
+
+        if (costTotalDisplay) costTotalDisplay.textContent = `¥${totalCost.toLocaleString()}`;
+        if (costProfitDisplay) {
+            costProfitDisplay.textContent = `¥${profit.toLocaleString()}`;
+            if (profit < 0) {
+                costProfitDisplay.style.color = '#ef4444';
+            } else {
+                costProfitDisplay.style.color = '#16a34a';
+            }
+        }
+        if (costProfitRateDisplay) {
+            costProfitRateDisplay.textContent = `${profitRate.toFixed(1)}%`;
+            if (profitRate < 0) {
+                costProfitRateDisplay.style.color = '#ef4444';
+            } else {
+                costProfitRateDisplay.style.color = '#2563eb';
+            }
+        }
+    };
+
     const loadExistingCostRecord = async () => {
         const workId = costProjectSelect.value;
         const ymStr = costYearMonth.value;
@@ -9806,19 +9941,42 @@ function initCostManagePanel() {
             const docRef = doc(db, "companies", currentCompany.companyId, "costRecords", `${workId}_${yyyymm}`);
             const docSnap = await getDoc(docRef);
 
+            if (costDetailsTbody) costDetailsTbody.innerHTML = '';
+
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 document.getElementById('cost-billing-amount').value = data.revenue?.billingAmount || '';
                 document.getElementById('cost-billing-date').value = data.revenue?.billingDate || '';
                 document.getElementById('cost-payment-amount').value = data.revenue?.paymentAmount || '';
                 document.getElementById('cost-payment-date').value = data.revenue?.paymentDate || '';
-                document.getElementById('cost-material-cost').value = data.cost?.materialCost || '';
-                document.getElementById('cost-subcontract-cost').value = data.cost?.subcontractCost || '';
-                document.getElementById('cost-expense-cost').value = data.cost?.expenseCost || '';
                 document.getElementById('cost-memo').value = data.memo || '';
+
+                const costDetails = data.costDetails || [];
+                if (costDetails.length > 0) {
+                    costDetails.forEach(d => addCostDetailRow(d));
+                } else {
+                    let hasOldData = false;
+                    if (data.cost?.materialCost) {
+                        addCostDetailRow({ category: 'material', supplier: '（移行データ）', content: '材料費一括', amount: data.cost.materialCost, date: '' });
+                        hasOldData = true;
+                    }
+                    if (data.cost?.subcontractCost) {
+                        addCostDetailRow({ category: 'subcontract', supplier: '（移行データ）', content: '外注費一括', amount: data.cost.subcontractCost, date: '' });
+                        hasOldData = true;
+                    }
+                    if (data.cost?.expenseCost) {
+                        addCostDetailRow({ category: 'expense', supplier: '（移行データ）', content: '経費一括', amount: data.cost.expenseCost, date: '' });
+                        hasOldData = true;
+                    }
+                    if (!hasOldData) {
+                        addCostDetailRow();
+                    }
+                }
             } else {
                 resetCostInputFields(false);
             }
+
+            calculateAndDisplayCostSummary();
         } catch (err) {
             console.error("Error loading cost record:", err);
             costLaborCost.value = "計算エラー";
@@ -9830,15 +9988,19 @@ function initCostManagePanel() {
         document.getElementById('cost-billing-date').value = '';
         document.getElementById('cost-payment-amount').value = '';
         document.getElementById('cost-payment-date').value = '';
-        document.getElementById('cost-material-cost').value = '';
-        document.getElementById('cost-subcontract-cost').value = '';
-        document.getElementById('cost-expense-cost').value = '';
         document.getElementById('cost-memo').value = '';
+        if (costDetailsTbody) {
+            costDetailsTbody.innerHTML = '';
+        }
+        addCostDetailRow();
+
         if (clearLabor) {
             costLaborCost.value = '0';
             costLaborCost.dataset.value = 0;
             costLaborDetailArea.style.display = 'none';
         }
+
+        calculateAndDisplayCostSummary();
     };
 
     const costInputForm = document.getElementById('cost-input-form');
@@ -9863,9 +10025,38 @@ function initCostManagePanel() {
             const paymentAmount = document.getElementById('cost-payment-amount').value ? parseInt(document.getElementById('cost-payment-amount').value, 10) : 0;
             const paymentDate = document.getElementById('cost-payment-date').value;
 
-            const materialCost = document.getElementById('cost-material-cost').value ? parseInt(document.getElementById('cost-material-cost').value, 10) : 0;
-            const subcontractCost = document.getElementById('cost-subcontract-cost').value ? parseInt(document.getElementById('cost-subcontract-cost').value, 10) : 0;
-            const expenseCost = document.getElementById('cost-expense-cost').value ? parseInt(document.getElementById('cost-expense-cost').value, 10) : 0;
+            const costDetails = [];
+            let materialCost = 0;
+            let subcontractCost = 0;
+            let expenseCost = 0;
+
+            if (costDetailsTbody) {
+                const rows = costDetailsTbody.querySelectorAll('.cost-detail-row');
+                rows.forEach(row => {
+                    const category = row.querySelector('.detail-category').value;
+                    const supplier = row.querySelector('.detail-supplier').value.trim();
+                    const content = row.querySelector('.detail-content').value.trim();
+                    const amount = parseInt(row.querySelector('.detail-amount').value, 10) || 0;
+                    const date = row.querySelector('.detail-date').value;
+
+                    costDetails.push({
+                        category,
+                        supplier,
+                        content,
+                        amount,
+                        date
+                    });
+
+                    if (category === 'material') {
+                        materialCost += amount;
+                    } else if (category === 'subcontract') {
+                        subcontractCost += amount;
+                    } else if (category === 'expense') {
+                        expenseCost += amount;
+                    }
+                });
+            }
+
             const laborCost = parseInt(costLaborCost.dataset.value || 0, 10);
             const memo = document.getElementById('cost-memo').value.trim();
 
@@ -9890,6 +10081,7 @@ function initCostManagePanel() {
                     expenseCost,
                     laborCost
                 },
+                costDetails,
                 laborCostDetail: detailList.map(d => ({
                     employeeName: d.employeeName,
                     laborCost: d.laborCost,

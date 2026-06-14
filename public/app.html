@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v80';
+            const RESET_KEY = 'sw_reset_v81';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -917,22 +917,22 @@
                     </div>
                 </div>
 
-                <!-- 原価情報（材料費・外注費・経費・労務費） -->
-                <h4 style="margin-top: 20px; margin-bottom: 10px; color: #ea580c; border-left: 4px solid #ea580c; padding-left: 8px; font-size: 1rem;">🛠️ 原価情報</h4>
+                <!-- 原価情報（材料費・外注費・経費・労務費：これらは合計値の自動計算・表示用） -->
+                <h4 style="margin-top: 20px; margin-bottom: 10px; color: #ea580c; border-left: 4px solid #ea580c; padding-left: 8px; font-size: 1rem;">🛠️ 原価サマリー（明細から自動集計）</h4>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="cost-material-cost">材料費 (円)</label>
-                        <input type="number" id="cost-material-cost" placeholder="0" min="0">
+                        <label for="cost-material-cost">材料費 合計 (円)</label>
+                        <input type="text" id="cost-material-cost" value="0" readonly style="background-color: var(--bg-muted, #f1f5f9); font-weight: bold; color: var(--text-main);">
                     </div>
                     <div class="form-group">
-                        <label for="cost-subcontract-cost">外注費 (円)</label>
-                        <input type="number" id="cost-subcontract-cost" placeholder="0" min="0">
+                        <label for="cost-subcontract-cost">外注費 合計 (円)</label>
+                        <input type="text" id="cost-subcontract-cost" value="0" readonly style="background-color: var(--bg-muted, #f1f5f9); font-weight: bold; color: var(--text-main);">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="cost-expense-cost">経費 (円)</label>
-                        <input type="number" id="cost-expense-cost" placeholder="0" min="0">
+                        <label for="cost-expense-cost">経費 合計 (円)</label>
+                        <input type="text" id="cost-expense-cost" value="0" readonly style="background-color: var(--bg-muted, #f1f5f9); font-weight: bold; color: var(--text-main);">
                     </div>
                     <div class="form-group">
                         <label for="cost-labor-cost">労務費 (円) <span style="font-size: 0.8rem; color: var(--text-muted);">※自動計算・編集不可</span></label>
@@ -945,6 +945,51 @@
                     <h5 style="margin: 0 0 8px 0; font-size: 0.85rem; color: var(--text-muted);">👥 労務費内訳（月給按分対象社員）:</h5>
                     <div id="cost-labor-detail-list" style="font-size: 0.82rem; background: var(--bg-muted, #f8fafc); border: 1px solid var(--border); padding: 10px; border-radius: 6px; max-height: 150px; overflow-y: auto;">
                         <!-- JSで動的に内訳を挿入 -->
+                    </div>
+                </div>
+
+                <!-- 明細入力エリア -->
+                <h4 style="margin-top: 25px; margin-bottom: 10px; color: #4f46e5; border-left: 4px solid #4f46e5; padding-left: 8px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>📋 費用明細（材料費・外注費・経費）</span>
+                    <button type="button" id="btn-cost-add-detail" class="btn" style="height: 36px; padding: 0 16px; font-size: 0.85rem; border-radius: 6px; background: #4f46e5; color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: bold; transition: background 0.2s;">
+                        <span>＋ 明細を追加</span>
+                    </button>
+                </h4>
+                
+                <div style="overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); margin-bottom: 20px;">
+                    <table style="width: 100%; min-width: 750px; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background-color: var(--bg-muted, #f8fafc); border-bottom: 1px solid var(--border);">
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: left; width: 18%; color: var(--text);">費用区分 <span style="color:red">*</span></th>
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: left; width: 22%; color: var(--text);">取引先名</th>
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: left; width: 25%; color: var(--text);">内容 (品名・工事内容など)</th>
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: right; width: 15%; color: var(--text);">金額 (円) <span style="color:red">*</span></th>
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: left; width: 15%; color: var(--text);">仕入日・発注日</th>
+                                <th style="padding: 10px; border: 1px solid var(--border); text-align: center; width: 5%; color: var(--text);">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cost-details-tbody">
+                            <!-- JSで動的に明細行を挿入 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 原価・粗利 集計サマリー（リアルタイム表示） -->
+                <div style="margin-top: 25px; margin-bottom: 25px; padding: 15px; background: var(--bg-muted, #f8fafc); border: 1px solid var(--border); border-radius: 8px;">
+                    <h5 style="margin: 0 0 10px 0; font-size: 0.95rem; color: var(--text); font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 6px;">📈 収益・原価集計（リアルタイム計算）</h5>
+                    <div class="form-row" style="margin-bottom: 0;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">原価合計 (材料+外注+経費+労務)</span>
+                            <div id="cost-total-display" style="font-size: 1.2rem; font-weight: bold; color: #ea580c; margin-top: 4px;">¥0</div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">粗利 (利益)</span>
+                            <div id="cost-profit-display" style="font-size: 1.2rem; font-weight: bold; color: #16a34a; margin-top: 4px;">¥0</div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">粗利率</span>
+                            <div id="cost-profit-rate-display" style="font-size: 1.2rem; font-weight: bold; color: #2563eb; margin-top: 4px;">0.0%</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1204,7 +1249,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260615-01"></script>
+<script type="module" src="app-v4.js?v=20260615-02"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>
