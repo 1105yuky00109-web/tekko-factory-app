@@ -10209,6 +10209,65 @@ function initCostManagePanel() {
         costDetailsTbody.appendChild(tr);
     };
 
+    const costAdditionalWorksTbody = document.getElementById('cost-additional-works-tbody');
+    const btnCostAddAdditionalWork = document.getElementById('btn-cost-add-additional-work');
+
+    const addAdditionalWorkRow = (data = null) => {
+        if (!costAdditionalWorksTbody) return;
+
+        const tr = document.createElement('tr');
+        tr.className = 'cost-additional-work-row';
+        tr.style.borderBottom = '1px solid var(--border)';
+
+        tr.innerHTML = `
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="text" class="additional-work-name" required placeholder="例: 追加製作・加工" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="number" class="additional-work-amount" required placeholder="0" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; text-align: right; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="date" class="additional-work-date" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border);">
+                <input type="text" class="additional-work-memo" placeholder="備考" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
+            </td>
+            <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">
+                <button type="button" class="btn-additional-work-delete" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center;" title="削除">🗑️</button>
+            </td>
+        `;
+
+        const amountInput = tr.querySelector('.additional-work-amount');
+        const nameInput = tr.querySelector('.additional-work-name');
+        const dateInput = tr.querySelector('.additional-work-date');
+        const memoInput = tr.querySelector('.additional-work-memo');
+        const deleteBtn = tr.querySelector('.btn-additional-work-delete');
+
+        if (data) {
+            nameInput.value = data.name || '';
+            amountInput.value = data.amount || '';
+            dateInput.value = data.date || '';
+            memoInput.value = data.memo || '';
+        }
+
+        amountInput.addEventListener('change', () => calculateAndDisplayCostSummary());
+        amountInput.addEventListener('input', () => calculateAndDisplayCostSummary());
+
+        deleteBtn.addEventListener('click', () => {
+            tr.remove();
+            calculateAndDisplayCostSummary();
+        });
+
+        costAdditionalWorksTbody.appendChild(tr);
+    };
+
+    if (btnCostAddAdditionalWork) {
+        btnCostAddAdditionalWork.onclick = () => {
+            addAdditionalWorkRow();
+            calculateAndDisplayCostSummary();
+        };
+    }
+
     if (btnCostAddDetail) {
         btnCostAddDetail.onclick = () => {
             addCostDetailRow();
@@ -10217,6 +10276,12 @@ function initCostManagePanel() {
     }
     if (costBillingAmount) {
         costBillingAmount.oninput = () => {
+            calculateAndDisplayCostSummary();
+        };
+    }
+    const costContractAmount = document.getElementById('cost-contract-amount');
+    if (costContractAmount) {
+        costContractAmount.oninput = () => {
             calculateAndDisplayCostSummary();
         };
     }
@@ -10249,13 +10314,23 @@ function initCostManagePanel() {
         if (subcontractInput) subcontractInput.value = subcontractSum.toLocaleString();
         if (expenseInput) expenseInput.value = expenseSum.toLocaleString();
 
-        const billingAmount = parseInt(costBillingAmount.value, 10) || 0;
+        // 当初契約金額 + 追加工事金額の合計を「契約金額合計」とする
+        const contractAmount = parseInt(document.getElementById('cost-contract-amount').value, 10) || 0;
+        let additionalWorksTotal = 0;
+        if (costAdditionalWorksTbody) {
+            const rows = costAdditionalWorksTbody.querySelectorAll('.cost-additional-work-row');
+            rows.forEach(row => {
+                additionalWorksTotal += parseInt(row.querySelector('.additional-work-amount').value, 10) || 0;
+            });
+        }
+        const contractTotal = contractAmount + additionalWorksTotal;
+
         const laborCostVal = parseInt(costLaborCost.dataset.value || 0, 10);
         const totalCost = materialSum + subcontractSum + expenseSum + laborCostVal;
-        const profit = billingAmount - totalCost;
+        const profit = contractTotal - totalCost; // 契約金額合計ベース
         let profitRate = 0;
-        if (billingAmount > 0) {
-            profitRate = (profit / billingAmount) * 100;
+        if (contractTotal > 0) {
+            profitRate = (profit / contractTotal) * 100; // 契約金額合計ベース
         }
 
         if (costTotalDisplay) costTotalDisplay.textContent = `¥${totalCost.toLocaleString()}`;
@@ -10332,7 +10407,16 @@ function initCostManagePanel() {
                 document.getElementById('cost-billing-date').value = data.revenue?.billingDate || '';
                 document.getElementById('cost-payment-amount').value = data.revenue?.paymentAmount || '';
                 document.getElementById('cost-payment-date').value = data.revenue?.paymentDate || '';
+                document.getElementById('cost-contract-amount').value = data.contract?.contractAmount || '';
+                document.getElementById('cost-contract-date').value = data.contract?.contractDate || '';
+                document.getElementById('cost-client-name').value = data.contract?.clientName || '';
                 document.getElementById('cost-memo').value = data.memo || '';
+
+                if (costAdditionalWorksTbody) costAdditionalWorksTbody.innerHTML = '';
+                const additionalWorks = data.additionalWorks || [];
+                if (additionalWorks.length > 0) {
+                    additionalWorks.forEach(w => addAdditionalWorkRow(w));
+                }
 
                 const costDetails = data.costDetails || [];
                 if (costDetails.length > 0) {
@@ -10371,11 +10455,18 @@ function initCostManagePanel() {
         document.getElementById('cost-billing-date').value = '';
         document.getElementById('cost-payment-amount').value = '';
         document.getElementById('cost-payment-date').value = '';
+        document.getElementById('cost-contract-amount').value = '';
+        document.getElementById('cost-contract-date').value = '';
+        document.getElementById('cost-client-name').value = '';
         document.getElementById('cost-memo').value = '';
         if (costDetailsTbody) {
             costDetailsTbody.innerHTML = '';
         }
         addCostDetailRow();
+
+        if (costAdditionalWorksTbody) {
+            costAdditionalWorksTbody.innerHTML = '';
+        }
 
         if (clearLabor) {
             costLaborCost.value = '0';
@@ -10412,6 +10503,27 @@ function initCostManagePanel() {
             const billingDate = document.getElementById('cost-billing-date').value;
             const paymentAmount = document.getElementById('cost-payment-amount').value ? parseInt(document.getElementById('cost-payment-amount').value, 10) : 0;
             const paymentDate = document.getElementById('cost-payment-date').value;
+
+            // 新規追加された当初契約情報
+            const contractAmount = document.getElementById('cost-contract-amount').value ? parseInt(document.getElementById('cost-contract-amount').value, 10) : 0;
+            const contractDate = document.getElementById('cost-contract-date').value;
+            const clientName = document.getElementById('cost-client-name').value.trim();
+
+            // 追加工事明細
+            const additionalWorks = [];
+            let additionalWorksTotal = 0;
+            if (costAdditionalWorksTbody) {
+                const rows = costAdditionalWorksTbody.querySelectorAll('.cost-additional-work-row');
+                rows.forEach(row => {
+                    const name = row.querySelector('.additional-work-name').value.trim();
+                    const amount = parseInt(row.querySelector('.additional-work-amount').value, 10) || 0;
+                    const date = row.querySelector('.additional-work-date').value;
+                    const memo = row.querySelector('.additional-work-memo').value.trim();
+
+                    additionalWorks.push({ name, amount, date, memo });
+                    additionalWorksTotal += amount;
+                });
+            }
 
             const costDetails = [];
             let materialCost = 0;
@@ -10457,6 +10569,13 @@ function initCostManagePanel() {
                 workId,
                 workName,
                 yearMonth: yyyymm,
+                contract: {
+                    contractAmount,
+                    contractDate,
+                    clientName
+                },
+                additionalWorks,
+                additionalWorksTotal,
                 revenue: {
                     billingAmount,
                     billingDate,
@@ -10497,7 +10616,7 @@ function initCostManagePanel() {
     const costListTbody = document.getElementById('cost-list-tbody');
     const loadCostList = async () => {
         if (!currentCompany || !costListTbody) return;
-        costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td></tr>';
+        costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td></tr>';
 
         try {
             const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
@@ -10513,6 +10632,8 @@ function initCostManagePanel() {
                 if (!projectSummary[workId]) {
                     projectSummary[workId] = {
                         workName: data.workName || '不明な工事',
+                        contractAmount: 0,
+                        additionalAmount: 0,
                         billingAmount: 0,
                         material: 0,
                         subcontract: 0,
@@ -10522,6 +10643,8 @@ function initCostManagePanel() {
                 }
 
                 const s = projectSummary[workId];
+                s.contractAmount += data.contract?.contractAmount || 0;
+                s.additionalAmount += data.additionalWorksTotal || 0;
                 s.billingAmount += data.revenue?.billingAmount || 0;
                 s.material += data.cost?.materialCost || 0;
                 s.subcontract += data.cost?.subcontractCost || 0;
@@ -10531,29 +10654,34 @@ function initCostManagePanel() {
 
             const keys = Object.keys(projectSummary);
             if (keys.length === 0) {
-                costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">登録されている原価データがありません。</td></tr>';
+                costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">登録されている原価データがありません。</td></tr>';
                 return;
             }
 
             costListTbody.innerHTML = keys.map(workId => {
                 const s = projectSummary[workId];
+                const contractTotal = s.contractAmount + s.additionalAmount;
                 const costTotal = s.material + s.subcontract + s.expense + s.labor;
-                const profit = s.billingAmount - costTotal;
-                const profitRate = s.billingAmount > 0 ? (profit / s.billingAmount) * 100 : 0;
+                const profit = contractTotal - costTotal;
+                const profitRate = contractTotal > 0 ? (profit / contractTotal) * 100 : 0;
                 
                 const isLoss = profit < 0;
                 const profitClass = isLoss ? 'text-danger' : '';
-                const profitRateText = s.billingAmount > 0 ? `${profitRate.toFixed(1)}%` : '-';
+                const profitRateText = contractTotal > 0 ? `${profitRate.toFixed(1)}%` : '-';
 
                 return `
                     <tr style="border-bottom: 1px solid var(--border);">
                         <td style="padding: 10px 12px; font-weight: bold; color: var(--text-main); text-align: left;">${s.workName}</td>
+                        <td style="padding: 10px 12px; text-align: right;">¥${contractTotal.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;">¥${s.billingAmount.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;">¥${costTotal.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;" class="${profitClass}">¥${profit.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: center;" class="${profitClass}">${profitRateText}</td>
                         <td style="padding: 10px 12px; text-align: center;">
-                            <button class="btn btn-secondary btn-small" onclick="viewCostDetailModal('${workId}')" style="padding: 2px 8px; font-size:0.75rem;">内訳</button>
+                            <div style="display:flex; gap:4px; justify-content:center;">
+                                <button class="btn btn-secondary btn-small" onclick="viewCostDetailModal('${workId}')" style="padding: 2px 8px; font-size:0.75rem; min-width:44px; height:28px;">内訳</button>
+                                <button class="btn btn-primary btn-small" onclick="editCostRecordLatest('${workId}')" style="padding: 2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; min-width:44px; height:28px; cursor:pointer;">編集</button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -10561,7 +10689,7 @@ function initCostManagePanel() {
 
         } catch (err) {
             console.error("Error loading cost list:", err);
-            costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-danger);">データの読み込みに失敗しました。</td></tr>';
+            costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-danger);">データの読み込みに失敗しました。</td></tr>';
         }
     };
 
@@ -10598,11 +10726,13 @@ function initCostManagePanel() {
 
         const yyyymm = ymStr.replace('-', '');
 
+        const totalContractEl = document.getElementById('cost-summary-total-contract');
         const totalBillingEl = document.getElementById('cost-summary-total-billing');
         const totalPaymentEl = document.getElementById('cost-summary-total-payment');
         const totalUnpaidEl = document.getElementById('cost-summary-total-unpaid');
         const totalProfitEl = document.getElementById('cost-summary-total-profit');
 
+        const breakdownContractEl = document.getElementById('cost-breakdown-contract');
         const breakdownBillingEl = document.getElementById('cost-breakdown-billing');
         const breakdownPaymentEl = document.getElementById('cost-breakdown-payment');
         const breakdownUnpaidEl = document.getElementById('cost-breakdown-unpaid');
@@ -10618,6 +10748,7 @@ function initCostManagePanel() {
             const q = query(costRecordsRef, where("yearMonth", "==", yyyymm));
             const querySnapshot = await getDocs(q);
 
+            let contractSum = 0;
             let billingSum = 0;
             let paymentSum = 0;
             let materialSum = 0;
@@ -10627,6 +10758,9 @@ function initCostManagePanel() {
 
             querySnapshot.forEach(docSnap => {
                 const data = docSnap.data();
+                const contractAmt = data.contract?.contractAmount || 0;
+                const additionalAmt = data.additionalWorksTotal || 0;
+                contractSum += (contractAmt + additionalAmt);
                 billingSum += data.revenue?.billingAmount || 0;
                 paymentSum += data.revenue?.paymentAmount || 0;
                 materialSum += data.cost?.materialCost || 0;
@@ -10637,14 +10771,15 @@ function initCostManagePanel() {
 
             const unpaidSum = billingSum - paymentSum;
             const costSum = materialSum + subcontractSum + expenseSum + laborSum;
-            const profitSum = billingSum - costSum;
-            const profitRate = billingSum > 0 ? (profitSum / billingSum) * 100 : 0;
+            const profitSum = contractSum - costSum; // 契約金額合計ベース
+            const profitRate = contractSum > 0 ? (profitSum / contractSum) * 100 : 0; // 契約金額合計ベース
 
+            if (totalContractEl) totalContractEl.textContent = `¥${contractSum.toLocaleString()}`;
             totalBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
             totalPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
             totalUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
             
-            const profitRateText = billingSum > 0 ? `${profitRate.toFixed(1)}%` : '0%';
+            const profitRateText = contractSum > 0 ? `${profitRate.toFixed(1)}%` : '0%';
             totalProfitEl.textContent = `¥${profitSum.toLocaleString()} (${profitRateText})`;
 
             const profitCard = document.getElementById('cost-summary-total-profit-card');
@@ -10671,6 +10806,7 @@ function initCostManagePanel() {
                 }
             }
 
+            if (breakdownContractEl) breakdownContractEl.textContent = `¥${contractSum.toLocaleString()}`;
             breakdownBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
             breakdownPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
             breakdownUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
@@ -10688,6 +10824,39 @@ function initCostManagePanel() {
             console.error("Error loading cost summary:", err);
         }
     };
+
+    const editCostRecordLatest = async (workId) => {
+        if (!currentCompany) return;
+
+        try {
+            const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
+            const q = query(costRecordsRef, where("workId", "==", workId));
+            const querySnapshot = await getDocs(q);
+
+            let targetYMStr = costYearMonth.value;
+            let latestYYYYMM = 0;
+
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const ym = parseInt(data.yearMonth, 10) || 0;
+                if (ym > latestYYYYMM) {
+                    latestYYYYMM = ym;
+                    const ymStr = data.yearMonth.toString();
+                    targetYMStr = `${ymStr.substring(0, 4)}-${ymStr.substring(4, 6)}`;
+                }
+            });
+
+            costYearMonth.value = targetYMStr;
+            costProjectSelect.value = workId;
+
+            switchSubTab(btnTabForm, sectionForm);
+            await loadExistingCostRecord();
+
+        } catch (err) {
+            console.error("Error initiating cost edit:", err);
+        }
+    };
+    window.editCostRecordLatest = editCostRecordLatest;
 
     tabCostHidden.addEventListener('click', () => {
         loadLatestCompanyInfo().then(() => {
@@ -10725,6 +10894,7 @@ async function viewCostDetailModal(workId) {
         const q = query(costRecordsRef, where("workId", "==", workId));
         const querySnapshot = await getDocs(q);
 
+        let contractSum = 0;
         let billingSum = 0;
         let materialSum = 0;
         let subcontractSum = 0;
@@ -10733,11 +10903,15 @@ async function viewCostDetailModal(workId) {
         let workName = '不明な工事';
 
         const monthlyBreakdown = [];
+        let contractInfo = null;
+        const allAdditionalWorks = [];
 
         querySnapshot.forEach(docSnap => {
             const data = docSnap.data();
             workName = data.workName || workName;
 
+            const cAmt = data.contract?.contractAmount || 0;
+            const aAmt = data.additionalWorksTotal || 0;
             const b = data.revenue?.billingAmount || 0;
             const m = data.cost?.materialCost || 0;
             const s = data.cost?.subcontractCost || 0;
@@ -10745,11 +10919,32 @@ async function viewCostDetailModal(workId) {
             const l = data.cost?.laborCost || 0;
             const total = m + s + e + l;
 
+            contractSum += (cAmt + aAmt);
             billingSum += b;
             materialSum += m;
             subcontractSum += s;
             expenseSum += e;
             laborSum += l;
+
+            if (data.contract?.contractAmount && !contractInfo) {
+                contractInfo = {
+                    contractAmount: cAmt,
+                    contractDate: data.contract.contractDate || '',
+                    clientName: data.contract.clientName || ''
+                };
+            }
+
+            if (data.additionalWorks && data.additionalWorks.length > 0) {
+                data.additionalWorks.forEach(w => {
+                    allAdditionalWorks.push({
+                        name: w.name,
+                        amount: w.amount,
+                        date: w.date || '',
+                        memo: w.memo || '',
+                        ymLabel: data.yearMonth ? `${data.yearMonth.substring(0, 4)}/${data.yearMonth.substring(4, 6)}` : ''
+                    });
+                });
+            }
 
             const yyyymm = data.yearMonth || '';
             const label = yyyymm ? `${yyyymm.substring(0, 4)}年${yyyymm.substring(4, 6)}月` : '不明';
@@ -10768,19 +10963,55 @@ async function viewCostDetailModal(workId) {
         document.getElementById('cost-detail-modal-title').textContent = `📊 内訳: ${workName}`;
 
         const totalCost = materialSum + subcontractSum + expenseSum + laborSum;
-        const profit = billingSum - totalCost;
-        const profitRate = billingSum > 0 ? (profit / billingSum) * 100 : 0;
+        const profit = contractSum - totalCost;
+        const profitRate = contractSum > 0 ? (profit / contractSum) * 100 : 0;
         const profitClass = profit < 0 ? 'text-danger' : '';
 
         let html = `
             <div style="background:var(--bg-muted, #f1f5f9);padding:15px;border-radius:8px;font-size:0.9rem;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>当初契約金額:</span><strong>¥${(contractInfo?.contractAmount || 0).toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>契約金額合計:</span><strong>¥${contractSum.toLocaleString()}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>総請求金額:</span><strong>¥${billingSum.toLocaleString()}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#b91c1c;"><span>総原価:</span><strong>¥${totalCost.toLocaleString()}</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;" class="${profitClass}"><span>総粗利:</span><strong>¥${profit.toLocaleString()}</strong></div>
-                <div style="display:flex;justify-content:space-between;" class="${profitClass}"><span>総粗利益率:</span><strong>${billingSum > 0 ? profitRate.toFixed(1) + '%' : '0%'}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;" class="${profitClass}"><span>総粗利 (契約ベース):</span><strong>¥${profit.toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;" class="${profitClass}"><span>総粗利益率:</span><strong>${contractSum > 0 ? profitRate.toFixed(1) + '%' : '0%'}</strong></div>
             </div>
-            
-            <h4 style="margin:10px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--primary);padding-left:6px;">📅 月別原価詳細</h4>
+        `;
+
+        if (contractInfo && (contractInfo.clientName || contractInfo.contractDate)) {
+            html += `
+                <div style="border:1px solid var(--border);padding:10px;border-radius:6px;background:var(--card-bg);font-size:0.82rem;margin-top:10px;">
+                    <div style="font-weight:bold;color:var(--primary);margin-bottom:4px;">📋 元請・契約情報</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 15px;">
+                        <div><span>発注者名:</span> <span style="font-weight:bold;">${contractInfo.clientName || '-'}</span></div>
+                        <div><span>当初契約日:</span> <span style="font-weight:bold;">${contractInfo.contractDate || '-'}</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (allAdditionalWorks.length > 0) {
+            html += `
+                <h4 style="margin:10px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--warning, #f59e0b);padding-left:6px;">➕ 追加工事明細</h4>
+                <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:6px;background:var(--card-bg);">
+            `;
+            allAdditionalWorks.forEach(w => {
+                html += `
+                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;border-bottom:1px dashed var(--border);padding-bottom:4px;margin-bottom:4px;">
+                        <div>
+                            <span style="color:var(--text-muted);margin-right:6px;">[${w.ymLabel}]</span>
+                            <span style="font-weight:bold;">${w.name}</span>
+                            ${w.memo ? `<span style="color:var(--text-muted);font-size:0.75rem;margin-left:6px;">(${w.memo})</span>` : ''}
+                        </div>
+                        <div style="font-weight:bold;">¥${w.amount.toLocaleString()}</div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+
+        html += `
+            <h4 style="margin:15px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--primary);padding-left:6px;">📅 月別原価詳細</h4>
             <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:220px;padding-right:5px;">
         `;
 
