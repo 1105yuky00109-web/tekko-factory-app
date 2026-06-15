@@ -1011,6 +1011,295 @@ function initEmployeeManagePanel() {
     renderEmployeeList();
 }
 
+// 🏢 仕入れ業者管理パネルの初期化
+async function initVendorManagePanel() {
+    if (!currentUser || !currentCompany || currentCompany.role !== 'admin') return;
+
+    const tab = document.getElementById('tab-vendor-hidden');
+    if (!tab) return;
+
+    const vendorAddForm = document.getElementById('vendor-add-form');
+    if (vendorAddForm) {
+        vendorAddForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+            }
+        });
+    }
+
+    const vendorAddMsg = document.getElementById('vendor-add-message');
+    const vendorListTbody = document.getElementById('vendor-list-tbody');
+    const vendorCancelBtn = document.getElementById('btn-vendor-cancel-edit');
+    const vendorFormTitle = document.getElementById('vendor-form-title');
+    const vendorSubmitBtn = vendorAddForm ? vendorAddForm.querySelector('button[type="submit"]') : null;
+    const vendorEditIdInput = document.getElementById('vendor-edit-id');
+
+    // 登録フォームをリセットする関数
+    const resetVendorForm = () => {
+        const nameInp = document.getElementById('vendor-name');
+        const typeInp = document.getElementById('vendor-type');
+        const contactInp = document.getElementById('vendor-contact');
+        const phoneInp = document.getElementById('vendor-phone');
+        const emailInp = document.getElementById('vendor-email');
+        const memoInp = document.getElementById('vendor-memo');
+
+        if (nameInp) nameInp.value = '';
+        if (typeInp) typeInp.value = 'material';
+        if (contactInp) contactInp.value = '';
+        if (phoneInp) phoneInp.value = '';
+        if (emailInp) emailInp.value = '';
+        if (memoInp) memoInp.value = '';
+
+        if (vendorEditIdInput) vendorEditIdInput.value = '';
+        if (vendorFormTitle) vendorFormTitle.textContent = '新しい仕入れ業者を追加';
+        if (vendorSubmitBtn) {
+            vendorSubmitBtn.textContent = '業者を追加';
+            vendorSubmitBtn.classList.remove('btn-secondary');
+            vendorSubmitBtn.classList.add('btn-primary');
+        }
+        if (vendorCancelBtn) vendorCancelBtn.style.display = 'none';
+
+        if (nameInp) {
+            nameInp.focus();
+        }
+    };
+
+    // キャンセルボタンのクリックイベント
+    if (vendorCancelBtn) {
+        vendorCancelBtn.onclick = () => {
+            resetVendorForm();
+            if (vendorAddMsg) {
+                vendorAddMsg.classList.add('hidden');
+                vendorAddMsg.textContent = '';
+            }
+        };
+    }
+
+    // 登録済み仕入れ業者一覧をロードして描画する関数
+    const loadAndRenderVendors = async () => {
+        if (!vendorListTbody) return;
+        
+        try {
+            const vendorsRef = collection(db, "companies", currentCompany.companyId, "vendors");
+            const q = query(vendorsRef, orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                vendorListTbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted, #64748b);">登録されている仕入れ業者はいません。</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+                const name = data.name || '-';
+                
+                let typeLabel = 'その他';
+                if (data.type === 'material') typeLabel = '材料業者';
+                else if (data.type === 'subcontract') typeLabel = '外注業者';
+                else if (data.type === 'expense') typeLabel = '経費';
+
+                const contact = data.contact || '-';
+                const phone = data.phone || '-';
+                const memo = data.memo || '-';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px; font-weight: bold; color: var(--text-main);">${name}</td>
+                        <td style="padding: 10px; color: var(--text-muted);">${typeLabel}</td>
+                        <td style="padding: 10px; color: var(--text-muted);">${contact}</td>
+                        <td style="padding: 10px; color: var(--text-muted);">${phone}</td>
+                        <td style="padding: 10px; color: var(--text-muted);">${memo}</td>
+                        <td style="padding: 10px; text-align: center; display: flex; gap: 8px; justify-content: center;">
+                            <button class="btn btn-edit-vendor" data-id="${id}" style="padding:4px 8px; font-size:0.8rem; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">編集</button>
+                            <button class="btn btn-delete-vendor" data-id="${id}" data-name="${name.replace(/"/g, '&quot;')}" style="padding:4px 8px; font-size:0.8rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;">削除</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            vendorListTbody.innerHTML = html;
+
+            // 編集ボタンのイベント
+            vendorListTbody.querySelectorAll('.btn-edit-vendor').forEach(btn => {
+                btn.onclick = async () => {
+                    const id = btn.dataset.id;
+                    try {
+                        const docRef = doc(db, "companies", currentCompany.companyId, "vendors", id);
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            
+                            const nameInp = document.getElementById('vendor-name');
+                            const typeInp = document.getElementById('vendor-type');
+                            const contactInp = document.getElementById('vendor-contact');
+                            const phoneInp = document.getElementById('vendor-phone');
+                            const emailInp = document.getElementById('vendor-email');
+                            const memoInp = document.getElementById('vendor-memo');
+
+                            if (nameInp) nameInp.value = data.name || '';
+                            if (typeInp) typeInp.value = data.type || 'material';
+                            if (contactInp) contactInp.value = data.contact || '';
+                            if (phoneInp) phoneInp.value = data.phone || '';
+                            if (emailInp) emailInp.value = data.email || '';
+                            if (memoInp) memoInp.value = data.memo || '';
+
+                            if (vendorEditIdInput) vendorEditIdInput.value = id;
+                            if (vendorFormTitle) vendorFormTitle.textContent = `仕入れ業者「${data.name}」の情報を編集`;
+                            if (vendorSubmitBtn) {
+                                vendorSubmitBtn.textContent = '情報を更新';
+                                vendorSubmitBtn.classList.remove('btn-primary');
+                                vendorSubmitBtn.classList.add('btn-secondary');
+                            }
+                            if (vendorCancelBtn) vendorCancelBtn.style.display = 'inline-block';
+                            if (vendorAddMsg) vendorAddMsg.classList.add('hidden');
+                            
+                            if (vendorAddForm) {
+                                vendorAddForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error loading vendor details:", err);
+                        alert("詳細データの取得に失敗しました。");
+                    }
+                };
+            });
+
+            // 削除ボタンのイベント
+            vendorListTbody.querySelectorAll('.btn-delete-vendor').forEach(btn => {
+                btn.onclick = async () => {
+                    const id = btn.dataset.id;
+                    const name = btn.dataset.name;
+                    if (confirm(`本当に仕入れ業者「${name}」を削除しますか？\n（この業者が設定された既存の原価明細データがある場合、プルダウン選択時に不整合が生じる可能性があります）`)) {
+                        try {
+                            await deleteDoc(doc(db, "companies", currentCompany.companyId, "vendors", id));
+                            if (typeof showToast === 'function') {
+                                showToast(`仕入れ業者「${name}」を削除しました。`, 'success');
+                            }
+                            loadAndRenderVendors();
+                            
+                            // 費用入力側のプルダウン依存関係も更新
+                            if (typeof loadCostInputFormDependencies === 'function') {
+                                loadCostInputFormDependencies();
+                            }
+                        } catch (err) {
+                            console.error("Error deleting vendor:", err);
+                            alert(`削除に失敗しました: ${err.message}`);
+                        }
+                    }
+                };
+            });
+
+        } catch (err) {
+            console.error("Error rendering vendor list:", err);
+            vendorListTbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:red;">データの読込みに失敗しました。</td></tr>`;
+        }
+    };
+
+    // タブ選択時のロード
+    tab.addEventListener('click', () => {
+        loadLatestCompanyInfo().then(() => {
+            loadAndRenderVendors();
+        });
+    });
+
+    // フォーム送信処理（追加・更新）
+    if (vendorAddForm) {
+        vendorAddForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if (vendorAddMsg) {
+                vendorAddMsg.className = 'message';
+                vendorAddMsg.textContent = '登録中...';
+                vendorAddMsg.classList.remove('hidden');
+            }
+
+            const name = document.getElementById('vendor-name').value.trim();
+            const type = document.getElementById('vendor-type').value;
+            const contact = document.getElementById('vendor-contact').value.trim();
+            const phone = document.getElementById('vendor-phone').value.trim();
+            const email = document.getElementById('vendor-email').value.trim();
+            const memo = document.getElementById('vendor-memo').value.trim();
+            const editId = vendorEditIdInput ? vendorEditIdInput.value : '';
+            const isEditMode = !!editId;
+
+            try {
+                if (vendorSubmitBtn) vendorSubmitBtn.disabled = true;
+
+                const vendorsRef = collection(db, "companies", currentCompany.companyId, "vendors");
+
+                if (isEditMode) {
+                    const docRef = doc(db, "companies", currentCompany.companyId, "vendors", editId);
+                    await updateDoc(docRef, {
+                        name,
+                        type,
+                        contact,
+                        phone,
+                        email,
+                        memo,
+                        updatedAt: new Date().toISOString()
+                    });
+                    if (typeof showToast === 'function') {
+                        showToast(`仕入れ業者「${name}」の情報を更新しました。`, 'success');
+                    }
+                    if (vendorAddMsg) {
+                        vendorAddMsg.className = 'message success';
+                        vendorAddMsg.textContent = `仕入れ業者「${name}」の情報を更新しました！`;
+                    }
+                } else {
+                    // 同名重複チェック
+                    const qCheck = query(vendorsRef, where("name", "==", name));
+                    const checkSnap = await getDocs(qCheck);
+                    if (!checkSnap.empty) {
+                        throw new Error(`同名の仕入れ業者「${name}」が既に登録されています。`);
+                    }
+
+                    await addDoc(vendorsRef, {
+                        name,
+                        type,
+                        contact,
+                        phone,
+                        email,
+                        memo,
+                        createdAt: new Date().toISOString()
+                    });
+                    if (typeof showToast === 'function') {
+                        showToast(`仕入れ業者「${name}」を登録しました。`, 'success');
+                    }
+                    if (vendorAddMsg) {
+                        vendorAddMsg.className = 'message success';
+                        vendorAddMsg.textContent = `仕入れ業者「${name}」を正常に登録しました！`;
+                    }
+                }
+
+                resetVendorForm();
+                loadAndRenderVendors();
+
+                // 費用入力側のプルダウン依存関係も更新
+                if (typeof loadCostInputFormDependencies === 'function') {
+                    loadCostInputFormDependencies();
+                }
+
+            } catch (err) {
+                console.error(err);
+                if (vendorAddMsg) {
+                    vendorAddMsg.className = 'message error';
+                    vendorAddMsg.textContent = `処理に失敗しました: ${err.message}`;
+                }
+            } finally {
+                if (vendorSubmitBtn) vendorSubmitBtn.disabled = false;
+            }
+        };
+    }
+
+    // 初回ロード
+    loadAndRenderVendors();
+}
+
 // 会社ドキュメントを最新にリロードするヘルパー関数
 async function loadLatestCompanyInfo() {
     if (!currentUser || !currentCompany) return;
