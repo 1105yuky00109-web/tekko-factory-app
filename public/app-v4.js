@@ -10389,6 +10389,11 @@ function initCostManagePanel() {
     const costInputForm = document.getElementById('cost-input-form');
     const costSaveMsg = document.getElementById('cost-save-message');
     if (costInputForm) {
+        costInputForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+            }
+        });
         costInputForm.onsubmit = async (e) => {
             e.preventDefault();
             const workId = costProjectSelect.value;
