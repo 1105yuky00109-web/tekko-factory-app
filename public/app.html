@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v90';
+            const RESET_KEY = 'sw_reset_v91';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -1098,24 +1098,24 @@
                 <div style="margin-top: 25px; margin-bottom: 25px; padding: 15px; background: var(--bg-muted, #f8fafc); border: 1px solid var(--border); border-radius: 8px;">
                     <h5 style="margin: 0 0 10px 0; font-size: 0.95rem; color: var(--text); font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 6px;">📈 収益・原価集計（リアルタイム計算）</h5>
                     <div class="form-row" style="margin-bottom: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">契約金額合計 (当初+追加)</span>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted); display: block; min-height: 34px; line-height: 1.2;">契約金額合計 (当初+追加)</span>
                             <div id="cost-contract-total-display" style="font-size: 1.2rem; font-weight: bold; color: #1e3a8a; margin-top: 4px;">¥0</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">請求金額</span>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted); display: block; min-height: 34px; line-height: 1.2;">請求金額</span>
                             <div id="cost-billing-display" style="font-size: 1.2rem; font-weight: bold; color: #0284c7; margin-top: 4px;">¥0</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">原価合計 (材料+外注+経費+労務)</span>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted); display: block; min-height: 34px; line-height: 1.2;">原価合計 (材料+外注+経費+労務)</span>
                             <div id="cost-total-display" style="font-size: 1.2rem; font-weight: bold; color: #ea580c; margin-top: 4px;">¥0</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">粗利 (利益)</span>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted); display: block; min-height: 34px; line-height: 1.2;">粗利 (利益)</span>
                             <div id="cost-profit-display" style="font-size: 1.2rem; font-weight: bold; color: #16a34a; margin-top: 4px;">¥0</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">粗利率</span>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted); display: block; min-height: 34px; line-height: 1.2;">粗利率</span>
                             <div id="cost-profit-rate-display" style="font-size: 1.2rem; font-weight: bold; color: #2563eb; margin-top: 4px;">0.0%</div>
                         </div>
                     </div>
@@ -1398,7 +1398,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260615-10"></script>
+<script type="module" src="app-v4.js?v=20260615-11"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>
