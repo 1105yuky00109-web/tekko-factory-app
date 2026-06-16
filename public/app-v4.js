@@ -9175,6 +9175,16 @@ async function performCheckOut() {
             return;
         }
 
+        // 外出（中抜け）があって再入（戻り）がない場合の確認ダイアログ
+        const attendanceData = docSnap.data();
+        if (attendanceData.leaveOut && !attendanceData.returnIn) {
+            const confirmCheckout = confirm("再入（戻り）の打刻が記録されていません。\nこのまま外出の状態で退勤（直帰など）しますか？");
+            if (!confirmCheckout) {
+                if (btnCheckout) btnCheckout.disabled = false;
+                return;
+            }
+        }
+
         await setDoc(docRef, {
             checkOut: timeStr,
             updatedAt: now.getTime()
