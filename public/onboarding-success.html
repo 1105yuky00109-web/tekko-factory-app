@@ -189,6 +189,21 @@
             '<p>※ <strong>メールに記載されたログインリンク</strong>よりシステムへお進みください。</p>' +
             '<p>※ お支払いは、請求書に記載の銀行口座（バーチャル口座）へ期日までにお振込みをお願いいたします。</p>';
         }
+      } else if (method === 'free') {
+        const titleEl = document.querySelector('.header h1');
+        const msgEl = document.querySelector('.message');
+        const infoEl = document.querySelector('.info-box');
+        
+        if (titleEl) titleEl.textContent = 'ご登録ありがとうございます！';
+        if (msgEl) {
+          msgEl.innerHTML = '無料版アカウントおよび会社データのセットアップが完了しました。<br><br>' +
+            'ご登録いただいたメールアドレス宛てに、<strong>「アカウント登録完了のお知らせメール」</strong>をお送りしましたのでご確認ください。';
+        }
+        if (infoEl) {
+          infoEl.innerHTML = '<p>※ 登録された管理者メールアドレス宛てに、ログインリンクが記載された<strong>「アカウント登録完了メール」</strong>をお送りしましたのでご確認ください。</p>' +
+            '<p>※ <strong>メールに記載されたログインリンク</strong>よりシステムへお進みください。</p>' +
+            '<p>※ ログインには、登録画面で設定されたパスワードを使用します。</p>';
+        }
       } else if (method === 'change-success') {
         const titleEl = document.querySelector('.header h1');
         const msgEl = document.querySelector('.message');

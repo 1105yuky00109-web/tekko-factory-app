@@ -379,7 +379,7 @@ function setupAuthListener() {
                 if (currentCompany && currentCompany.role === 'admin') {
                     if (currentPlanLimit) {
                         const maxUsers = currentCompany.maxUsers || 10;
-                        currentPlanLimit.textContent = maxUsers;
+                        currentPlanLimit.textContent = maxUsers >= 9999 ? '無制限' : `${maxUsers}名`;
                     }
                 }
 
@@ -969,7 +969,7 @@ function initEmployeeManagePanel() {
                 } else {
                     // 新規登録モード：契約上限チェック
                     const maxUsers = currentCompany.maxUsers || 10;
-                    if (employees.length >= maxUsers) {
+                    if (maxUsers < 9999 && employees.length >= maxUsers) {
                         throw new Error(`ご契約プランの上限数（最大 ${maxUsers} 名）に達しているため、新しい社員を追加できません。`);
                     }
 
@@ -8612,7 +8612,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 認証成功時：メニューを表示
             const maxUsers = companyData.maxUsers || 10;
             if (settingsPlanLimit) {
-                settingsPlanLimit.textContent = maxUsers;
+                settingsPlanLimit.textContent = maxUsers >= 9999 ? '無制限' : `${maxUsers}名`;
             }
             
             // トライアル情報の表示

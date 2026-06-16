@@ -359,6 +359,70 @@ ${invoiceLink}
   }
 
   try {
+    if (paymentMethod === 'free' || plan === 'free') {
+      console.log(`[API] Processing Free plan registration for ${adminEmail}`);
+
+      // Firebase Auth ユーザーを作成
+      const userRecord = await admin.auth().createUser({
+        email: adminEmail,
+        password: password,
+        displayName: adminName,
+        emailVerified: true,
+      });
+      const adminUid = userRecord.uid;
+
+      // Firestore に会社データを作成
+      const companyRef = db.collection('companies').doc(companyId);
+      const maxUsers = 9999; // 人数無制限（9999名）
+      await companyRef.set({
+        companyId,
+        companyName,
+        planId: 'free',
+        planName: '無料プラン (無制限)',
+        stripeCustomerId: '', // Stripeなし
+        maxUsers: maxUsers,
+        ownerUid: adminUid,
+        adminEmails: [adminEmail],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'active',
+        trialStart: null,
+        trialEnd: null,
+        paymentMethod: 'free',
+      });
+
+      const loginUrl = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html?logout=true&email=${encodeURIComponent(adminEmail)}`;
+      const emailText = `${adminName} 様
+
+この度は「工事・日報管理システム」無料版をご登録いただき、誠にありがとうございます。
+管理者様のアカウントおよび会社データのセットアップが完了いたしました。
+
+以下のログイン情報にてシステムをご利用いただけます。
+
+----------------------------------------
+■ ログインURL
+${loginUrl}
+
+■ 管理者ログイン用メールアドレス
+${adminEmail}
+----------------------------------------
+※ パスワードは登録時にご自身で設定された任意のパスワードとなります。
+
+ログイン後、管理者メニューよりユーザー（社員）の追加や予定表の設定を行ってください。
+
+ご不明な点がございましたら、AREVA サポート窓口までお問い合わせください。
+今後ともよろしくお願い申し上げます。
+`;
+
+      await sendMailHelper({
+        to: adminEmail,
+        subject: `【重要】${companyName}様 無料版アカウント登録完了のお知らせ`,
+        text: emailText,
+        fromName: 'AREVA サポート窓口'
+      });
+
+      return res.json({ success: true, paymentMethod: 'free' });
+    }
+
     // 顧客（Customer）の作成
     const customer = await stripe.customers.create({
       email: adminEmail,

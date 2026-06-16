@@ -4,7 +4,7 @@
 
     <script>
         (function() {
-            const RESET_KEY = 'sw_reset_v91';
+            const RESET_KEY = 'sw_reset_v92';
             if (!localStorage.getItem(RESET_KEY)) {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -128,8 +128,13 @@
             <div id="login-error" class="message error hidden">ログインに失敗しました。</div>
         </form>
 
-        <div style="margin-top:20px;text-align:center;border-top:1px solid var(--border);padding-top:16px;">
+        <div style="margin-top:20px;text-align:center;border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:14px;align-items:center;">
             <button type="button" id="btn-show-reset" style="background:none;border:none;color:#2563eb;font-size:0.9rem;cursor:pointer;text-decoration:underline;">パスワードをお忘れの方はこちら</button>
+            <a href="onboarding.html" style="color:#16a34a;font-size:0.95rem;font-weight:bold;text-decoration:none;display:inline-block;padding:10px 20px;border:1.5px solid #16a34a;border-radius:6px;transition:all 0.2s;width:100%;box-sizing:border-box;" 
+               onmouseover="this.style.background='#16a34a';this.style.color='white';" 
+               onmouseout="this.style.background='transparent';this.style.color='#16a34a';">
+               🎁 無料で新規アカウントを作成する
+            </a>
         </div>
 
         <div id="reset-password-section" style="display:none;margin-top:16px;">
@@ -1398,7 +1403,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260615-11"></script>
+<script type="module" src="app-v4.js?v=20260616-01"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>

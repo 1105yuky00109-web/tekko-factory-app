@@ -6,6 +6,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // お支払い方法のラジオボタン変更を検知してボタンテキストを動的変更
   const paymentRadios = document.querySelectorAll('input[name="paymentMethod"]');
+  const planHidden = document.getElementById('onboarding-plan-id');
+  const payMethodSection = document.getElementById('payment-method-section');
+  const payMethodFreeNote = document.getElementById('payment-method-free-note');
+  const quantityRadios = document.querySelectorAll('input[name="quantity"]');
+
+  const syncPlanAndPaymentSection = () => {
+    const selectedQuantity = form.querySelector('input[name="quantity"]:checked').value;
+    if (selectedQuantity === 'free') {
+      if (planHidden) planHidden.value = 'free';
+      if (payMethodSection) payMethodSection.style.display = 'none';
+      if (payMethodFreeNote) payMethodFreeNote.style.display = 'block';
+      if (submitBtn) submitBtn.textContent = '無料版で登録を完了する';
+    } else {
+      if (planHidden) planHidden.value = 'price_1TaP0sJdCQkwItViebEBEhJa'; // Stripe Price ID
+      if (payMethodSection) payMethodSection.style.display = 'block';
+      if (payMethodFreeNote) payMethodFreeNote.style.display = 'none';
+      syncSubmitButtonText();
+    }
+  };
 
   const syncSubmitButtonText = () => {
     const paymentMethod = form.paymentMethod.value;
@@ -16,8 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // 初期ロード時・戻るボタンで戻った時の状態を同期
-  syncSubmitButtonText();
+  // 初期化時に実行
+  syncPlanAndPaymentSection();
+
+  quantityRadios.forEach(radio => {
+    radio.addEventListener('change', syncPlanAndPaymentSection);
+  });
 
   paymentRadios.forEach(radio => {
     radio.addEventListener('change', () => {
@@ -28,9 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const paymentMethod = form.paymentMethod.value || 'card';
+    const selectedQuantity = form.querySelector('input[name="quantity"]:checked').value;
+    let paymentMethod = 'card';
+    if (selectedQuantity === 'free') {
+      paymentMethod = 'free';
+    } else {
+      paymentMethod = form.paymentMethod.value || 'card';
+    }
 
-    if (paymentMethod === 'invoice') {
+    if (paymentMethod === 'free') {
+      messageDiv.textContent = '無料版アカウントのセットアップを実行しています。少々お待ちください...';
+    } else if (paymentMethod === 'invoice') {
       messageDiv.textContent = 'アカウントおよび請求書のセットアップを実行しています。少々お待ちください...';
     } else {
       messageDiv.textContent = '決済画面へ進んでいます。少々お待ちください...';
@@ -49,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const companyName = form.companyName.value.trim();
-    const plan = form.plan.value; // price ID
+    const plan = form.plan.value; // price ID or 'free'
     if (!plan) {
       messageDiv.textContent = 'お選びいただくプランを選択してください。';
       messageDiv.className = 'message error';
@@ -108,8 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const data = await response.json();
 
-      // 請求書払いの場合は、Stripe決済を通さずに成功画面へリダイレクト
-      if (data.paymentMethod === 'invoice') {
+      // 無料プランまたは請求書払いの場合は、Stripe決済を通さずに成功画面へリダイレクト
+      if (data.paymentMethod === 'free') {
+        window.location.replace('onboarding-success.html?method=free');
+      } else if (data.paymentMethod === 'invoice') {
         window.location.replace('onboarding-success.html?method=invoice');
       } else if (data.url) {
         // Stripe Checkout の URL へリダイレクト
