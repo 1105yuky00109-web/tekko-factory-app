@@ -170,6 +170,65 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
       return res.status(500).json({ error: err.message });
     }
   }
+  
+  // 1.6. パスワード再設定メール送信API (自前SMTP経由)
+  if (path === '/request-password-reset') {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+    try {
+      // ユーザーの存在確認
+      const user = await admin.auth().getUserByEmail(email);
+      
+      // パスワードリセット用のリンクを生成 (continueUrlを指定)
+      const actionCodeSettings = {
+        url: `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/app.html`
+      };
+      const link = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+      
+      // 生成されたリンクのホスト部分と予約パスを自前のカスタムアクションURLに置換
+      let customLink = link.replace('/__/auth/action', '/auth-action.html');
+      customLink = customLink.replace('tekko-factory-app.firebaseapp.com', 'tekko-factory-app.web.app');
+      
+      // メールの件名と本文
+      const mailSubject = '【工事管理システム】パスワードの再設定';
+      const mailText = `工事管理システムをご利用いただき、ありがとうございます。
+
+お客様のアカウント（${email}）に対して、パスワードの再設定（リセット）要求がありました。
+新しいパスワードを設定するには、以下のリンクをクリックしてください。
+
+▼ パスワード再設定URL：
+${customLink}
+
+※上記のリンクは「新しいパスワード」と「確認用（2回入力）」の安全な入力画面が開きます。
+※変更完了後は、3秒後に自動的にログイン画面へ戻ります。
+※このメールに心当たりがない場合は、このメールを破棄してください。パスワードが変更されることはありません。
+
+-----------------------------------------
+工事管理システム チーム
+-----------------------------------------`;
+
+      await sendMailHelper({
+        to: email,
+        subject: mailSubject,
+        text: mailText,
+        fromName: '工事管理システム'
+      });
+
+      return res.json({ success: true, message: `Successfully sent reset link to ${email}` });
+    } catch (err) {
+      console.error('request-password-reset error', err);
+      // ユーザーが存在しないなどのエラー
+      if (err.code === 'auth/user-not-found') {
+        return res.status(404).json({ error: 'このメールアドレスはシステムに登録されていません。' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   // 1.8. プラン変更（登録人数の追加）API
   if (path === '/change-plan') {

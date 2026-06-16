@@ -35,7 +35,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日報管理システム</title>
+    <title>工事管理システム</title>
     <link rel="stylesheet" href="style-v4.css?v=20260607-018">
     <link rel="manifest" href="manifest.json">
     <!-- SheetJS for Excel Export -->
@@ -248,22 +248,11 @@
                     </div>
                 </div>
 
-                <!-- 5. 建て方開始日 & バーの色 -->
+                <!-- 5. 建て方開始日 -->
                 <div class="form-row">
-                    <div class="form-group" style="flex:1;">
+                    <div class="form-group" style="flex:1; max-width: 400px;">
                         <label for="sched-erection-date">建て方開始日</label>
                         <input type="date" id="sched-erection-date">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label for="sched-bar-color">バーの色</label>
-                        <select id="sched-bar-color" style="width:100%; height:45px; font-size:1rem; border-radius:6px; border:1px solid var(--border); padding:0 10px; background:var(--card-bg); color:var(--text);">
-                            <option value="#16a34a" style="background:#16a34a; color:#fff;">緑</option>
-                            <option value="#2563eb" style="background:#2563eb; color:#fff;" selected>青</option>
-                            <option value="#ea580c" style="background:#ea580c; color:#fff;">オレンジ</option>
-                            <option value="#9333ea" style="background:#9333ea; color:#fff;">紫</option>
-                            <option value="#db2777" style="background:#db2777; color:#fff;">ピンク</option>
-                            <option value="#ca8a04" style="background:#ca8a04; color:#fff;">黄</option>
-                        </select>
                     </div>
                 </div>
 
@@ -380,14 +369,24 @@
             <!-- 本日の記録表示 -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 25px;">
                 <h4 style="margin-top: 0; margin-bottom: 15px; font-size: 0.95rem; color: var(--text-muted); border-bottom: 1px dashed var(--border); padding-bottom: 6px;">本日の打刻記録</h4>
-                <div style="display: flex; justify-content: space-around; gap: 10px;">
-                    <div style="text-align: center; flex: 1; padding: 10px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div style="text-align: center; padding: 10px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
                         <div style="font-size: 0.8rem; color: #1e40af; font-weight: bold;">出勤時刻</div>
                         <div id="attend-checkin-time" style="font-size: 1.25rem; font-weight: bold; color: #1e3a8a; margin-top: 4px;">- - : - -</div>
                     </div>
-                    <div style="text-align: center; flex: 1; padding: 10px; background: #fff7ed; border-radius: 8px; border: 1px solid #ffedd5;">
+                    <div style="text-align: center; padding: 10px; background: #fff7ed; border-radius: 8px; border: 1px solid #ffedd5;">
                         <div style="font-size: 0.8rem; color: #c2410c; font-weight: bold;">退勤時刻</div>
                         <div id="attend-checkout-time" style="font-size: 1.25rem; font-weight: bold; color: #9a3412; margin-top: 4px;">- - : - -</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="text-align: center; padding: 10px; background: #fef2f2; border-radius: 8px; border: 1px solid #fca5a5;">
+                        <div style="font-size: 0.8rem; color: #991b1b; font-weight: bold;">外出（中抜け）</div>
+                        <div id="attend-leaveout-time" style="font-size: 1.25rem; font-weight: bold; color: #7f1d1d; margin-top: 4px;">- - : - -</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                        <div style="font-size: 0.8rem; color: #166534; font-weight: bold;">再入（戻り）</div>
+                        <div id="attend-returnin-time" style="font-size: 1.25rem; font-weight: bold; color: #14532d; margin-top: 4px;">- - : - -</div>
                     </div>
                 </div>
             </div>
@@ -399,6 +398,14 @@
                 </button>
                 <button type="button" id="btn-attend-checkout" class="btn btn-checkout" disabled style="height: 60px; font-size: 1.25rem; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px;">
                     <span>退 勤</span>
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <button type="button" id="btn-attend-leaveout" class="btn btn-leaveout" disabled style="height: 60px; font-size: 1.1rem; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px; background-color: #f87171; color: white; border: none; cursor: pointer; transition: background-color 0.2s;">
+                    <span>外出（中抜け）</span>
+                </button>
+                <button type="button" id="btn-attend-returnin" class="btn btn-returnin" disabled style="height: 60px; font-size: 1.1rem; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px; background-color: #34d399; color: white; border: none; cursor: pointer; transition: background-color 0.2s;">
+                    <span>再入（戻り）</span>
                 </button>
             </div>
             <div id="attend-message" class="message hidden" style="margin-top: 15px; text-align: center; font-weight: bold;"></div>
@@ -906,16 +913,18 @@
                 <table class="summary-table" style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: var(--primary); color: white;">
-                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 15%;">日付</th>
-                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 25%;">社員名</th>
-                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 20%;">出勤時刻</th>
-                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 20%;">退勤時刻</th>
-                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 20%;">労働時間</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 12%;">日付</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: left; background-color: var(--primary); color: white; width: 18%;">社員名</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 14%;">出勤時刻</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 14%;">外出（中抜け）</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 14%;">再入（戻り）</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: center; background-color: var(--primary); color: white; width: 14%;">退勤時刻</th>
+                            <th style="padding: 10px; border: 1px solid var(--border); text-align: right; background-color: var(--primary); color: white; width: 14%;">労働時間</th>
                         </tr>
                     </thead>
                     <tbody id="attend-admin-tbody">
                         <tr>
-                            <td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td>
+                            <td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td>
                         </tr>
                     </tbody>
                 </table>

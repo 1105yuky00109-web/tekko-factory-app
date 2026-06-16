@@ -379,7 +379,7 @@ function setupAuthListener() {
                 if (currentCompany && currentCompany.role === 'admin') {
                     if (currentPlanLimit) {
                         const maxUsers = currentCompany.maxUsers || 10;
-                        currentPlanLimit.textContent = maxUsers >= 9999 ? '無制限' : `${maxUsers}名`;
+                        currentPlanLimit.textContent = maxUsers;
                     }
                 }
 
@@ -969,7 +969,7 @@ function initEmployeeManagePanel() {
                 } else {
                     // 新規登録モード：契約上限チェック
                     const maxUsers = currentCompany.maxUsers || 10;
-                    if (maxUsers < 9999 && employees.length >= maxUsers) {
+                    if (employees.length >= maxUsers) {
                         throw new Error(`ご契約プランの上限数（最大 ${maxUsers} 名）に達しているため、新しい社員を追加できません。`);
                     }
 
@@ -1099,7 +1099,7 @@ async function initVendorManagePanel() {
                 const id = docSnap.id;
                 const name = data.name || '-';
                 
-                let typeLabel = 'その他';
+                let typeLabel = data.type || 'その他';
                 if (data.type === 'material') typeLabel = '材料業者';
                 else if (data.type === 'subcontract') typeLabel = '外注業者';
                 else if (data.type === 'expense') typeLabel = '経費';
@@ -1143,7 +1143,13 @@ async function initVendorManagePanel() {
                             const memoInp = document.getElementById('vendor-memo');
 
                             if (nameInp) nameInp.value = data.name || '';
-                            if (typeInp) typeInp.value = data.type || 'material';
+                            if (typeInp) {
+                                let typeVal = data.type || 'その他';
+                                if (typeVal === 'material') typeVal = 'その他';
+                                else if (typeVal === 'subcontract') typeVal = '外注業者';
+                                else if (typeVal === 'expense') typeVal = 'その他';
+                                typeInp.value = typeVal;
+                            }
                             if (contactInp) contactInp.value = data.contact || '';
                             if (phoneInp) phoneInp.value = data.phone || '';
                             if (emailInp) emailInp.value = data.email || '';
@@ -2957,14 +2963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 erectionDate: getVal('sched-erection-date'),
                 chiefTech: getValRaw('sched-chief-tech'),
                 assignType: "none",
-                barColor: (() => {
-                    if (schedId && window.editingScheduleBarColor) {
-                        return window.editingScheduleBarColor;
-                    }
-                    const PALETTE = ['#2563eb', '#16a34a', '#ea580c', '#9333ea', '#db2777', '#ca8a04', '#0d9488'];
-                    const index = (typeof allSchedules !== 'undefined' && Array.isArray(allSchedules)) ? allSchedules.length : 0;
-                    return PALETTE[index % PALETTE.length];
-                })(),
+                barColor: getVal('sched-bar-color') || '#2563eb', // デフォルトは青色
                 timestamp: new Date().toISOString()
             };
             try {
@@ -6554,7 +6553,7 @@ function startEditScheduleMode(sched) {
     setVal('sched-chief-tech', sched.chiefTech || '');
     setVal('sched-notes', sched.notes || '');
     setVal('sched-author', sched.author || '');
-    window.editingScheduleBarColor = sched.barColor || '#2563eb';
+    setVal('sched-bar-color', sched.barColor || '#2563eb');
 
     // タブ切り替え
     const tabBtn = document.querySelector('.tab-btn[data-target="schedule-input-view"]');
@@ -6581,7 +6580,6 @@ function resetScheduleEditMode() {
             if (authorEl) authorEl.value = nameDisplay;
         }
     }
-    window.editingScheduleBarColor = null;
 }
 
 // --- ガントチャート予定編集モーダル ---
@@ -8620,7 +8618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 認証成功時：メニューを表示
             const maxUsers = companyData.maxUsers || 10;
             if (settingsPlanLimit) {
-                settingsPlanLimit.textContent = maxUsers >= 9999 ? '無制限' : `${maxUsers}名`;
+                settingsPlanLimit.textContent = maxUsers;
             }
             
             // トライアル情報の表示
@@ -8816,20 +8814,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const btnAttendLeaveout = document.getElementById('btn-attend-leaveout');
-    if (btnAttendLeaveout) {
-        btnAttendLeaveout.addEventListener('click', () => {
-            performLeaveOut();
-        });
-    }
-
-    const btnAttendReturnin = document.getElementById('btn-attend-returnin');
-    if (btnAttendReturnin) {
-        btnAttendReturnin.addEventListener('click', () => {
-            performReturnIn();
-        });
-    }
-
     // ==========================================
     // 管理者出退勤管理画面のイベント紐付け
     // ==========================================
@@ -8978,22 +8962,14 @@ function populateAttendanceMemberDropdown() {
 function resetAttendanceButtons() {
     const btnCheckin = document.getElementById('btn-attend-checkin');
     const btnCheckout = document.getElementById('btn-attend-checkout');
-    const btnLeaveOut = document.getElementById('btn-attend-leaveout');
-    const btnReturnIn = document.getElementById('btn-attend-returnin');
     const checkinTimeEl = document.getElementById('attend-checkin-time');
     const checkoutTimeEl = document.getElementById('attend-checkout-time');
-    const leaveoutTimeEl = document.getElementById('attend-leaveout-time');
-    const returninTimeEl = document.getElementById('attend-returnin-time');
     const messageEl = document.getElementById('attend-message');
 
     if (btnCheckin) btnCheckin.disabled = true;
     if (btnCheckout) btnCheckout.disabled = true;
-    if (btnLeaveOut) btnLeaveOut.disabled = true;
-    if (btnReturnIn) btnReturnIn.disabled = true;
     if (checkinTimeEl) checkinTimeEl.textContent = "- - : - -";
     if (checkoutTimeEl) checkoutTimeEl.textContent = "- - : - -";
-    if (leaveoutTimeEl) leaveoutTimeEl.textContent = "- - : - -";
-    if (returninTimeEl) returninTimeEl.textContent = "- - : - -";
     if (messageEl) {
         messageEl.textContent = "";
         messageEl.className = "message hidden";
@@ -9009,12 +8985,8 @@ async function loadAttendanceData(memberName) {
 
     const btnCheckin = document.getElementById('btn-attend-checkin');
     const btnCheckout = document.getElementById('btn-attend-checkout');
-    const btnLeaveOut = document.getElementById('btn-attend-leaveout');
-    const btnReturnIn = document.getElementById('btn-attend-returnin');
     const checkinTimeEl = document.getElementById('attend-checkin-time');
     const checkoutTimeEl = document.getElementById('attend-checkout-time');
-    const leaveoutTimeEl = document.getElementById('attend-leaveout-time');
-    const returninTimeEl = document.getElementById('attend-returnin-time');
     const messageEl = document.getElementById('attend-message');
     
     if (!currentCompany || !currentCompany.companyId) return;
@@ -9028,19 +9000,13 @@ async function loadAttendanceData(memberName) {
             const data = docSnap.data();
             const checkIn = data.checkIn || "";
             const checkOut = data.checkOut || "";
-            const leaveOut = data.leaveOut || "";
-            const returnIn = data.returnIn || "";
 
             if (checkinTimeEl) checkinTimeEl.textContent = checkIn ? checkIn : "- - : - -";
             if (checkoutTimeEl) checkoutTimeEl.textContent = checkOut ? checkOut : "- - : - -";
-            if (leaveoutTimeEl) leaveoutTimeEl.textContent = leaveOut ? leaveOut : "- - : - -";
-            if (returninTimeEl) returninTimeEl.textContent = returnIn ? returnIn : "- - : - -";
 
             if (!checkIn) {
                 if (btnCheckin) btnCheckin.disabled = false;
                 if (btnCheckout) btnCheckout.disabled = true;
-                if (btnLeaveOut) btnLeaveOut.disabled = true;
-                if (btnReturnIn) btnReturnIn.disabled = true;
                 if (messageEl) {
                     messageEl.textContent = "";
                     messageEl.className = "message hidden";
@@ -9048,18 +9014,6 @@ async function loadAttendanceData(memberName) {
             } else if (checkIn && !checkOut) {
                 if (btnCheckin) btnCheckin.disabled = true;
                 if (btnCheckout) btnCheckout.disabled = false;
-
-                if (!leaveOut) {
-                    if (btnLeaveOut) btnLeaveOut.disabled = false;
-                    if (btnReturnIn) btnReturnIn.disabled = true;
-                } else if (leaveOut && !returnIn) {
-                    if (btnLeaveOut) btnLeaveOut.disabled = true;
-                    if (btnReturnIn) btnReturnIn.disabled = false;
-                } else {
-                    if (btnLeaveOut) btnLeaveOut.disabled = true;
-                    if (btnReturnIn) btnReturnIn.disabled = true;
-                }
-
                 if (messageEl) {
                     messageEl.textContent = "";
                     messageEl.className = "message hidden";
@@ -9067,8 +9021,6 @@ async function loadAttendanceData(memberName) {
             } else {
                 if (btnCheckin) btnCheckin.disabled = true;
                 if (btnCheckout) btnCheckout.disabled = true;
-                if (btnLeaveOut) btnLeaveOut.disabled = true;
-                if (btnReturnIn) btnReturnIn.disabled = true;
                 if (messageEl) {
                     messageEl.textContent = "本日の打刻（出勤・退勤）は完了しています。";
                     messageEl.className = "message info";
@@ -9077,12 +9029,8 @@ async function loadAttendanceData(memberName) {
         } else {
             if (checkinTimeEl) checkinTimeEl.textContent = "- - : - -";
             if (checkoutTimeEl) checkoutTimeEl.textContent = "- - : - -";
-            if (leaveoutTimeEl) leaveoutTimeEl.textContent = "- - : - -";
-            if (returninTimeEl) returninTimeEl.textContent = "- - : - -";
             if (btnCheckin) btnCheckin.disabled = false;
             if (btnCheckout) btnCheckout.disabled = true;
-            if (btnLeaveOut) btnLeaveOut.disabled = true;
-            if (btnReturnIn) btnReturnIn.disabled = true;
             if (messageEl) {
                 messageEl.textContent = "";
                 messageEl.className = "message hidden";
@@ -9194,111 +9142,6 @@ async function performCheckOut() {
     }
 }
 
-// 外出打刻処理
-async function performLeaveOut() {
-    const select = document.getElementById('attend-member-select');
-    if (!select) return;
-    const memberName = select.value;
-    if (!memberName) return;
-
-    const btnLeaveOut = document.getElementById('btn-attend-leaveout');
-    if (!currentCompany || !currentCompany.companyId) return;
-
-    try {
-        if (btnLeaveOut) btnLeaveOut.disabled = true;
-
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const todayStr = getTodayStr();
-
-        const docRef = doc(db, "companies", currentCompany.companyId, "attendance", memberName, "daily", todayStr);
-
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists() || !docSnap.data().checkIn) {
-            alert("出勤打刻が記録されていません。出勤打刻から行ってください。");
-            await loadAttendanceData(memberName);
-            return;
-        }
-        if (docSnap.exists() && docSnap.data().leaveOut) {
-            alert("すでに外出打刻が記録されています。");
-            await loadAttendanceData(memberName);
-            return;
-        }
-
-        await setDoc(docRef, {
-            leaveOut: timeStr,
-            updatedAt: now.getTime()
-        }, { merge: true });
-
-        if (typeof showToast === 'function') {
-            showToast(`${memberName}さん、外出打刻完了しました (${timeStr})`);
-        } else {
-            alert(`${memberName}さん、外出打刻完了しました (${timeStr})`);
-        }
-        await loadAttendanceData(memberName);
-
-    } catch (error) {
-        console.error("Error leaving out:", error);
-        alert("打刻に失敗しました。もう一度お試しください。");
-        if (btnLeaveOut) btnLeaveOut.disabled = false;
-    }
-}
-
-// 再入打刻処理
-async function performReturnIn() {
-    const select = document.getElementById('attend-member-select');
-    if (!select) return;
-    const memberName = select.value;
-    if (!memberName) return;
-
-    const btnReturnIn = document.getElementById('btn-attend-returnin');
-    if (!currentCompany || !currentCompany.companyId) return;
-
-    try {
-        if (btnReturnIn) btnReturnIn.disabled = true;
-
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const todayStr = getTodayStr();
-
-        const docRef = doc(db, "companies", currentCompany.companyId, "attendance", memberName, "daily", todayStr);
-
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists() || !docSnap.data().checkIn) {
-            alert("出勤打刻が記録されていません。");
-            await loadAttendanceData(memberName);
-            return;
-        }
-        if (!docSnap.data().leaveOut) {
-            alert("外出打刻が記録されていません。外出打刻から行ってください。");
-            await loadAttendanceData(memberName);
-            return;
-        }
-        if (docSnap.exists() && docSnap.data().returnIn) {
-            alert("すでに再入打刻が記録されています。");
-            await loadAttendanceData(memberName);
-            return;
-        }
-
-        await setDoc(docRef, {
-            returnIn: timeStr,
-            updatedAt: now.getTime()
-        }, { merge: true });
-
-        if (typeof showToast === 'function') {
-            showToast(`${memberName}さん、再入打刻完了しました (${timeStr})`);
-        } else {
-            alert(`${memberName}さん、再入打刻完了しました (${timeStr})`);
-        }
-        await loadAttendanceData(memberName);
-
-    } catch (error) {
-        console.error("Error returning in:", error);
-        alert("打刻に失敗しました。もう一度お試しください。");
-        if (btnReturnIn) btnReturnIn.disabled = false;
-    }
-}
-
 // 管理者画面のフィルター初期化
 function initAttendanceAdminFilters() {
     const monthSelect = document.getElementById('attend-admin-filter-month');
@@ -9338,7 +9181,7 @@ async function loadAttendanceAdminData() {
     const totalHoursEl = document.getElementById('attend-admin-total-hours');
     
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">データをロード中...</td></tr>';
     if (totalDaysEl) totalDaysEl.textContent = '0 日';
     if (totalHoursEl) totalHoursEl.textContent = '0.0 時間';
 
@@ -9361,7 +9204,7 @@ async function loadAttendanceAdminData() {
     }
 
     if (targetMembers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">社員が登録されていません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">社員が登録されていません。</td></tr>';
         return;
     }
 
@@ -9385,8 +9228,6 @@ async function loadAttendanceAdminData() {
                     memberName: memberName,
                     checkIn: data.checkIn || "",
                     checkOut: data.checkOut || "",
-                    leaveOut: data.leaveOut || "",
-                    returnIn: data.returnIn || "",
                 });
             });
             return records;
@@ -9408,7 +9249,7 @@ async function loadAttendanceAdminData() {
         tbody.innerHTML = "";
         
         if (allRecords.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">対象期間の打刻データはありません。</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">対象期間の打刻データはありません。</td></tr>';
             return;
         }
 
@@ -9421,24 +9262,7 @@ async function loadAttendanceAdminData() {
                 const outParts = rec.checkOut.split(':');
                 const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
                 const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
-                let diffMin = outMin - inMin;
-
-                // 中抜け時間の計算
-                if (rec.leaveOut) {
-                    const leaveParts = rec.leaveOut.split(':');
-                    const leaveMin = parseInt(leaveParts[0], 10) * 60 + parseInt(leaveParts[1], 10);
-                    
-                    let returnMin = outMin; // 再入がない場合は退勤時刻までを外出とみなす
-                    if (rec.returnIn) {
-                        const returnParts = rec.returnIn.split(':');
-                        returnMin = parseInt(returnParts[0], 10) * 60 + parseInt(returnParts[1], 10);
-                    }
-                    
-                    const breakMin = returnMin - leaveMin;
-                    if (breakMin > 0) {
-                        diffMin -= breakMin;
-                    }
-                }
+                const diffMin = outMin - inMin;
 
                 if (diffMin > 0) {
                     workingHours = diffMin / 60;
@@ -9462,8 +9286,6 @@ async function loadAttendanceAdminData() {
                 <td style="padding: 10px; border: 1px solid var(--border); text-align: center;">${dateText}</td>
                 <td style="padding: 10px; border: 1px solid var(--border); text-align: left; font-weight: bold;">${rec.memberName}</td>
                 <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #1e3a8a; font-weight: 500;">${rec.checkIn || "- - : - -"}</td>
-                <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #d97706; font-weight: 500;">${rec.leaveOut || "- - : - -"}</td>
-                <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #0d9488; font-weight: 500;">${rec.returnIn || "- - : - -"}</td>
                 <td style="padding: 10px; border: 1px solid var(--border); text-align: center; color: #9a3412; font-weight: 500;">${rec.checkOut || "- - : - -"}</td>
                 <td style="padding: 10px; border: 1px solid var(--border); text-align: right; font-weight: bold; color: var(--primary);">${workingHoursStr}</td>
             `;
@@ -9482,7 +9304,7 @@ async function loadAttendanceAdminData() {
 
     } catch (error) {
         console.error("Error loading attendance admin data:", error);
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">データのロード中にエラーが発生しました。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">データのロード中にエラーが発生しました。</td></tr>';
     }
 }
 
@@ -9597,25 +9419,7 @@ function renderAttendanceCalendar() {
             const outParts = rec.checkOut.split(':');
             const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
             const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
-            let diffMin = outMin - inMin;
-
-            // 中抜け時間の計算
-            if (rec.leaveOut) {
-                const leaveParts = rec.leaveOut.split(':');
-                const leaveMin = parseInt(leaveParts[0], 10) * 60 + parseInt(leaveParts[1], 10);
-                
-                let returnMin = outMin; // 再入がない場合は退勤時刻までを外出とみなす
-                if (rec.returnIn) {
-                    const returnParts = rec.returnIn.split(':');
-                    returnMin = parseInt(returnParts[0], 10) * 60 + parseInt(returnParts[1], 10);
-                }
-                
-                const breakMin = returnMin - leaveMin;
-                if (breakMin > 0) {
-                    diffMin -= breakMin;
-                }
-            }
-
+            const diffMin = outMin - inMin;
             if (diffMin > 0) {
                 workingHours = diffMin / 60;
             }
@@ -9789,25 +9593,7 @@ function exportAttendanceCalendarToExcel() {
             const outParts = rec.checkOut.split(':');
             const inMin = parseInt(inParts[0], 10) * 60 + parseInt(inParts[1], 10);
             const outMin = parseInt(outParts[0], 10) * 60 + parseInt(outParts[1], 10);
-            let diffMin = outMin - inMin;
-
-            // 中抜け時間の計算
-            if (rec.leaveOut) {
-                const leaveParts = rec.leaveOut.split(':');
-                const leaveMin = parseInt(leaveParts[0], 10) * 60 + parseInt(leaveParts[1], 10);
-                
-                let returnMin = outMin; // 再入がない場合は退勤時刻までを外出とみなす
-                if (rec.returnIn) {
-                    const returnParts = rec.returnIn.split(':');
-                    returnMin = parseInt(returnParts[0], 10) * 60 + parseInt(returnParts[1], 10);
-                }
-                
-                const breakMin = returnMin - leaveMin;
-                if (breakMin > 0) {
-                    diffMin -= breakMin;
-                }
-            }
-
+            const diffMin = outMin - inMin;
             if (diffMin > 0) workingHours = diffMin / 60;
         }
         recordsMap[rec.memberName][rec.date] = workingHours;
@@ -10379,21 +10165,23 @@ function initCostManagePanel() {
             const container = tr.querySelector('.supplier-cell-container');
             if (!container) return;
 
-            if (category === 'subcontract') {
-                let optionsHtml = '<option value="">外注先を選択してください</option>';
-                companyVendors.forEach(vendor => {
-                    optionsHtml += `<option value="${vendor.name}">${vendor.name}</option>`;
-                });
-                container.innerHTML = `
-                    <select class="detail-supplier" required style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
-                        ${optionsHtml}
-                    </select>
-                `;
-            } else {
-                container.innerHTML = `
-                    <input type="text" class="detail-supplier" placeholder="例: ○○商事" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
-                `;
+            let optionsHtml = '<option value="">取引先を選択してください</option>';
+            let existingValFound = false;
+            companyVendors.forEach(vendor => {
+                const isSelected = (existingVal && vendor.name === existingVal);
+                if (isSelected) existingValFound = true;
+                optionsHtml += `<option value="${vendor.name}">${vendor.name}</option>`;
+            });
+
+            if (existingVal && !existingValFound) {
+                optionsHtml += `<option value="${existingVal}">${existingVal} (マスタ未登録)</option>`;
             }
+
+            container.innerHTML = `
+                <select class="detail-supplier" required style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
+                    ${optionsHtml}
+                </select>
+            `;
 
             const supplierInput = container.querySelector('.detail-supplier');
             if (supplierInput && existingVal) {
@@ -10429,65 +10217,6 @@ function initCostManagePanel() {
         costDetailsTbody.appendChild(tr);
     };
 
-    const costAdditionalWorksTbody = document.getElementById('cost-additional-works-tbody');
-    const btnCostAddAdditionalWork = document.getElementById('btn-cost-add-additional-work');
-
-    const addAdditionalWorkRow = (data = null) => {
-        if (!costAdditionalWorksTbody) return;
-
-        const tr = document.createElement('tr');
-        tr.className = 'cost-additional-work-row';
-        tr.style.borderBottom = '1px solid var(--border)';
-
-        tr.innerHTML = `
-            <td style="padding: 8px; border: 1px solid var(--border);">
-                <input type="text" class="additional-work-name" required placeholder="例: 追加製作・加工" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
-            </td>
-            <td style="padding: 8px; border: 1px solid var(--border);">
-                <input type="number" class="additional-work-amount" required placeholder="0" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; text-align: right; background: var(--card-bg); color: var(--text);">
-            </td>
-            <td style="padding: 8px; border: 1px solid var(--border);">
-                <input type="date" class="additional-work-date" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 4px; background: var(--card-bg); color: var(--text);">
-            </td>
-            <td style="padding: 8px; border: 1px solid var(--border);">
-                <input type="text" class="additional-work-memo" placeholder="備考" style="width: 100%; height: 36px; border-radius: 4px; border: 1px solid var(--border); padding: 0 8px; background: var(--card-bg); color: var(--text);">
-            </td>
-            <td style="padding: 8px; border: 1px solid var(--border); text-align: center;">
-                <button type="button" class="btn-additional-work-delete" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center;" title="削除">🗑️</button>
-            </td>
-        `;
-
-        const amountInput = tr.querySelector('.additional-work-amount');
-        const nameInput = tr.querySelector('.additional-work-name');
-        const dateInput = tr.querySelector('.additional-work-date');
-        const memoInput = tr.querySelector('.additional-work-memo');
-        const deleteBtn = tr.querySelector('.btn-additional-work-delete');
-
-        if (data) {
-            nameInput.value = data.name || '';
-            amountInput.value = data.amount || '';
-            dateInput.value = data.date || '';
-            memoInput.value = data.memo || '';
-        }
-
-        amountInput.addEventListener('change', () => calculateAndDisplayCostSummary());
-        amountInput.addEventListener('input', () => calculateAndDisplayCostSummary());
-
-        deleteBtn.addEventListener('click', () => {
-            tr.remove();
-            calculateAndDisplayCostSummary();
-        });
-
-        costAdditionalWorksTbody.appendChild(tr);
-    };
-
-    if (btnCostAddAdditionalWork) {
-        btnCostAddAdditionalWork.onclick = () => {
-            addAdditionalWorkRow();
-            calculateAndDisplayCostSummary();
-        };
-    }
-
     if (btnCostAddDetail) {
         btnCostAddDetail.onclick = () => {
             addCostDetailRow();
@@ -10496,12 +10225,6 @@ function initCostManagePanel() {
     }
     if (costBillingAmount) {
         costBillingAmount.oninput = () => {
-            calculateAndDisplayCostSummary();
-        };
-    }
-    const costContractAmount = document.getElementById('cost-contract-amount');
-    if (costContractAmount) {
-        costContractAmount.oninput = () => {
             calculateAndDisplayCostSummary();
         };
     }
@@ -10534,23 +10257,13 @@ function initCostManagePanel() {
         if (subcontractInput) subcontractInput.value = subcontractSum.toLocaleString();
         if (expenseInput) expenseInput.value = expenseSum.toLocaleString();
 
-        // 当初契約金額 + 追加工事金額の合計を「契約金額合計」とする
-        const contractAmount = parseInt(document.getElementById('cost-contract-amount').value, 10) || 0;
-        let additionalWorksTotal = 0;
-        if (costAdditionalWorksTbody) {
-            const rows = costAdditionalWorksTbody.querySelectorAll('.cost-additional-work-row');
-            rows.forEach(row => {
-                additionalWorksTotal += parseInt(row.querySelector('.additional-work-amount').value, 10) || 0;
-            });
-        }
-        const contractTotal = contractAmount + additionalWorksTotal;
-
+        const billingAmount = parseInt(costBillingAmount.value, 10) || 0;
         const laborCostVal = parseInt(costLaborCost.dataset.value || 0, 10);
         const totalCost = materialSum + subcontractSum + expenseSum + laborCostVal;
-        const profit = contractTotal - totalCost; // 契約金額合計ベース
+        const profit = billingAmount - totalCost;
         let profitRate = 0;
-        if (contractTotal > 0) {
-            profitRate = (profit / contractTotal) * 100; // 契約金額合計ベース
+        if (billingAmount > 0) {
+            profitRate = (profit / billingAmount) * 100;
         }
 
         if (costTotalDisplay) costTotalDisplay.textContent = `¥${totalCost.toLocaleString()}`;
@@ -10627,16 +10340,7 @@ function initCostManagePanel() {
                 document.getElementById('cost-billing-date').value = data.revenue?.billingDate || '';
                 document.getElementById('cost-payment-amount').value = data.revenue?.paymentAmount || '';
                 document.getElementById('cost-payment-date').value = data.revenue?.paymentDate || '';
-                document.getElementById('cost-contract-amount').value = data.contract?.contractAmount || '';
-                document.getElementById('cost-contract-date').value = data.contract?.contractDate || '';
-                document.getElementById('cost-client-name').value = data.contract?.clientName || '';
                 document.getElementById('cost-memo').value = data.memo || '';
-
-                if (costAdditionalWorksTbody) costAdditionalWorksTbody.innerHTML = '';
-                const additionalWorks = data.additionalWorks || [];
-                if (additionalWorks.length > 0) {
-                    additionalWorks.forEach(w => addAdditionalWorkRow(w));
-                }
 
                 const costDetails = data.costDetails || [];
                 if (costDetails.length > 0) {
@@ -10675,18 +10379,11 @@ function initCostManagePanel() {
         document.getElementById('cost-billing-date').value = '';
         document.getElementById('cost-payment-amount').value = '';
         document.getElementById('cost-payment-date').value = '';
-        document.getElementById('cost-contract-amount').value = '';
-        document.getElementById('cost-contract-date').value = '';
-        document.getElementById('cost-client-name').value = '';
         document.getElementById('cost-memo').value = '';
         if (costDetailsTbody) {
             costDetailsTbody.innerHTML = '';
         }
         addCostDetailRow();
-
-        if (costAdditionalWorksTbody) {
-            costAdditionalWorksTbody.innerHTML = '';
-        }
 
         if (clearLabor) {
             costLaborCost.value = '0';
@@ -10723,27 +10420,6 @@ function initCostManagePanel() {
             const billingDate = document.getElementById('cost-billing-date').value;
             const paymentAmount = document.getElementById('cost-payment-amount').value ? parseInt(document.getElementById('cost-payment-amount').value, 10) : 0;
             const paymentDate = document.getElementById('cost-payment-date').value;
-
-            // 新規追加された当初契約情報
-            const contractAmount = document.getElementById('cost-contract-amount').value ? parseInt(document.getElementById('cost-contract-amount').value, 10) : 0;
-            const contractDate = document.getElementById('cost-contract-date').value;
-            const clientName = document.getElementById('cost-client-name').value.trim();
-
-            // 追加工事明細
-            const additionalWorks = [];
-            let additionalWorksTotal = 0;
-            if (costAdditionalWorksTbody) {
-                const rows = costAdditionalWorksTbody.querySelectorAll('.cost-additional-work-row');
-                rows.forEach(row => {
-                    const name = row.querySelector('.additional-work-name').value.trim();
-                    const amount = parseInt(row.querySelector('.additional-work-amount').value, 10) || 0;
-                    const date = row.querySelector('.additional-work-date').value;
-                    const memo = row.querySelector('.additional-work-memo').value.trim();
-
-                    additionalWorks.push({ name, amount, date, memo });
-                    additionalWorksTotal += amount;
-                });
-            }
 
             const costDetails = [];
             let materialCost = 0;
@@ -10789,13 +10465,6 @@ function initCostManagePanel() {
                 workId,
                 workName,
                 yearMonth: yyyymm,
-                contract: {
-                    contractAmount,
-                    contractDate,
-                    clientName
-                },
-                additionalWorks,
-                additionalWorksTotal,
                 revenue: {
                     billingAmount,
                     billingDate,
@@ -10836,7 +10505,7 @@ function initCostManagePanel() {
     const costListTbody = document.getElementById('cost-list-tbody');
     const loadCostList = async () => {
         if (!currentCompany || !costListTbody) return;
-        costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td></tr>';
+        costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">データを読込み中...</td></tr>';
 
         try {
             const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
@@ -10852,8 +10521,6 @@ function initCostManagePanel() {
                 if (!projectSummary[workId]) {
                     projectSummary[workId] = {
                         workName: data.workName || '不明な工事',
-                        contractAmount: 0,
-                        additionalAmount: 0,
                         billingAmount: 0,
                         material: 0,
                         subcontract: 0,
@@ -10863,8 +10530,6 @@ function initCostManagePanel() {
                 }
 
                 const s = projectSummary[workId];
-                s.contractAmount += data.contract?.contractAmount || 0;
-                s.additionalAmount += data.additionalWorksTotal || 0;
                 s.billingAmount += data.revenue?.billingAmount || 0;
                 s.material += data.cost?.materialCost || 0;
                 s.subcontract += data.cost?.subcontractCost || 0;
@@ -10874,34 +10539,29 @@ function initCostManagePanel() {
 
             const keys = Object.keys(projectSummary);
             if (keys.length === 0) {
-                costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">登録されている原価データがありません。</td></tr>';
+                costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-muted);">登録されている原価データがありません。</td></tr>';
                 return;
             }
 
             costListTbody.innerHTML = keys.map(workId => {
                 const s = projectSummary[workId];
-                const contractTotal = s.contractAmount + s.additionalAmount;
                 const costTotal = s.material + s.subcontract + s.expense + s.labor;
-                const profit = contractTotal - costTotal;
-                const profitRate = contractTotal > 0 ? (profit / contractTotal) * 100 : 0;
+                const profit = s.billingAmount - costTotal;
+                const profitRate = s.billingAmount > 0 ? (profit / s.billingAmount) * 100 : 0;
                 
                 const isLoss = profit < 0;
                 const profitClass = isLoss ? 'text-danger' : '';
-                const profitRateText = contractTotal > 0 ? `${profitRate.toFixed(1)}%` : '-';
+                const profitRateText = s.billingAmount > 0 ? `${profitRate.toFixed(1)}%` : '-';
 
                 return `
                     <tr style="border-bottom: 1px solid var(--border);">
                         <td style="padding: 10px 12px; font-weight: bold; color: var(--text-main); text-align: left;">${s.workName}</td>
-                        <td style="padding: 10px 12px; text-align: right;">¥${contractTotal.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;">¥${s.billingAmount.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;">¥${costTotal.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: right;" class="${profitClass}">¥${profit.toLocaleString()}</td>
                         <td style="padding: 10px 12px; text-align: center;" class="${profitClass}">${profitRateText}</td>
                         <td style="padding: 10px 12px; text-align: center;">
-                            <div style="display:flex; gap:4px; justify-content:center;">
-                                <button class="btn btn-secondary btn-small" onclick="viewCostDetailModal('${workId}')" style="padding: 2px 8px; font-size:0.75rem; min-width:44px; height:28px;">内訳</button>
-                                <button class="btn btn-primary btn-small" onclick="editCostRecordLatest('${workId}')" style="padding: 2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; min-width:44px; height:28px; cursor:pointer;">編集</button>
-                            </div>
+                            <button class="btn btn-secondary btn-small" onclick="viewCostDetailModal('${workId}')" style="padding: 2px 8px; font-size:0.75rem;">内訳</button>
                         </td>
                     </tr>
                 `;
@@ -10909,7 +10569,7 @@ function initCostManagePanel() {
 
         } catch (err) {
             console.error("Error loading cost list:", err);
-            costListTbody.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-danger);">データの読み込みに失敗しました。</td></tr>';
+            costListTbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-danger);">データの読み込みに失敗しました。</td></tr>';
         }
     };
 
@@ -10946,13 +10606,11 @@ function initCostManagePanel() {
 
         const yyyymm = ymStr.replace('-', '');
 
-        const totalContractEl = document.getElementById('cost-summary-total-contract');
         const totalBillingEl = document.getElementById('cost-summary-total-billing');
         const totalPaymentEl = document.getElementById('cost-summary-total-payment');
         const totalUnpaidEl = document.getElementById('cost-summary-total-unpaid');
         const totalProfitEl = document.getElementById('cost-summary-total-profit');
 
-        const breakdownContractEl = document.getElementById('cost-breakdown-contract');
         const breakdownBillingEl = document.getElementById('cost-breakdown-billing');
         const breakdownPaymentEl = document.getElementById('cost-breakdown-payment');
         const breakdownUnpaidEl = document.getElementById('cost-breakdown-unpaid');
@@ -10968,7 +10626,6 @@ function initCostManagePanel() {
             const q = query(costRecordsRef, where("yearMonth", "==", yyyymm));
             const querySnapshot = await getDocs(q);
 
-            let contractSum = 0;
             let billingSum = 0;
             let paymentSum = 0;
             let materialSum = 0;
@@ -10978,9 +10635,6 @@ function initCostManagePanel() {
 
             querySnapshot.forEach(docSnap => {
                 const data = docSnap.data();
-                const contractAmt = data.contract?.contractAmount || 0;
-                const additionalAmt = data.additionalWorksTotal || 0;
-                contractSum += (contractAmt + additionalAmt);
                 billingSum += data.revenue?.billingAmount || 0;
                 paymentSum += data.revenue?.paymentAmount || 0;
                 materialSum += data.cost?.materialCost || 0;
@@ -10991,15 +10645,14 @@ function initCostManagePanel() {
 
             const unpaidSum = billingSum - paymentSum;
             const costSum = materialSum + subcontractSum + expenseSum + laborSum;
-            const profitSum = contractSum - costSum; // 契約金額合計ベース
-            const profitRate = contractSum > 0 ? (profitSum / contractSum) * 100 : 0; // 契約金額合計ベース
+            const profitSum = billingSum - costSum;
+            const profitRate = billingSum > 0 ? (profitSum / billingSum) * 100 : 0;
 
-            if (totalContractEl) totalContractEl.textContent = `¥${contractSum.toLocaleString()}`;
             totalBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
             totalPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
             totalUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
             
-            const profitRateText = contractSum > 0 ? `${profitRate.toFixed(1)}%` : '0%';
+            const profitRateText = billingSum > 0 ? `${profitRate.toFixed(1)}%` : '0%';
             totalProfitEl.textContent = `¥${profitSum.toLocaleString()} (${profitRateText})`;
 
             const profitCard = document.getElementById('cost-summary-total-profit-card');
@@ -11026,7 +10679,6 @@ function initCostManagePanel() {
                 }
             }
 
-            if (breakdownContractEl) breakdownContractEl.textContent = `¥${contractSum.toLocaleString()}`;
             breakdownBillingEl.textContent = `¥${billingSum.toLocaleString()}`;
             breakdownPaymentEl.textContent = `¥${paymentSum.toLocaleString()}`;
             breakdownUnpaidEl.textContent = `¥${unpaidSum.toLocaleString()}`;
@@ -11044,39 +10696,6 @@ function initCostManagePanel() {
             console.error("Error loading cost summary:", err);
         }
     };
-
-    const editCostRecordLatest = async (workId) => {
-        if (!currentCompany) return;
-
-        try {
-            const costRecordsRef = collection(db, "companies", currentCompany.companyId, "costRecords");
-            const q = query(costRecordsRef, where("workId", "==", workId));
-            const querySnapshot = await getDocs(q);
-
-            let targetYMStr = costYearMonth.value;
-            let latestYYYYMM = 0;
-
-            querySnapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                const ym = parseInt(data.yearMonth, 10) || 0;
-                if (ym > latestYYYYMM) {
-                    latestYYYYMM = ym;
-                    const ymStr = data.yearMonth.toString();
-                    targetYMStr = `${ymStr.substring(0, 4)}-${ymStr.substring(4, 6)}`;
-                }
-            });
-
-            costYearMonth.value = targetYMStr;
-            costProjectSelect.value = workId;
-
-            switchSubTab(btnTabForm, sectionForm);
-            await loadExistingCostRecord();
-
-        } catch (err) {
-            console.error("Error initiating cost edit:", err);
-        }
-    };
-    window.editCostRecordLatest = editCostRecordLatest;
 
     tabCostHidden.addEventListener('click', () => {
         loadLatestCompanyInfo().then(() => {
@@ -11114,7 +10733,6 @@ async function viewCostDetailModal(workId) {
         const q = query(costRecordsRef, where("workId", "==", workId));
         const querySnapshot = await getDocs(q);
 
-        let contractSum = 0;
         let billingSum = 0;
         let materialSum = 0;
         let subcontractSum = 0;
@@ -11123,15 +10741,11 @@ async function viewCostDetailModal(workId) {
         let workName = '不明な工事';
 
         const monthlyBreakdown = [];
-        let contractInfo = null;
-        const allAdditionalWorks = [];
 
         querySnapshot.forEach(docSnap => {
             const data = docSnap.data();
             workName = data.workName || workName;
 
-            const cAmt = data.contract?.contractAmount || 0;
-            const aAmt = data.additionalWorksTotal || 0;
             const b = data.revenue?.billingAmount || 0;
             const m = data.cost?.materialCost || 0;
             const s = data.cost?.subcontractCost || 0;
@@ -11139,32 +10753,11 @@ async function viewCostDetailModal(workId) {
             const l = data.cost?.laborCost || 0;
             const total = m + s + e + l;
 
-            contractSum += (cAmt + aAmt);
             billingSum += b;
             materialSum += m;
             subcontractSum += s;
             expenseSum += e;
             laborSum += l;
-
-            if (data.contract?.contractAmount && !contractInfo) {
-                contractInfo = {
-                    contractAmount: cAmt,
-                    contractDate: data.contract.contractDate || '',
-                    clientName: data.contract.clientName || ''
-                };
-            }
-
-            if (data.additionalWorks && data.additionalWorks.length > 0) {
-                data.additionalWorks.forEach(w => {
-                    allAdditionalWorks.push({
-                        name: w.name,
-                        amount: w.amount,
-                        date: w.date || '',
-                        memo: w.memo || '',
-                        ymLabel: data.yearMonth ? `${data.yearMonth.substring(0, 4)}/${data.yearMonth.substring(4, 6)}` : ''
-                    });
-                });
-            }
 
             const yyyymm = data.yearMonth || '';
             const label = yyyymm ? `${yyyymm.substring(0, 4)}年${yyyymm.substring(4, 6)}月` : '不明';
@@ -11183,55 +10776,19 @@ async function viewCostDetailModal(workId) {
         document.getElementById('cost-detail-modal-title').textContent = `📊 内訳: ${workName}`;
 
         const totalCost = materialSum + subcontractSum + expenseSum + laborSum;
-        const profit = contractSum - totalCost;
-        const profitRate = contractSum > 0 ? (profit / contractSum) * 100 : 0;
+        const profit = billingSum - totalCost;
+        const profitRate = billingSum > 0 ? (profit / billingSum) * 100 : 0;
         const profitClass = profit < 0 ? 'text-danger' : '';
 
         let html = `
             <div style="background:var(--bg-muted, #f1f5f9);padding:15px;border-radius:8px;font-size:0.9rem;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>当初契約金額:</span><strong>¥${(contractInfo?.contractAmount || 0).toLocaleString()}</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>契約金額合計:</span><strong>¥${contractSum.toLocaleString()}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>総請求金額:</span><strong>¥${billingSum.toLocaleString()}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#b91c1c;"><span>総原価:</span><strong>¥${totalCost.toLocaleString()}</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;" class="${profitClass}"><span>総粗利 (契約ベース):</span><strong>¥${profit.toLocaleString()}</strong></div>
-                <div style="display:flex;justify-content:space-between;" class="${profitClass}"><span>総粗利益率:</span><strong>${contractSum > 0 ? profitRate.toFixed(1) + '%' : '0%'}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;" class="${profitClass}"><span>総粗利:</span><strong>¥${profit.toLocaleString()}</strong></div>
+                <div style="display:flex;justify-content:space-between;" class="${profitClass}"><span>総粗利益率:</span><strong>${billingSum > 0 ? profitRate.toFixed(1) + '%' : '0%'}</strong></div>
             </div>
-        `;
-
-        if (contractInfo && (contractInfo.clientName || contractInfo.contractDate)) {
-            html += `
-                <div style="border:1px solid var(--border);padding:10px;border-radius:6px;background:var(--card-bg);font-size:0.82rem;margin-top:10px;">
-                    <div style="font-weight:bold;color:var(--primary);margin-bottom:4px;">📋 元請・契約情報</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 15px;">
-                        <div><span>発注者名:</span> <span style="font-weight:bold;">${contractInfo.clientName || '-'}</span></div>
-                        <div><span>当初契約日:</span> <span style="font-weight:bold;">${contractInfo.contractDate || '-'}</span></div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (allAdditionalWorks.length > 0) {
-            html += `
-                <h4 style="margin:10px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--warning, #f59e0b);padding-left:6px;">➕ 追加工事明細</h4>
-                <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:6px;background:var(--card-bg);">
-            `;
-            allAdditionalWorks.forEach(w => {
-                html += `
-                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;border-bottom:1px dashed var(--border);padding-bottom:4px;margin-bottom:4px;">
-                        <div>
-                            <span style="color:var(--text-muted);margin-right:6px;">[${w.ymLabel}]</span>
-                            <span style="font-weight:bold;">${w.name}</span>
-                            ${w.memo ? `<span style="color:var(--text-muted);font-size:0.75rem;margin-left:6px;">(${w.memo})</span>` : ''}
-                        </div>
-                        <div style="font-weight:bold;">¥${w.amount.toLocaleString()}</div>
-                    </div>
-                `;
-            });
-            html += `</div>`;
-        }
-
-        html += `
-            <h4 style="margin:15px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--primary);padding-left:6px;">📅 月別原価詳細</h4>
+            
+            <h4 style="margin:10px 0 5px 0;font-size:0.95rem;border-left:3px solid var(--primary);padding-left:6px;">📅 月別原価詳細</h4>
             <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:220px;padding-right:5px;">
         `;
 

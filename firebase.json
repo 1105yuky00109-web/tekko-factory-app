@@ -19,6 +19,10 @@
     ],
     "rewrites": [
       {
+        "source": "/__/auth/action",
+        "destination": "/auth-action.html"
+      },
+      {
         "source": "/auth-action",
         "destination": "/auth-action.html"
       },
