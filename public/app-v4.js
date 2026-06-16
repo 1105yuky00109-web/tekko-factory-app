@@ -1417,7 +1417,9 @@ function populateMemberDropdowns() {
 
 // ログアウト処理
 btnLogout.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error(err));
+    if (confirm("ログアウトしますか？")) {
+        signOut(auth).catch(err => console.error(err));
+    }
 });
 
 // トースト通知を表示する関数
