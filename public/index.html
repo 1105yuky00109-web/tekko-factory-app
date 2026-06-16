@@ -3,6 +3,11 @@
 <head>
   <script>
     (function() {
+      // PWA (スタンドアロンモード) で起動された場合は、LPではなくアプリ本体に直接リダイレクトする
+      if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+        window.location.href = './app.html';
+        return;
+      }
       const RESET_KEY = 'sw_reset_lp_v6';
       if (!localStorage.getItem(RESET_KEY)) {
         if ('serviceWorker' in navigator) {

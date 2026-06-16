@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // 開発者以外のログインを弾くためのメールリスト
-const DEVELOPER_EMAILS = ['steelworks@areva.co.jp'];
+const DEVELOPER_EMAILS = ['steelworks@areva.co.jp', 'info@areva.co.jp'];
 
 let currentUser = null;
 let allCompanies = [];
@@ -38,13 +38,16 @@ const currentEmailLabel = document.getElementById('current-user-email');
 const checkIsDeveloper = (user) => {
     if (!user) return false;
     const devUid = 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2';
-    const devEmail = 'steelworks@areva.co.jp';
+    const devEmails = ['steelworks@areva.co.jp', 'info@areva.co.jp'];
     
     // UIDによる判定（最も確実）
     if (user.uid === devUid) return true;
     
     // メールアドレスによる判定（表記揺れ考慮）
-    if (user.email && user.email.toLowerCase().trim() === devEmail) return true;
+    if (user.email) {
+        const emailLower = user.email.toLowerCase().trim();
+        if (devEmails.includes(emailLower)) return true;
+    }
     
     return false;
 };
