@@ -551,13 +551,20 @@ async function selectAdminCompany(companyId) {
         }
     }
 
+    // お支払い方法の初期セット
+    const paymentMethodSelect = document.getElementById('edit-company-payment-method');
+    if (paymentMethodSelect) {
+        paymentMethodSelect.value = companyObj.paymentMethod || 'card';
+    }
+
     // 初期値を退避（変更チェック用）
     originalCompanyConfig = {
         companyName: document.getElementById('edit-company-name').value || '',
         maxUsers: document.getElementById('edit-company-max-users').value || '',
         contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
         planStatus: document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '',
-        trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : ''
+        trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '',
+        paymentMethod: document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card'
     };
 
     if (tbody) {
@@ -863,12 +870,14 @@ function closeDetailModal() {
         const currentRenewalDate = document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '';
         const currentPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '';
         const currentTrialDays = document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '';
+        const currentPaymentMethod = document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card';
 
         const isChanged = currentName !== originalCompanyConfig.companyName ||
                           currentMaxUsers !== originalCompanyConfig.maxUsers ||
                           currentRenewalDate !== originalCompanyConfig.contractRenewalDate ||
                           currentPlanStatus !== originalCompanyConfig.planStatus ||
-                          (currentPlanStatus === 'trial_active' && currentTrialDays !== originalCompanyConfig.trialDays);
+                          (currentPlanStatus === 'trial_active' && currentTrialDays !== originalCompanyConfig.trialDays) ||
+                          currentPaymentMethod !== originalCompanyConfig.paymentMethod;
 
         if (isChanged) {
             const leave = confirm("変更内容が保存されていません。破棄して閉じますか？");
@@ -905,6 +914,19 @@ if (planStatusSelect && trialPeriodSettings) {
             trialPeriodSettings.style.display = 'block';
         } else {
             trialPeriodSettings.style.display = 'none';
+        }
+    });
+}
+
+// お支払い方法変更時の表示制御
+const paymentMethodSelect = document.getElementById('edit-company-payment-method');
+const invoiceSection = document.getElementById('invoice-payment-section');
+if (paymentMethodSelect && invoiceSection) {
+    paymentMethodSelect.addEventListener('change', () => {
+        if (paymentMethodSelect.value === 'invoice') {
+            invoiceSection.style.display = 'block';
+        } else {
+            invoiceSection.style.display = 'none';
         }
     });
 }
@@ -974,6 +996,7 @@ if (btnSaveCompanyConfig) {
         const newName = document.getElementById('edit-company-name').value.trim();
         const newMaxUsers = parseInt(document.getElementById('edit-company-max-users').value, 10);
         const selectedPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : 'active';
+        const selectedPaymentMethod = document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card';
 
         if (!newName) {
             alert('会社名を入力してください。');
@@ -1022,7 +1045,8 @@ if (btnSaveCompanyConfig) {
                 maxUsers: newMaxUsers,
                 trialStart: newTrialStart,
                 trialEnd: newTrialEnd,
-                planName: newPlanName
+                planName: newPlanName,
+                paymentMethod: selectedPaymentMethod
             };
 
             if (companyObj && companyObj.paymentMethod === 'invoice') {
@@ -1036,14 +1060,44 @@ if (btnSaveCompanyConfig) {
             await updateDoc(companyRef, updateFields);
             alert('企業設定を保存しました。');
             
+            // 差分の検出
+            const changes = {};
+            if (newName !== originalCompanyConfig.companyName) {
+                changes.companyName = { before: originalCompanyConfig.companyName, after: newName };
+            }
+            if (String(newMaxUsers) !== originalCompanyConfig.maxUsers) {
+                changes.maxUsers = { before: originalCompanyConfig.maxUsers, after: String(newMaxUsers) };
+            }
+            if (selectedPaymentMethod !== originalCompanyConfig.paymentMethod) {
+                changes.paymentMethod = { before: originalCompanyConfig.paymentMethod, after: selectedPaymentMethod };
+            }
+            if (selectedPlanStatus !== originalCompanyConfig.planStatus) {
+                changes.planStatus = { before: originalCompanyConfig.planStatus, after: selectedPlanStatus };
+            }
+
             // 保存成功したため、初期状態の基準値を現在の値に更新する
             originalCompanyConfig = {
                 companyName: newName,
                 maxUsers: String(newMaxUsers),
                 contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
                 planStatus: selectedPlanStatus,
-                trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : ''
+                trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '',
+                paymentMethod: selectedPaymentMethod
             };
+
+            // メール通知 API の呼び出し（バックグラウンドで非同期実行）
+            if (Object.keys(changes).length > 0) {
+                fetch('/api/notify-company-settings-change', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyId: selectedCompanyId, changes })
+                }).then(response => {
+                    if (!response.ok) console.error("Failed to send settings change notification email");
+                    else console.log("Settings change notification email sent successfully");
+                }).catch(err => {
+                    console.error("Error calling settings change notification API:", err);
+                });
+            }
             
             // ローカルデータをリロードしてテーブルを更新
             await reloadData();

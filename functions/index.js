@@ -87,6 +87,106 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
   const rawPath = req.path || req.url || '';
   const path = rawPath.startsWith('/api') ? rawPath.substring(4) : rawPath;
   
+  // 0. 企業設定（会社名、上限人数、お支払い方法）変更通知メール送信API
+  if (path === '/notify-company-settings-change') {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
+    const { companyId, changes } = req.body;
+    if (!companyId || !changes) {
+      return res.status(400).json({ error: 'companyId and changes are required' });
+    }
+
+    try {
+      const companyDoc = await admin.firestore().collection('companies').doc(companyId).get();
+      if (!companyDoc.exists) {
+        return res.status(404).json({ error: 'Company not found' });
+      }
+      const companyData = companyDoc.data();
+      const adminEmail = companyData.adminEmails && companyData.adminEmails[0];
+      const adminName = companyData.adminName || '管理者';
+
+      if (!adminEmail) {
+        return res.status(400).json({ error: 'Company admin email not registered' });
+      }
+
+      let emailText = `${adminName} 様\n\n`;
+      emailText += `平素は【工事管理システム】をご利用いただき、誠にありがとうございます。\n`;
+      emailText += `システム管理者により、お客様のご契約・企業設定が変更されましたのでご案内いたします。\n\n`;
+      emailText += `【変更内容】\n`;
+
+      let hasChanges = false;
+
+      // 1. 会社名の変更
+      if (changes.companyName) {
+        emailText += `■ 会社名\n`;
+        emailText += `   変更前: ${changes.companyName.before}\n`;
+        emailText += `   変更後: ${changes.companyName.after}\n\n`;
+        hasChanges = true;
+      }
+
+      // 2. 社員上限数の変更
+      if (changes.maxUsers) {
+        emailText += `■ 登録社員上限数\n`;
+        emailText += `   変更前: ${changes.maxUsers.before} 名\n`;
+        emailText += `   変更後: ${changes.maxUsers.after} 名\n\n`;
+        hasChanges = true;
+      }
+
+      // 3. お支払い方法の変更
+      if (changes.paymentMethod) {
+        const pmLabel = (pm) => pm === 'invoice' ? '銀行振込（請求書払い）' : 'クレジットカード決済';
+        emailText += `■ お支払い方法\n`;
+        emailText += `   変更前: ${pmLabel(changes.paymentMethod.before)}\n`;
+        emailText += `   変更後: ${pmLabel(changes.paymentMethod.after)}\n\n`;
+        hasChanges = true;
+
+        // 銀行振込（請求書払い）に変更された場合、請求書のダウンロードリンクを付記
+        if (changes.paymentMethod.after === 'invoice') {
+          const hostUrl = process.env.HOST_URL || 'https://tekko-factory-app.web.app';
+          emailText += `※銀行振込（請求書払い）のお客様は、以下のリンクより請求書をご確認・印刷いただけます。\n`;
+          emailText += `${hostUrl}/invoice.html?cid=${companyId}\n\n`;
+        }
+      }
+
+      // 4. プラン状態の変更
+      if (changes.planStatus) {
+        const statusLabel = (st) => {
+          if (st === 'active') return '本契約（有料プラン）';
+          if (st === 'trial_expired') return '無料トライアル期限切れ';
+          return '無料トライアル中';
+        };
+        emailText += `■ 契約プラン状態\n`;
+        emailText += `   変更前: ${statusLabel(changes.planStatus.before)}\n`;
+        emailText += `   変更後: ${statusLabel(changes.planStatus.after)}\n\n`;
+        hasChanges = true;
+      }
+
+      if (!hasChanges) {
+        return res.json({ success: true, message: 'No notification sent (no target changes)' });
+      }
+
+      emailText += `お客様ご自身での手続きは必要ありません。\n`;
+      emailText += `今後とも【工事管理システム】をよろしくお願い申し上げます。\n\n`;
+      emailText += `--------------------------------------------------\n`;
+      emailText += `工事管理システム 運営事務局\n`;
+      emailText += `お問い合わせ先: areva.noreply@gmail.com\n`;
+      emailText += `--------------------------------------------------\n`;
+
+      await sendMailHelper({
+        to: adminEmail,
+        subject: '【重要】ご契約・企業設定変更のご案内',
+        text: emailText
+      });
+
+      return res.json({ success: true, message: 'Settings change notification email sent successfully' });
+
+    } catch (err) {
+      console.error('Error sending settings change email:', err);
+      return res.status(500).json({ error: 'Failed to send notification email' });
+    }
+  }
+
   // 1. 請求書詳細取得API
   if (path === '/get-invoice-details') {
     if (req.method !== 'POST') {
