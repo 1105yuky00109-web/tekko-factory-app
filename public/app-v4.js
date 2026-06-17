@@ -27,7 +27,7 @@ let messaging = null;
 
 // URLパラメータの確認 (新規登録後のログインなどで強制ログアウトするため)
 const urlParams = new URLSearchParams(window.location.search);
-const paramTargetEmail = urlParams.get('email') ? decodeURIComponent(urlParams.get('email')).trim() : null;
+const paramTargetEmail = urlParams.get('email') ? decodeURIComponent(urlParams.get('email')).trim().toLowerCase() : null;
 
 showDebugLog("3. Firebase Services initialized.");
 
@@ -263,46 +263,28 @@ function setupAuthListener() {
             const loadingContainer = document.getElementById('loading-container');
 
             if (user) {
-                const isDeveloper = user && (
-                    (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') ||
-                    (user.uid === 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2')
-                );
-
-                // 開発者アカウントの場合は、他のチェックをすべてスキップして即座に管理画面へ遷移
-                if (isDeveloper) {
-                    if (window.matchMedia('(display-mode: standalone)').matches) {
-                        showDebugLog("Developer account detected in app PWA mode. Forcing signout to prevent loop...");
-                        await signOut(auth);
-                        if (currentGeneration !== authStateGeneration) return;
-                        const errorMsg = document.getElementById('login-error');
-                        if (errorMsg) {
-                            errorMsg.classList.remove('hidden');
-                            errorMsg.textContent = '開発者アカウントはアプリ版ではご利用いただけません。通常のブラウザからアクセスしてください。';
-                        }
-                        if (loadingContainer) loadingContainer.classList.add('hidden');
-                        return;
-                    }
-                    showDebugLog("Developer account detected. Redirecting to system-admin.html...");
-                    window.location.href = "system-admin.html";
-                    return;
-                }
-
                 // メールアドレスが一時的にロードされていない場合は処理を保留
                 if (user.email === undefined || user.email === null) {
                     showDebugLog("onAuthStateChanged: user.email is not loaded yet. Waiting...");
                     return;
                 }
 
-                // メールアドレスの不一致チェック (email パラメータがある場合)
-                if (paramTargetEmail && user.email !== paramTargetEmail) {
+                // メールアドレスの不一致チェック (email パラメータがある場合) を最優先で実施
+                if (paramTargetEmail && user.email.toLowerCase().trim() !== paramTargetEmail) {
                     showDebugLog(`Session email mismatch: Logged in as ${user.email}, expected: ${paramTargetEmail}. Forcing logout.`);
-                    await signOut(auth);
-                    if (currentGeneration !== authStateGeneration) return;
                     
+                    // signOut (非同期) の前に DOM 更新を完了させる (世代チェックによる処理中断対策)
                     const emailInput = document.getElementById('login-email');
                     if (emailInput) emailInput.value = paramTargetEmail;
                     
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = `別のアカウント（${user.email}）でログイン中だったため、ログアウトしました。指定されたメールアドレス（${paramTargetEmail}）で再度ログインしてください。`;
+                    }
+                    
                     if (loadingContainer) loadingContainer.classList.add('hidden');
+                    await signOut(auth);
                     return;
                 }
 
@@ -349,14 +331,13 @@ function setupAuthListener() {
                 if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
                     if (window.matchMedia('(display-mode: standalone)').matches) {
                         showDebugLog("Developer account detected in app PWA mode (login success). Forcing signout...");
-                        await signOut(auth);
-                        if (currentGeneration !== authStateGeneration) return;
                         const errorMsg = document.getElementById('login-error');
                         if (errorMsg) {
                             errorMsg.classList.remove('hidden');
                             errorMsg.textContent = '開発者アカウントはアプリ版ではご利用いただけません。通常のブラウザからアクセスしてください。';
                         }
                         if (loadingContainer) loadingContainer.classList.add('hidden');
+                        await signOut(auth);
                         return;
                     }
                     showDebugLog("Developer account detected in app.html. Redirecting to system-admin.html...");
@@ -9143,7 +9124,10 @@ async function performCheckIn() {
     const select = document.getElementById('attend-member-select');
     if (!select) return;
     const memberName = select.value;
-    if (!memberName) return;
+    if (!memberName) {
+        alert("打刻する社員を選択してください。");
+        return;
+    }
 
     const btnCheckin = document.getElementById('btn-attend-checkin');
     if (!currentCompany || !currentCompany.companyId) return;
@@ -9190,7 +9174,10 @@ async function performCheckOut() {
     const select = document.getElementById('attend-member-select');
     if (!select) return;
     const memberName = select.value;
-    if (!memberName) return;
+    if (!memberName) {
+        alert("打刻する社員を選択してください。");
+        return;
+    }
 
     const btnCheckout = document.getElementById('btn-attend-checkout');
     if (!currentCompany || !currentCompany.companyId) return;
@@ -9250,7 +9237,10 @@ async function performLeaveOut() {
     const select = document.getElementById('attend-member-select');
     if (!select) return;
     const memberName = select.value;
-    if (!memberName) return;
+    if (!memberName) {
+        alert("打刻する社員を選択してください。");
+        return;
+    }
 
     const btnLeaveOut = document.getElementById('btn-attend-leaveout');
     if (!currentCompany || !currentCompany.companyId) return;
@@ -9300,7 +9290,10 @@ async function performReturnIn() {
     const select = document.getElementById('attend-member-select');
     if (!select) return;
     const memberName = select.value;
-    if (!memberName) return;
+    if (!memberName) {
+        alert("打刻する社員を選択してください。");
+        return;
+    }
 
     const btnReturnIn = document.getElementById('btn-attend-returnin');
     if (!currentCompany || !currentCompany.companyId) return;

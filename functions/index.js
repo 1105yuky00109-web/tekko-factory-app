@@ -766,6 +766,23 @@ ${adminEmail}
 
     // 無料トライアル（0円）の確定はスキップし、本課金時のみ請求メールを送る
     if (amountDue > 0) {
+      // 会社ドキュメントを未払い(unpaid)にリセットする
+      try {
+        const companiesSnap = await db.collection('companies').where('stripeCustomerId', '==', customerId).get();
+        if (!companiesSnap.empty) {
+          const companyDoc = companiesSnap.docs[0];
+          const companyId = companyDoc.id;
+          await db.collection('companies').doc(companyId).update({
+            invoiceStatus: 'unpaid'
+          });
+          console.log(`[Webhook] Reset invoiceStatus to 'unpaid' for company ${companyId}`);
+        } else {
+          console.warn(`[Webhook] Company not found for customerId ${customerId} during invoice.finalized`);
+        }
+      } catch (dbErr) {
+        console.error('Failed to update company invoiceStatus to unpaid in invoice.finalized', dbErr);
+      }
+
       const invoiceLink = `${process.env.HOST_URL || 'https://tekko-factory-app.web.app'}/invoice.html?id=${invoiceId}`;
       const dueDateStr = invoice.due_date 
         ? new Date(invoice.due_date * 1000).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -882,6 +899,76 @@ URL: https://tekko-factory-app.web.app/
       console.log(`[Webhook] Sent trial_will_end email to ${customerEmail}`);
     } else {
       console.warn(`[Webhook] trial_will_end received but customer email not found for customer: ${customerId}`);
+    }
+  } else if (event.type === 'invoice.payment_succeeded') {
+    const invoice = event.data.object;
+    const customerId = invoice.customer;
+    const invoiceId = invoice.id;
+    const amountPaid = invoice.amount_paid;
+
+    console.log(`[Webhook] invoice.payment_succeeded received for customer ${customerId}, invoice ${invoiceId}, amount: ${amountPaid}`);
+
+    // 金額が発生している支払のみ処理（0円トライアル等の自動処理はスキップ）
+    if (amountPaid > 0) {
+      try {
+        const companiesSnap = await db.collection('companies').where('stripeCustomerId', '==', customerId).get();
+        if (!companiesSnap.empty) {
+          const companyDoc = companiesSnap.docs[0];
+          const companyId = companyDoc.id;
+          const companyRef = db.collection('companies').doc(companyId);
+
+          // サブスクリプション情報をStripeから取得して次回更新日（current_period_end）を設定
+          let nextRenewalDate = null;
+          if (invoice.subscription) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+              if (subscription && subscription.current_period_end) {
+                nextRenewalDate = new Date(subscription.current_period_end * 1000);
+              }
+            } catch (subErr) {
+              console.error('Failed to retrieve subscription for renewal date', subErr);
+            }
+          }
+
+          // サブスクリプションから取得できない場合の予備ロジック（現在日付の1ヶ月後）
+          if (!nextRenewalDate) {
+            const now = new Date();
+            now.setMonth(now.getMonth() + 1);
+            nextRenewalDate = now;
+          }
+
+          const updateFields = {
+            invoiceStatus: 'paid',
+            lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+            contractRenewalDate: nextRenewalDate,
+          };
+
+          await companyRef.update(updateFields);
+          console.log(`[Webhook] Automated reconciliation: Updated company ${companyId} status to 'paid', next renewal: ${nextRenewalDate}`);
+
+          // 必要なら subscriptions サブコレクションのステータスも更新
+          if (invoice.subscription) {
+            const subId = invoice.subscription;
+            try {
+              const subDocRef = companyRef.collection('subscriptions').doc(subId);
+              const subDoc = await subDocRef.get();
+              if (subDoc.exists) {
+                await subDocRef.update({
+                  status: 'active',
+                  currentPeriodEnd: invoice.lines?.data?.[0]?.period?.end || Math.floor(nextRenewalDate.getTime() / 1000),
+                });
+              }
+            } catch (subDbErr) {
+              console.error('Failed to update subcollection subscriptions', subDbErr);
+            }
+          }
+
+        } else {
+          console.warn(`[Webhook] Company not found for customerId ${customerId} during invoice.payment_succeeded`);
+        }
+      } catch (err) {
+        console.error('Failed to reconcile invoice payment in Webhook', err);
+      }
     }
   }
 
