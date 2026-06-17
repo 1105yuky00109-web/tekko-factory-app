@@ -202,6 +202,31 @@ const renderAdminCompaniesTable = () => {
         const empCount = (c.employees || []).length;
         totalEmployees += empCount;
         
+        const getContractRenewalDate = (comp) => {
+            if (comp.contractRenewalDate) return parseFirestoreDate(comp.contractRenewalDate);
+            if (comp.trialEnd) return parseFirestoreDate(comp.trialEnd);
+            const created = parseFirestoreDate(comp.createdAt);
+            if (created) {
+                const d = new Date(created);
+                d.setMonth(d.getMonth() + 1);
+                return d;
+            }
+            return null;
+        };
+
+        const renewalDate = getContractRenewalDate(c);
+        const invoiceStatus = c.invoiceStatus || 'unpaid';
+
+        const isOverdue = (() => {
+            if (c.paymentMethod !== 'invoice') return false;
+            if (invoiceStatus === 'paid') return false;
+            if (!renewalDate) return false;
+            const now = new Date();
+            const limitDate = new Date(renewalDate);
+            limitDate.setDate(limitDate.getDate() + 30); // 30日遅延猶予
+            return now > limitDate;
+        })();
+        
         return {
             id: cid,
             name: c.companyName || '(未設定)',
@@ -213,6 +238,10 @@ const renderAdminCompaniesTable = () => {
             trialEnd: parseFirestoreDate(c.trialEnd),
             adminEmail: (c.adminEmails && c.adminEmails[0]) || '(なし)',
             status: c.status || 'active',
+            invoiceStatus: invoiceStatus,
+            lastPaymentDate: parseFirestoreDate(c.lastPaymentDate),
+            contractRenewalDate: renewalDate,
+            isOverdue: isOverdue,
             paymentMethod: c.paymentMethod || (c.stripeCustomerId ? 'card' : 'card')
         };
     });
@@ -251,6 +280,20 @@ const renderAdminCompaniesTable = () => {
         return '<span class="badge-status approved" style="background:rgba(16,185,129,0.15);color:#10b981;border-color:rgba(16,185,129,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;">💳 カード決済</span>';
     };
 
+    const getInvoiceStatusLabel = (pm, status, isOverdue, renewalDate) => {
+        if (pm !== 'invoice') {
+            return '<span style="color:var(--text-muted); font-size:0.8rem;">💳 対象外</span>';
+        }
+        if (status === 'paid') {
+            return '<span class="badge-status approved" style="background:rgba(16,185,129,0.15);color:#10b981;border-color:rgba(16,185,129,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;font-weight:bold;">🟢 支払い済み</span>';
+        }
+        const dateStr = fmtDate(renewalDate);
+        if (isOverdue) {
+            return `<span class="badge-status" style="background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;font-weight:bold;">⚠️ 🚨 未払い (超過)</span><div style="font-size:0.7rem;color:var(--error);margin-top:2px;">更新日: ${dateStr}</div>`;
+        }
+        return `<span class="badge-status" style="background:rgba(245,158,11,0.15);color:#f59e0b;border-color:rgba(245,158,11,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;font-weight:bold;">🟡 未払い</span><div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">更新日: ${dateStr}</div>`;
+    };
+
     tbody.innerHTML = companyStats.map(c => {
         const cc = '#4f46e5';
         const isDisabled = c.status === 'disabled';
@@ -266,6 +309,9 @@ const renderAdminCompaniesTable = () => {
             </td>
             <td style="padding:12px 15px;">
                 ${getPaymentMethodLabel(c.paymentMethod)}
+            </td>
+            <td style="padding:12px 15px;">
+                ${getInvoiceStatusLabel(c.paymentMethod, c.invoiceStatus, c.isOverdue, c.contractRenewalDate)}
             </td>
             <td style="padding:12px 15px;text-align:center;font-weight:bold;">${c.employeeCount} / ${c.maxUsers} 名</td>
             <td style="padding:12px 15px;text-align:center;">${c.scheduleCount} 件</td>
@@ -394,6 +440,81 @@ async function selectAdminCompany(companyId) {
             } else {
                 disableBtn.textContent = '🚫 この企業を無効化する';
                 disableBtn.style.background = 'var(--error)';
+            }
+        }
+
+        // 請求書払い管理の表示とデータセット
+        const invoiceSection = document.getElementById('invoice-payment-section');
+        if (invoiceSection) {
+            if (companyObj.paymentMethod === 'invoice') {
+                invoiceSection.style.display = 'block';
+                
+                const invStatus = companyObj.invoiceStatus || 'unpaid';
+                const displayStatus = document.getElementById('display-invoice-status');
+                const toggleBtn = document.getElementById('btn-toggle-payment-status');
+                
+                const getLocalContractRenewalDate = (comp) => {
+                    if (comp.contractRenewalDate) return parseLocalFirestoreDate(comp.contractRenewalDate);
+                    if (comp.trialEnd) return parseLocalFirestoreDate(comp.trialEnd);
+                    const created = parseLocalFirestoreDate(comp.createdAt);
+                    if (created) {
+                        const d = new Date(created);
+                        d.setMonth(d.getMonth() + 1);
+                        return d;
+                    }
+                    return null;
+                };
+                const renewalDate = getLocalContractRenewalDate(companyObj);
+                const isOverdue = (() => {
+                    if (invStatus === 'paid') return false;
+                    if (!renewalDate) return false;
+                    const now = new Date();
+                    const limitDate = new Date(renewalDate);
+                    limitDate.setDate(limitDate.getDate() + 30);
+                    return now > limitDate;
+                })();
+
+                if (displayStatus) {
+                    if (invStatus === 'paid') {
+                        displayStatus.innerHTML = '<span style="color:var(--success); font-weight:bold;">🟢 支払い済み</span>';
+                    } else if (isOverdue) {
+                        displayStatus.innerHTML = '<span style="color:var(--error); font-weight:bold;">⚠️ 🚨 未払い (猶予期限超過)</span>';
+                    } else {
+                        displayStatus.innerHTML = '<span style="color:var(--warning); font-weight:bold;">🟡 未払い</span>';
+                    }
+                }
+
+                const displayLastPaid = document.getElementById('display-last-payment-date');
+                if (displayLastPaid) {
+                    const lastPaidDate = parseLocalFirestoreDate(companyObj.lastPaymentDate);
+                    displayLastPaid.textContent = lastPaidDate ? fmtDate(lastPaidDate) : '-';
+                }
+
+                const renewalInput = document.getElementById('edit-contract-renewal-date');
+                if (renewalInput) {
+                    if (renewalDate) {
+                        const yyyy = renewalDate.getFullYear();
+                        const mm = String(renewalDate.getMonth() + 1).padStart(2, '0');
+                        const dd = String(renewalDate.getDate()).padStart(2, '0');
+                        renewalInput.value = `${yyyy}-${mm}-${dd}`;
+                    } else {
+                        renewalInput.value = '';
+                    }
+                }
+
+                if (toggleBtn) {
+                    if (invStatus === 'paid') {
+                        toggleBtn.textContent = '🔴 未払いに戻す';
+                        toggleBtn.style.background = 'var(--error)';
+                        toggleBtn.style.color = '#fff';
+                    } else {
+                        toggleBtn.textContent = '🟢 支払い済みにする';
+                        toggleBtn.style.background = 'var(--success)';
+                        toggleBtn.style.color = '#fff';
+                    }
+                }
+            } else {
+                invoiceSection.style.display = 'none';
             }
         }
     }
@@ -788,11 +909,21 @@ if (btnSaveCompanyConfig) {
         btnSaveCompanyConfig.textContent = '⏳ 保存中...';
 
         try {
-            const companyRef = doc(db, "companies", selectedCompanyId);
-            await updateDoc(companyRef, {
+            const companyObj = allCompanies.find(c => (c.companyId || c.id) === selectedCompanyId);
+            const updateFields = {
                 companyName: newName,
                 maxUsers: newMaxUsers
-            });
+            };
+
+            if (companyObj && companyObj.paymentMethod === 'invoice') {
+                const renewalInputVal = document.getElementById('edit-contract-renewal-date').value;
+                if (renewalInputVal) {
+                    updateFields.contractRenewalDate = new Date(renewalInputVal);
+                }
+            }
+
+            const companyRef = doc(db, "companies", selectedCompanyId);
+            await updateDoc(companyRef, updateFields);
 
             alert('企業設定を保存しました。');
             
@@ -867,5 +998,83 @@ if (btnDisableCompany) {
         }
     });
 }
+
+// 支払い状況のトグル切り替え（請求書払い企業向け）
+const btnTogglePaymentStatus = document.getElementById('btn-toggle-payment-status');
+if (btnTogglePaymentStatus) {
+    btnTogglePaymentStatus.addEventListener('click', async () => {
+        if (!selectedCompanyId) return;
+
+        const companyObj = allCompanies.find(c => (c.companyId || c.id) === selectedCompanyId);
+        if (!companyObj) return;
+
+        const currentStatus = companyObj.invoiceStatus || 'unpaid';
+        const isPaid = currentStatus === 'paid';
+        
+        let confirmMsg = "";
+        const updateFields = {};
+
+        // 堅牢な日付解析ヘルパー関数（ローカルコピー）
+        const parseLocalFirestoreDate = (field) => {
+            if (!field) return null;
+            if (typeof field.toDate === 'function') return field.toDate();
+            if (typeof field.seconds === 'number') return new Date(field.seconds * 1000);
+            if (typeof field === 'number') return field > 9999999999 ? new Date(field) : new Date(field * 1000);
+            const d = new Date(field);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
+        if (isPaid) {
+            confirmMsg = 'この企業の支払い状況を「未払い」に戻しますか？';
+            updateFields.invoiceStatus = 'unpaid';
+        } else {
+            confirmMsg = 'この企業の支払い状況を「支払い済み」にしますか？\n最終支払日を本日に更新し、次回契約更新日を1ヶ月進めます。';
+            updateFields.invoiceStatus = 'paid';
+            
+            const now = new Date();
+            updateFields.lastPaymentDate = now;
+
+            // 次回更新日を1ヶ月進める
+            const renewalInput = document.getElementById('edit-contract-renewal-date');
+            let baseDate = now;
+            if (renewalInput && renewalInput.value) {
+                baseDate = new Date(renewalInput.value);
+            } else if (companyObj.contractRenewalDate) {
+                baseDate = parseLocalFirestoreDate(companyObj.contractRenewalDate);
+            } else if (companyObj.trialEnd) {
+                baseDate = parseLocalFirestoreDate(companyObj.trialEnd);
+            } else if (companyObj.createdAt) {
+                baseDate = parseLocalFirestoreDate(companyObj.createdAt);
+                baseDate.setMonth(baseDate.getMonth() + 1);
+            }
+            
+            const nextRenewal = new Date(baseDate);
+            nextRenewal.setMonth(nextRenewal.getMonth() + 1);
+            updateFields.contractRenewalDate = nextRenewal;
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        btnTogglePaymentStatus.disabled = true;
+        btnTogglePaymentStatus.textContent = '⏳ 更新中...';
+
+        try {
+            const companyRef = doc(db, "companies", selectedCompanyId);
+            await updateDoc(companyRef, updateFields);
+
+            alert(isPaid ? '支払い状況を「未払い」に設定しました。' : '支払い状況を「支払い済み」に設定し、更新日を1ヶ月延長しました。');
+
+            // データの再読み込み
+            await reloadData();
+
+        } catch (err) {
+            console.error("Failed to toggle payment status:", err);
+            alert('支払い状況の更新に失敗しました: ' + err.message);
+        } finally {
+            btnTogglePaymentStatus.disabled = false;
+        }
+    });
+}
+
 
 

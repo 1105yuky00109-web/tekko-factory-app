@@ -606,6 +606,7 @@
                 <th>🏢 会社ID / 企業名</th>
                 <th>💳 契約プラン / 上限</th>
                 <th>💰 支払い方法</th>
+                <th>💵 支払い状況</th>
                 <th style="text-align:center;">👤 社員数</th>
                 <th style="text-align:center;">🏗️ 工事数</th>
                 <th>状態 / トライアル期限</th>
@@ -615,7 +616,7 @@
             </thead>
             <tbody id="admin-companies-tbody">
               <tr>
-                <td colspan="8" style="padding:30px; text-align:center; color:var(--text-muted);">
+                <td colspan="9" style="padding:30px; text-align:center; color:var(--text-muted);">
                   「本番データ再読み込み」ボタンを押すと読み込まれます。
                 </td>
               </tr>
@@ -662,6 +663,30 @@
                 <div id="display-company-employees-list" style="flex:1; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; overflow-y:auto; min-height:180px; max-height:220px; font-size:0.9rem; line-height:1.8; color:var(--text);">
                   <!-- 氏名リスト -->
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 請求書払い管理セクション (JSで表示/非表示切替) -->
+          <div id="invoice-payment-section" style="margin-top:10px; padding:15px; background:rgba(79,70,229,0.04); border:1px dashed var(--primary); border-radius:8px; display:none;">
+            <h4 style="margin-top:0; margin-bottom:12px; font-size:0.9rem; color:var(--primary); font-weight:bold; display:flex; align-items:center; gap:5px;">
+              📄 請求書払い 支払い管理
+            </h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; font-size:0.85rem;">
+              <div>
+                <label style="font-weight:bold; color:var(--text-muted);">支払い状況</label>
+                <div id="display-invoice-status" style="margin-top:5px; font-weight:bold; font-size:1rem;">-</div>
+              </div>
+              <div>
+                <label style="font-weight:bold; color:var(--text-muted);">最終支払日</label>
+                <div id="display-last-payment-date" style="margin-top:5px; font-size:0.9rem;">-</div>
+              </div>
+              <div>
+                <label style="font-weight:bold; color:var(--text-muted);">次回契約更新日</label>
+                <input type="date" id="edit-contract-renewal-date" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border); font-size:0.85rem;" />
+              </div>
+              <div style="display:flex; align-items:flex-end;">
+                <button id="btn-toggle-payment-status" class="btn" style="width:100%; padding:9px; font-size:0.85rem; font-weight:bold; border-radius:6px; cursor:pointer; min-height:38px;">-</button>
               </div>
             </div>
           </div>
