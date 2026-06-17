@@ -67,7 +67,7 @@ onAuthStateChanged(auth, async (user) => {
             await reloadData();
         } else {
             // 開発者ではない場合は、一時的なメールアドレス未ロード状態でないことを確認した上で強制ログアウト
-            if (user.email === undefined || user.email === null) {
+            if (!user.email || user.email.trim() === "") {
                 console.log("onAuthStateChanged: user.email is not loaded yet in system-admin.js. Waiting...");
                 return;
             }

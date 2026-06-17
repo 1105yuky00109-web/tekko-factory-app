@@ -269,6 +269,11 @@ function setupAuthListener() {
                  );
  
                  if (isDeveloper) {
+                     // 管理者画面を開いている場合は、一般画面としての強制ログアウト処理をスキップする
+                     if (window.location.pathname.includes('system-admin.html')) {
+                         showDebugLog("Developer account session checked in system-admin.html path. Skipping force signout.");
+                         return;
+                     }
                      showDebugLog("Developer account detected in app.html (session check). Forcing signout...");
                      const errorMsg = document.getElementById('login-error');
                      if (errorMsg) {
@@ -340,6 +345,11 @@ function setupAuthListener() {
                 // ログイン成功時
                 currentUser = auth.currentUser;
                 if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
+                    // 管理者画面を開いている場合は、一般画面としての強制ログアウト処理をスキップする
+                    if (window.location.pathname.includes('system-admin.html')) {
+                        showDebugLog("Developer account session checked in system-admin.html path. Skipping force signout.");
+                        return;
+                    }
                     showDebugLog("Developer account detected in app.html (forbidden). Forcing signout...");
                     const errorMsg = document.getElementById('login-error');
                     if (errorMsg) {
