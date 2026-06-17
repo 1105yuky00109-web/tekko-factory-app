@@ -173,14 +173,12 @@ if (document.getElementById('admin-month-filter')) {
     });
 }
 
-// 企業別利用状況一覧テーブルとサマリーの描画
+// 企業別利用状況一覧とサマリーの描画
 const renderAdminCompaniesTable = () => {
-    const tbody = document.getElementById('admin-companies-tbody');
     const cnt = document.getElementById('admin-companies-count');
     const sumCompanies = document.getElementById('summary-total-companies');
     const sumEmployees = document.getElementById('summary-total-employees');
     const sumSchedules = document.getElementById('summary-total-schedules');
-    if (!tbody) return;
 
     // 堅牢な日付解析ヘルパー関数
     const parseFirestoreDate = (field) => {
@@ -300,37 +298,29 @@ const renderAdminCompaniesTable = () => {
         return `<span class="badge-status" style="background:rgba(245,158,11,0.15);color:#f59e0b;border-color:rgba(245,158,11,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;font-weight:bold;">🟡 未払い</span><div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">更新日: ${dateStr}</div>`;
     };
 
-    tbody.innerHTML = companyStats.map(c => {
-        const cc = '#4f46e5';
+    const buttonsContainer = document.getElementById('company-buttons-container');
+    if (!buttonsContainer) return;
+
+    if (!companyStats.length) {
+        buttonsContainer.innerHTML = '<div style="grid-column: 1/-1; padding:30px; text-align:center; color:var(--text-muted);">登録されている企業はありません。</div>';
+        return;
+    }
+
+    buttonsContainer.innerHTML = companyStats.map(c => {
         const isDisabled = c.status === 'disabled';
-        const rowClass = isDisabled ? 'company-row company-disabled' : 'company-row';
-        return `<tr style="border-bottom:1px solid var(--border); cursor: pointer;" class="${rowClass}" data-company-id="${c.id}">
-            <td style="padding:12px 15px;">
-                <span class="badge-company" style="font-weight: bold;">${c.id}</span>
-                <div style="font-weight:bold;margin-top:4px; color:#4f46e5; text-decoration:underline;">${c.name}</div>
-            </td>
-            <td style="padding:12px 15px;">
-                <div style="font-weight:bold;font-size:0.9rem;">${c.planName}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">上限: ${c.maxUsers}名</div>
-            </td>
-            <td style="padding:12px 15px;">
-                ${getPaymentMethodLabel(c.paymentMethod)}
-            </td>
-            <td style="padding:12px 15px;">
-                ${getInvoiceStatusLabel(c.paymentMethod, c.invoiceStatus, c.isOverdue, c.contractRenewalDate)}
-            </td>
-            <td style="padding:12px 15px;text-align:center;font-weight:bold;">${c.employeeCount} / ${c.maxUsers} 名</td>
-            <td style="padding:12px 15px;text-align:center;">${c.scheduleCount} 件</td>
-            <td style="padding:12px 15px;font-size:0.85rem;">${getTrialBadge(c.trialEnd, c.status)}</td>
-            <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);word-break:break-all;">${c.adminEmail}</td>
-            <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);">${fmtDate(c.createdAt)}</td>
-        </tr>`;
+        const isTrial = c.trialEnd && c.trialEnd > new Date();
+        const statusClass = isDisabled ? 'status-disabled' : (isTrial ? 'status-trial' : 'status-active');
+        
+        return `<button class="btn-company-card ${statusClass}" data-company-id="${c.id}">
+            <span class="status-indicator"></span>
+            <span style="font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</span>
+        </button>`;
     }).join('');
 
-    // 行クリックイベントの付与
-    tbody.querySelectorAll('.company-row').forEach(row => {
-        row.addEventListener('click', () => {
-            const companyId = row.getAttribute('data-company-id');
+    // ボタンクリックイベントの付与
+    buttonsContainer.querySelectorAll('.btn-company-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const companyId = btn.getAttribute('data-company-id');
             selectAdminCompany(companyId);
         });
     });
@@ -374,6 +364,16 @@ const updateMonthFilterOptions = (months) => {
 async function selectAdminCompany(companyId) {
     selectedCompanyId = companyId;
 
+    // 日付解析ヘルパーを関数全体で利用可能にする
+    const parseLocalFirestoreDate = (field) => {
+        if (!field) return null;
+        if (typeof field.toDate === 'function') return field.toDate();
+        if (typeof field.seconds === 'number') return new Date(field.seconds * 1000);
+        if (typeof field === 'number') return field > 9999999999 ? new Date(field) : new Date(field * 1000);
+        const d = new Date(field);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
     const filterSelect = document.getElementById('admin-company-filter');
     if (filterSelect) {
         filterSelect.value = companyId;
@@ -407,14 +407,6 @@ async function selectAdminCompany(companyId) {
         document.getElementById('edit-company-max-users').value = companyObj.maxUsers || 10;
 
         // 登録日のフォーマット表示
-        const parseLocalFirestoreDate = (field) => {
-            if (!field) return null;
-            if (typeof field.toDate === 'function') return field.toDate();
-            if (typeof field.seconds === 'number') return new Date(field.seconds * 1000);
-            if (typeof field === 'number') return field > 9999999999 ? new Date(field) : new Date(field * 1000);
-            const d = new Date(field);
-            return isNaN(d.getTime()) ? null : d;
-        };
         const createdAtDate = parseLocalFirestoreDate(companyObj.createdAt);
         const fmtDate = d => {
             if (!d) return '-';
@@ -549,6 +541,25 @@ async function selectAdminCompany(companyId) {
             planStatusSelect.value = 'trial_expired';
             if (trialPeriodSettings) trialPeriodSettings.style.display = 'none';
         }
+    }
+
+    // 会社IDの表示セット
+    const displayCompanyId = document.getElementById('display-company-id');
+    if (displayCompanyId) {
+        displayCompanyId.textContent = companyObj.companyId || companyObj.id;
+    }
+
+    // 管理者メールの表示セット
+    const displayCompanyAdminEmail = document.getElementById('display-company-admin-email');
+    if (displayCompanyAdminEmail) {
+        displayCompanyAdminEmail.textContent = (companyObj.adminEmails && companyObj.adminEmails[0]) || '(未設定)';
+    }
+
+    // 登録工事数の表示セット
+    const displayCompanySchedulesCount = document.getElementById('display-company-schedules-count');
+    if (displayCompanySchedulesCount) {
+        const compSchedules = allSchedules.filter(s => (s.companyId === companyObj.companyId || s.companyId === companyObj.id));
+        displayCompanySchedulesCount.textContent = `${compSchedules.length} 件`;
     }
 
     // お支払い方法の初期セット
