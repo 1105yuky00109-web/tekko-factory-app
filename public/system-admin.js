@@ -24,6 +24,7 @@ let allCompanies = [];
 let allSchedules = [];
 let selectedCompanyId = "";
 let currentCompanyReports = []; // 選択された会社の日報データ
+let originalCompanyConfig = null; // モーダルを開いた時点の初期設定値
 let reportChartInstance = null; // Chart.jsのグラフインスタンス
 
 
@@ -524,6 +525,13 @@ async function selectAdminCompany(companyId) {
         }
     }
 
+    // 初期値を退避（変更チェック用）
+    originalCompanyConfig = {
+        companyName: document.getElementById('edit-company-name').value || '',
+        maxUsers: document.getElementById('edit-company-max-users').value || '',
+        contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : ''
+    };
+
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">⏳ 日報データを読み込み中...</td></tr>`;
     }
@@ -820,6 +828,25 @@ function renderChart(labels, datasets) {
 
 // モーダルを閉じる処理
 function closeDetailModal() {
+    // 未保存の変更があるかチェック
+    if (originalCompanyConfig) {
+        const currentName = document.getElementById('edit-company-name').value || '';
+        const currentMaxUsers = document.getElementById('edit-company-max-users').value || '';
+        const currentRenewalDate = document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '';
+
+        const isChanged = currentName !== originalCompanyConfig.companyName ||
+                          currentMaxUsers !== originalCompanyConfig.maxUsers ||
+                          currentRenewalDate !== originalCompanyConfig.contractRenewalDate;
+
+        if (isChanged) {
+            const leave = confirm("変更内容が保存されていません。破棄して閉じますか？");
+            if (!leave) {
+                // 閉じない場合は処理を中断
+                return;
+            }
+        }
+    }
+
     const detailModal = document.getElementById('company-detail-modal');
     if (detailModal) {
         detailModal.classList.remove('show');
@@ -834,6 +861,7 @@ function closeDetailModal() {
     if (filterSelect) {
         filterSelect.value = "";
     }
+    originalCompanyConfig = null; // 変数をクリア
 }
 
 // 閉じるボタンと背景クリックのイベント追加
@@ -929,8 +957,14 @@ if (btnSaveCompanyConfig) {
 
             const companyRef = doc(db, "companies", selectedCompanyId);
             await updateDoc(companyRef, updateFields);
-
             alert('企業設定を保存しました。');
+            
+            // 保存成功したため、初期状態の基準値を現在の値に更新する
+            originalCompanyConfig = {
+                companyName: newName,
+                maxUsers: String(newMaxUsers),
+                contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : ''
+            };
             
             // ローカルデータをリロードしてテーブルを更新
             await reloadData();
