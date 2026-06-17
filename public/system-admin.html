@@ -458,20 +458,45 @@
     }
 
     .modal-body {
-      padding: 24px;
       overflow-y: auto;
+      display: block;
+      height: 60vh;
+      padding: 0;
+    }
+
+    .modal-tab-content {
+      display: block;
+    }
+
+    .modal-tab-content.hidden {
+      display: none !important;
+    }
+
+    .stats-grid-wrapper {
+      padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 24px;
+      box-sizing: border-box;
     }
 
     @media (min-width: 768px) {
-      .modal-body {
+      .stats-grid-wrapper {
         display: grid;
         grid-template-columns: 1.3fr 1fr;
         align-items: start;
-        height: 60vh;
+        gap: 24px;
       }
+    }
+
+    /* 無効化された企業の行をグレーアウト */
+    tr.company-disabled {
+      opacity: 0.55;
+      background-color: #f1f5f9 !important;
+      color: #94a3b8;
+    }
+    tr.company-disabled td {
+      color: #94a3b8 !important;
     }
 
     .chart-wrapper {
@@ -603,43 +628,89 @@
   <div id="company-detail-modal" class="modal-overlay">
     <div class="modal-card">
       <header class="modal-header">
-        <h2 id="modal-company-title">🏢 会社詳細集計</h2>
+        <h2 id="modal-company-title">🏢 会社詳細</h2>
         <button id="btn-close-modal" class="btn-close">&times;</button>
       </header>
+      <!-- モーダル内タブ選択 -->
+      <div class="modal-tabs" style="display:flex; border-bottom: 1px solid var(--border); background:rgba(0,0,0,0.02);">
+        <button id="modal-tab-config" class="modal-tab-btn active" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:bold; border-bottom:2px solid var(--primary); color:var(--primary); font-size: 0.9rem;">⚙️ 企業設定</button>
+        <button id="modal-tab-stats" class="modal-tab-btn" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:bold; border-bottom:2px solid transparent; color:var(--text-muted); font-size: 0.9rem;">📊 稼働集計</button>
+      </div>
       <div class="modal-body">
-        <!-- グラフエリア -->
-        <div class="chart-wrapper">
-          <canvas id="company-report-chart"></canvas>
-        </div>
-        
-        <!-- テーブルエリア -->
-        <div class="modal-table-wrapper">
-          <div class="table-header" style="padding: 12px 15px; background: rgba(255, 255, 255, 0.02); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
-            <h3 style="font-size: 0.95rem;">工事別・月別稼働時間</h3>
-            <div>
-              <label for="admin-month-filter" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 5px;">対象月:</label>
-              <select id="admin-month-filter" class="btn-select" style="padding: 4px 8px; font-size: 0.8rem; background: var(--background); border-color: var(--border); color: #fff; cursor: pointer;">
-                <option value="">すべての月</option>
-              </select>
+        <!-- 企業設定タブコンテンツ -->
+        <div id="modal-content-config" class="modal-tab-content" style="padding:24px; display:flex; flex-direction:column; gap:20px; box-sizing:border-box;">
+          <div style="display:flex; flex-direction:column; gap:20px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+              <div>
+                <div class="form-group">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">会社名</label>
+                  <input type="text" id="edit-company-name" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" />
+                </div>
+                <div class="form-group" style="margin-top:15px;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">社員上限数 (名)</label>
+                  <input type="number" id="edit-company-max-users" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="1" />
+                </div>
+                <div class="form-group" style="margin-top:15px;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">登録日</label>
+                  <div id="display-company-created-at" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem;">-</div>
+                </div>
+              </div>
+              
+              <!-- 社員一覧 -->
+              <div style="display:flex; flex-direction:column;">
+                <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted); margin-bottom:5px;">社員一覧 (氏名)</label>
+                <div id="display-company-employees-list" style="flex:1; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; overflow-y:auto; min-height:180px; max-height:220px; font-size:0.9rem; line-height:1.8; color:var(--text);">
+                  <!-- 氏名リスト -->
+                </div>
+              </div>
             </div>
           </div>
-          <div class="table-container" style="overflow-y: auto; flex: 1;">
-            <table>
-              <thead>
-                <tr style="background: rgba(0, 0, 0, 0.2);">
-                  <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">🏗️ 工事名</th>
-                  <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">📅 対象月</th>
-                  <th style="padding: 10px 15px; text-align: right; width: 100px; font-weight: bold; color: var(--text-muted);">🕒 合計時間</th>
-                </tr>
-              </thead>
-              <tbody id="admin-reports-tbody">
-                <tr>
-                  <td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">
-                    データをロード中...
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          
+          <!-- アクション -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid var(--border); flex-wrap: wrap; gap:10px;">
+            <button id="btn-disable-company" class="btn" style="background:var(--error); color:#fff; font-weight:bold; padding:10px 20px; border-radius:6px;">🚫 この企業を無効化する</button>
+            <button id="btn-save-company-config" class="btn btn-primary" style="width:auto; padding:10px 30px; border-radius:6px;">💾 設定を保存する</button>
+          </div>
+        </div>
+
+        <!-- 稼働集計タブコンテンツ -->
+        <div id="modal-content-stats" class="modal-tab-content hidden" style="height:100%;">
+          <div class="stats-grid-wrapper">
+            <!-- グラフエリア -->
+            <div class="chart-wrapper">
+              <canvas id="company-report-chart"></canvas>
+            </div>
+            
+            <!-- テーブルエリア -->
+            <div class="modal-table-wrapper">
+              <div class="table-header" style="padding: 12px 15px; background: rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 0.95rem;">工事別・月別稼働時間</h3>
+                <div>
+                  <label for="admin-month-filter" style="font-size: 0.8rem; color: var(--text-muted); margin-right: 5px;">対象月:</label>
+                  <select id="admin-month-filter" class="btn-select" style="padding: 4px 8px; font-size: 0.8rem; background: var(--background); border-color: var(--border); color: var(--text); cursor: pointer;">
+                    <option value="">すべての月</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-y: auto; flex: 1;">
+                <table>
+                  <thead>
+                    <tr style="background: #f1f5f9;">
+                      <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">🏗️ 工事名</th>
+                      <th style="padding: 10px 15px; font-weight: bold; color: var(--text-muted);">📅 対象月</th>
+                      <th style="padding: 10px 15px; text-align: right; width: 100px; font-weight: bold; color: var(--text-muted);">🕒 合計時間</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-reports-tbody">
+                    <tr>
+                      <td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">
+                        データをロード中...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>

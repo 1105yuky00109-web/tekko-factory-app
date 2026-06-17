@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
@@ -212,6 +212,7 @@ const renderAdminCompaniesTable = () => {
             createdAt: parseFirestoreDate(c.createdAt),
             trialEnd: parseFirestoreDate(c.trialEnd),
             adminEmail: (c.adminEmails && c.adminEmails[0]) || '(なし)',
+            status: c.status || 'active',
             paymentMethod: c.paymentMethod || (c.stripeCustomerId ? 'card' : 'card')
         };
     });
@@ -232,7 +233,10 @@ const renderAdminCompaniesTable = () => {
         return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
     };
 
-    const getTrialBadge = (trialEnd) => {
+    const getTrialBadge = (trialEnd, status) => {
+        if (status === 'disabled') {
+            return '<span class="badge-status" style="background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);padding:4px 8px;font-size:0.75rem;border-radius:4px;border:1px solid;display:inline-block;">🔴 無効化</span>';
+        }
         if (!trialEnd) return '<span class="badge-active">🟢 本契約</span>';
         const now = new Date();
         if (trialEnd < now) {
@@ -249,7 +253,9 @@ const renderAdminCompaniesTable = () => {
 
     tbody.innerHTML = companyStats.map(c => {
         const cc = '#4f46e5';
-        return `<tr style="border-bottom:1px solid var(--border); cursor: pointer;" class="company-row" data-company-id="${c.id}">
+        const isDisabled = c.status === 'disabled';
+        const rowClass = isDisabled ? 'company-row company-disabled' : 'company-row';
+        return `<tr style="border-bottom:1px solid var(--border); cursor: pointer;" class="${rowClass}" data-company-id="${c.id}">
             <td style="padding:12px 15px;">
                 <span class="badge-company" style="font-weight: bold;">${c.id}</span>
                 <div style="font-weight:bold;margin-top:4px; color:#4f46e5; text-decoration:underline;">${c.name}</div>
@@ -263,7 +269,7 @@ const renderAdminCompaniesTable = () => {
             </td>
             <td style="padding:12px 15px;text-align:center;font-weight:bold;">${c.employeeCount} / ${c.maxUsers} 名</td>
             <td style="padding:12px 15px;text-align:center;">${c.scheduleCount} 件</td>
-            <td style="padding:12px 15px;font-size:0.85rem;">${getTrialBadge(c.trialEnd)}</td>
+            <td style="padding:12px 15px;font-size:0.85rem;">${getTrialBadge(c.trialEnd, c.status)}</td>
             <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);word-break:break-all;">${c.adminEmail}</td>
             <td style="padding:12px 15px;font-size:0.8rem;color:var(--text-muted);">${fmtDate(c.createdAt)}</td>
         </tr>`;
@@ -334,10 +340,62 @@ async function selectAdminCompany(companyId) {
     // モーダルを表示
     if (detailModal) detailModal.classList.add('show');
 
+    // 初期表示タブを「企業設定」にする
+    switchModalTab('config');
+
     const companyObj = allCompanies.find(c => (c.companyId || c.id) === companyId);
     const companyName = companyObj ? (companyObj.companyName || companyId) : companyId;
     if (title) {
-        title.textContent = `🏢 ${companyName} 工事別稼働集計`;
+        title.textContent = `🏢 ${companyName}`;
+    }
+
+    // 基本情報・社員リストのセット
+    if (companyObj) {
+        document.getElementById('edit-company-name').value = companyObj.companyName || '';
+        document.getElementById('edit-company-max-users').value = companyObj.maxUsers || 10;
+
+        // 登録日のフォーマット表示
+        const parseLocalFirestoreDate = (field) => {
+            if (!field) return null;
+            if (typeof field.toDate === 'function') return field.toDate();
+            if (typeof field.seconds === 'number') return new Date(field.seconds * 1000);
+            if (typeof field === 'number') return field > 9999999999 ? new Date(field) : new Date(field * 1000);
+            const d = new Date(field);
+            return isNaN(d.getTime()) ? null : d;
+        };
+        const createdAtDate = parseLocalFirestoreDate(companyObj.createdAt);
+        const fmtDate = d => {
+            if (!d) return '-';
+            return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        };
+        document.getElementById('display-company-created-at').textContent = fmtDate(createdAtDate);
+
+        // 社員一覧 (氏名)
+        const employeesListDiv = document.getElementById('display-company-employees-list');
+        if (employeesListDiv) {
+            const employees = companyObj.employees || [];
+            if (employees.length === 0) {
+                employeesListDiv.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">登録されている社員はいません。</span>';
+            } else {
+                employeesListDiv.innerHTML = employees.map(emp => {
+                    const name = emp.name || '(名前未設定)';
+                    const roleLabel = emp.role === 'admin' ? '<span style="font-size:0.75rem; background:#eff6ff; color:#1e40af; padding:2px 6px; border-radius:4px; margin-left:5px; font-weight:bold;">管理者</span>' : '';
+                    return `<div style="padding:6px 0; border-bottom:1px solid var(--border); display:flex; align-items:center;">👤 ${name}${roleLabel}</div>`;
+                }).join('');
+            }
+        }
+
+        // 無効化ボタンのテキストと色切り替え
+        const disableBtn = document.getElementById('btn-disable-company');
+        if (disableBtn) {
+            if (companyObj.status === 'disabled') {
+                disableBtn.textContent = '🟢 この企業を有効化する';
+                disableBtn.style.background = 'var(--success)';
+            } else {
+                disableBtn.textContent = '🚫 この企業を無効化する';
+                disableBtn.style.background = 'var(--error)';
+            }
+        }
     }
 
     if (tbody) {
@@ -665,4 +723,149 @@ if (detailModalOverlay) {
         }
     });
 }
+
+// モーダルのタブ切り替え
+function switchModalTab(tabName) {
+    const tabConfigBtn = document.getElementById('modal-tab-config');
+    const tabStatsBtn = document.getElementById('modal-tab-stats');
+    const contentConfig = document.getElementById('modal-content-config');
+    const contentStats = document.getElementById('modal-content-stats');
+
+    if (tabName === 'config') {
+        if (tabConfigBtn) {
+            tabConfigBtn.classList.add('active');
+            tabConfigBtn.style.borderBottomColor = 'var(--primary)';
+            tabConfigBtn.style.color = 'var(--primary)';
+        }
+        if (tabStatsBtn) {
+            tabStatsBtn.classList.remove('active');
+            tabStatsBtn.style.borderBottomColor = 'transparent';
+            tabStatsBtn.style.color = 'var(--text-muted)';
+        }
+        if (contentConfig) contentConfig.classList.remove('hidden');
+        if (contentStats) contentStats.classList.add('hidden');
+    } else {
+        if (tabConfigBtn) {
+            tabConfigBtn.classList.remove('active');
+            tabConfigBtn.style.borderBottomColor = 'transparent';
+            tabConfigBtn.style.color = 'var(--text-muted)';
+        }
+        if (tabStatsBtn) {
+            tabStatsBtn.classList.add('active');
+            tabStatsBtn.style.borderBottomColor = 'var(--primary)';
+            tabStatsBtn.style.color = 'var(--primary)';
+        }
+        if (contentConfig) contentConfig.classList.add('hidden');
+        if (contentStats) contentStats.classList.remove('hidden');
+    }
+}
+
+// モーダルタブ切り替えイベント
+const tabConfigBtn = document.getElementById('modal-tab-config');
+const tabStatsBtn = document.getElementById('modal-tab-stats');
+if (tabConfigBtn) tabConfigBtn.addEventListener('click', () => switchModalTab('config'));
+if (tabStatsBtn) tabStatsBtn.addEventListener('click', () => switchModalTab('stats'));
+
+// 企業設定の保存
+const btnSaveCompanyConfig = document.getElementById('btn-save-company-config');
+if (btnSaveCompanyConfig) {
+    btnSaveCompanyConfig.addEventListener('click', async () => {
+        if (!selectedCompanyId) return;
+
+        const newName = document.getElementById('edit-company-name').value.trim();
+        const newMaxUsers = parseInt(document.getElementById('edit-company-max-users').value, 10);
+
+        if (!newName) {
+            alert('会社名を入力してください。');
+            return;
+        }
+        if (isNaN(newMaxUsers) || newMaxUsers < 1) {
+            alert('有効な社員上限数（1以上）を入力してください。');
+            return;
+        }
+
+        btnSaveCompanyConfig.disabled = true;
+        btnSaveCompanyConfig.textContent = '⏳ 保存中...';
+
+        try {
+            const companyRef = doc(db, "companies", selectedCompanyId);
+            await updateDoc(companyRef, {
+                companyName: newName,
+                maxUsers: newMaxUsers
+            });
+
+            alert('企業設定を保存しました。');
+            
+            // ローカルデータをリロードしてテーブルを更新
+            await reloadData();
+            
+            // 再読み込みしたらモーダルのタイトル等も同期する
+            const title = document.getElementById('modal-company-title');
+            if (title) title.textContent = `🏢 ${newName}`;
+            
+        } catch (err) {
+            console.error("Failed to save company config:", err);
+            alert('設定の保存に失敗しました: ' + err.message);
+        } finally {
+            btnSaveCompanyConfig.disabled = false;
+            btnSaveCompanyConfig.textContent = '💾 設定を保存する';
+        }
+    });
+}
+
+// 企業の無効化／有効化トグル
+const btnDisableCompany = document.getElementById('btn-disable-company');
+if (btnDisableCompany) {
+    btnDisableCompany.addEventListener('click', async () => {
+        if (!selectedCompanyId) return;
+
+        const companyObj = allCompanies.find(c => (c.companyId || c.id) === selectedCompanyId);
+        if (!companyObj) return;
+
+        const isCurrentlyDisabled = companyObj.status === 'disabled';
+        
+        let confirmMsg = "";
+        let newStatus = "";
+
+        if (isCurrentlyDisabled) {
+            confirmMsg = 'この企業アカウントを有効化（ブロック解除）しますか？';
+            newStatus = 'active';
+        } else {
+            confirmMsg = 'この企業を無効化しますか？\nログインができなくなります。';
+            newStatus = 'disabled';
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        btnDisableCompany.disabled = true;
+
+        try {
+            const companyRef = doc(db, "companies", selectedCompanyId);
+            await updateDoc(companyRef, {
+                status: newStatus
+            });
+
+            alert(newStatus === 'disabled' ? '企業を無効化しました。' : '企業を有効化しました。');
+            
+            // ローカルデータをリロードしてテーブルを更新
+            await reloadData();
+
+            // モーダル内のボタン表示を切り替える
+            if (newStatus === 'disabled') {
+                btnDisableCompany.textContent = '🟢 この企業を有効化する';
+                btnDisableCompany.style.background = 'var(--success)';
+            } else {
+                btnDisableCompany.textContent = '🚫 この企業を無効化する';
+                btnDisableCompany.style.background = 'var(--error)';
+            }
+
+        } catch (err) {
+            console.error("Failed to update company status:", err);
+            alert('状態の更新に失敗しました: ' + err.message);
+        } finally {
+            btnDisableCompany.disabled = false;
+        }
+    });
+}
+
 

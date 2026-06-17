@@ -365,6 +365,21 @@ function setupAuthListener() {
                     return;
                 }
                 
+                // 企業アカウント無効化チェック
+                if (resolvedCompany.status === 'disabled') {
+                    showDebugLog("Company account is disabled. Logging out.");
+                    await signOut(auth);
+                    if (currentGeneration !== authStateGeneration) return;
+                    
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = 'この企業アカウントは無効化されています。システム管理者にお問い合わせください。';
+                    }
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    return;
+                }
+
                 currentCompany = resolvedCompany;
                 showDebugLog("Company resolved: " + currentCompany.companyId + ", role: " + currentCompany.role);
                 
