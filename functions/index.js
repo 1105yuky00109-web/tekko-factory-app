@@ -614,6 +614,7 @@ ${invoiceLink}
       await companyRef.set({
         companyId,
         companyName,
+        adminName, // 管理者氏名をFirestoreにも保存
         planId: 'free',
         planName: '無料プラン (無制限)',
         stripeCustomerId: '', // Stripeなし
@@ -697,6 +698,7 @@ ${adminEmail}
       await companyRef.set({
         companyId,
         companyName,
+        adminName, // 管理者氏名をFirestoreにも保存
         planId: plan,
         planName: `${maxUsers}名パック`,
         stripeCustomerId: customer.id,
@@ -864,6 +866,7 @@ exports.stripeWebhook = functions.region('asia-northeast1').https.onRequest(asyn
     await companyRef.set({
       companyId,
       companyName,
+      adminName, // 管理者氏名をFirestoreにも保存
       planId,
       planName: `${maxUsers}名パック`,
       stripeCustomerId: session.customer,

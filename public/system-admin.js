@@ -22,6 +22,7 @@ const DEVELOPER_EMAILS = ['steelworks@areva.co.jp'];
 let currentUser = null;
 let allCompanies = [];
 let allSchedules = [];
+let allCostRecords = []; // 全社の原価・契約データを格納
 let selectedCompanyId = "";
 let currentCompanyReports = []; // 選択された会社の日報データ
 let originalCompanyConfig = null; // モーダルを開いた時点の初期設定値
@@ -132,6 +133,27 @@ const adminLoadAllData = async () => {
     } catch(e) {
         console.error("Error loading schedules: ", e);
     }
+
+    // 各会社の costRecords を並行ロードして全社集計に備える
+    allCostRecords = [];
+    if (allCompanies.length > 0) {
+        try {
+            const costPromises = allCompanies.map(async (c) => {
+                const cid = c.companyId || c.id;
+                try {
+                    const costSnap = await getDocs(collection(db, 'companies', cid, 'costRecords'));
+                    costSnap.forEach(d => {
+                        allCostRecords.push({ id: d.id, companyId: cid, ...d.data() });
+                    });
+                } catch (err) {
+                    console.error(`Error loading costRecords for company ${cid}:`, err);
+                }
+            });
+            await Promise.all(costPromises);
+        } catch(e) {
+            console.error("Error batch loading cost records: ", e);
+        }
+    }
 };
 
 // データの再読み込みと画面描画
@@ -145,7 +167,7 @@ async function reloadData() {
     try {
         await adminLoadAllData();
         renderAdminCompaniesTable();
-        updateCompanyFilterOptions();
+        aggregateMonthlySales(); // 月別売上・入金の集計表示
         if (selectedCompanyId) {
             await selectAdminCompany(selectedCompanyId);
         }
@@ -162,11 +184,6 @@ async function reloadData() {
 // ボタン・セレクトボックスイベント
 document.getElementById('admin-reload-btn').addEventListener('click', reloadData);
 
-if (document.getElementById('admin-company-filter')) {
-    document.getElementById('admin-company-filter').addEventListener('change', (e) => {
-        selectAdminCompany(e.target.value);
-    });
-}
 if (document.getElementById('admin-month-filter')) {
     document.getElementById('admin-month-filter').addEventListener('change', () => {
         aggregateAndRenderReports();
@@ -326,23 +343,54 @@ const renderAdminCompaniesTable = () => {
     });
 };
 
-// 会社フィルターのセレクトボックス更新
-const updateCompanyFilterOptions = () => {
-    const filterSelect = document.getElementById('admin-company-filter');
-    if (!filterSelect) return;
-
-    filterSelect.innerHTML = '<option value="">🏢 会社を選択して絞り込み...</option>';
-
-    allCompanies.forEach(c => {
-        const cid = c.companyId || c.id;
-        const name = c.companyName || cid;
-        const opt = document.createElement('option');
-        opt.value = cid;
-        opt.textContent = `🏢 ${name} (${cid})`;
-        filterSelect.appendChild(opt);
+// 月別売上・入金集計（全社合計）の計算と描画
+const aggregateMonthlySales = () => {
+    const monthlyMap = new Map(); // key: yyyymm
+    
+    allCostRecords.forEach(rec => {
+        const yyyymm = rec.yearMonth;
+        if (!yyyymm || yyyymm.length !== 6) return;
+        
+        const contractAmt = rec.contract?.contractAmount || 0;
+        const additionalAmt = rec.additionalWorksTotal || 0;
+        const totalContract = contractAmt + additionalAmt; // 総契約金額
+        const paymentAmt = rec.revenue?.paymentAmount || 0; // 入金金額
+        
+        if (!monthlyMap.has(yyyymm)) {
+            monthlyMap.set(yyyymm, {
+                yearMonth: yyyymm,
+                totalContract: 0,
+                totalPayment: 0
+            });
+        }
+        
+        const m = monthlyMap.get(yyyymm);
+        m.totalContract += totalContract;
+        m.totalPayment += paymentAmt;
     });
-
-    filterSelect.value = selectedCompanyId;
+    
+    // 月順（降順：新しい月が上）でソート
+    const sortedList = Array.from(monthlyMap.values()).sort((a, b) => b.yearMonth.localeCompare(a.yearMonth));
+    
+    const tbody = document.getElementById('admin-monthly-sales-tbody');
+    if (!tbody) return;
+    
+    if (sortedList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">契約・入金データはありません。</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = sortedList.map(row => {
+        const year = row.yearMonth.substring(0, 4);
+        const month = row.yearMonth.substring(4, 6);
+        return `
+            <tr style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 12px 15px; font-weight: bold; color: var(--text);">${year}年${month}月</td>
+                <td style="padding: 12px 15px; text-align: right; font-weight: bold; color: #2563eb;">¥${row.totalContract.toLocaleString()}</td>
+                <td style="padding: 12px 15px; text-align: right; font-weight: bold; color: #10b981;">¥${row.totalPayment.toLocaleString()}</td>
+            </tr>
+        `;
+    }).join('');
 };
 
 // 対象月フィルターのオプション更新
