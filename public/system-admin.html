@@ -4,7 +4,6 @@
   <script>
     // 開発者専用画面がPWA（インストールしたアプリ版）のウィンドウ内で開かれるのを防ぎます。
     if (window.matchMedia('(display-mode: standalone)').matches) {
-      alert('システム管理者ダッシュボードは、アプリ版ではなく通常のブラウザ（ChromeやEdge等）からアクセスしてください。一般入力画面に戻ります。');
       window.location.replace('app.html');
     }
 
