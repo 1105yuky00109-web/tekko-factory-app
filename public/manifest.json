@@ -1,6 +1,6 @@
 {
-  "short_name": "鉄骨日報",
-  "name": "鉄骨日報管理システム (tekko-factory-app)",
+  "short_name": "工事管理システム",
+  "name": "工事管理システム",
   "icons": [
     {
       "src": "icon-192.png",
