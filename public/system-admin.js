@@ -248,11 +248,11 @@ const renderAdminCompaniesTable = () => {
     };
 
     tbody.innerHTML = companyStats.map(c => {
-        const cc = '#93c5fd';
+        const cc = '#4f46e5';
         return `<tr style="border-bottom:1px solid var(--border); cursor: pointer;" class="company-row" data-company-id="${c.id}">
             <td style="padding:12px 15px;">
-                <span class="badge-company" style="color:${cc}; font-weight: bold; text-decoration: underline;">${c.id}</span>
-                <div style="font-weight:bold;margin-top:4px; color:#60a5fa; text-decoration:underline;">${c.name}</div>
+                <span class="badge-company" style="font-weight: bold;">${c.id}</span>
+                <div style="font-weight:bold;margin-top:4px; color:#4f46e5; text-decoration:underline;">${c.name}</div>
             </td>
             <td style="padding:12px 15px;">
                 <div style="font-weight:bold;font-size:0.9rem;">${c.planName}</div>

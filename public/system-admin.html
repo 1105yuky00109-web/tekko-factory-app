@@ -28,13 +28,13 @@
   <title>開発者専用 システム管理パネル</title>
   <style>
     :root {
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --background: #0f172a;
-      --card-bg: #1e293b;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --border: #334155;
+      --primary: #4f46e5;
+      --primary-hover: #3730a3;
+      --background: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
       --success: #10b981;
       --warning: #f59e0b;
       --error: #ef4444;
@@ -73,7 +73,7 @@
       padding: 30px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
 
     .login-card h2 {
@@ -104,7 +104,7 @@
     .input-text {
       width: 100%;
       padding: 10px 12px;
-      background: #0f172a;
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
@@ -179,14 +179,15 @@
     }
 
     .btn-secondary {
-      background: #334155;
+      background: #e2e8f0;
       color: var(--text);
+      border: 1px solid var(--border);
       font-size: 0.8rem;
       padding: 6px 12px;
     }
 
     .btn-secondary:hover {
-      background: #475569;
+      background: #cbd5e1;
     }
 
     .control-panel {
@@ -213,9 +214,9 @@
     }
 
     select.btn-select {
-      background: #1e3a8a;
-      color: #fff;
-      border: 1px solid #3b82f6;
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid var(--border);
       border-radius: 6px;
       padding: 10px;
       outline: none;
@@ -278,7 +279,7 @@
     }
 
     th {
-      background: rgba(0, 0, 0, 0.2);
+      background: #f1f5f9;
       padding: 12px 15px;
       color: var(--text-muted);
       font-weight: bold;
@@ -291,12 +292,12 @@
     }
 
     tr:hover {
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(0, 0, 0, 0.02);
     }
 
     .badge-company {
-      background: #1e3a8a;
-      color: #93c5fd;
+      background: #eff6ff;
+      color: #1e40af;
       padding: 3px 8px;
       border-radius: 6px;
       font-size: 0.8rem;
@@ -318,7 +319,7 @@
 
     .badge-status.confirmed {
       background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
+      color: #2563eb;
       border: 1px solid rgba(59, 130, 246, 0.3);
     }
 
@@ -329,7 +330,7 @@
     }
 
     .btn-tab {
-      background: #334155;
+      background: #e2e8f0;
       color: var(--text-muted);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -340,7 +341,7 @@
     }
 
     .btn-tab:hover {
-      background: #475569;
+      background: #cbd5e1;
       color: var(--text);
     }
 
@@ -384,7 +385,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(15, 23, 42, 0.65);
+      background: rgba(15, 23, 42, 0.35);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: flex;
@@ -408,7 +409,7 @@
       width: 95%;
       max-width: 1000px;
       max-height: 90vh;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
       transform: scale(0.95);
@@ -474,7 +475,7 @@
     }
 
     .chart-wrapper {
-      background: rgba(15, 23, 42, 0.4);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 16px;
@@ -491,11 +492,11 @@
       max-width: 100% !important;
       max-height: 100% !important;
     }
-
+ 
     .modal-table-wrapper {
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(15, 23, 42, 0.2);
+      background: #ffffff;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -540,7 +541,7 @@
     <section class="control-panel" style="margin-bottom: 20px;">
       <div class="control-actions" style="margin-top: 0; display: flex; gap: 10px; align-items: center;">
         <button id="admin-reload-btn" class="btn" style="background:#4f46e5; color:#fff;">🔄 本番データ再読み込み</button>
-        <select id="admin-company-filter" class="btn-select" style="padding: 10px; font-size: 0.9rem; background: #1e3a8a; color: #fff; border: 1px solid #3b82f6; border-radius: 6px; cursor: pointer;">
+        <select id="admin-company-filter" class="btn-select" style="padding: 10px; font-size: 0.9rem; background: #ffffff; color: var(--text); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
           <option value="">🏢 会社を選択して絞り込み...</option>
         </select>
       </div>
