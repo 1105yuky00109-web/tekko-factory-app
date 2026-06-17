@@ -284,7 +284,7 @@ function setupAuthListener() {
                     }
                     
                     if (loadingContainer) loadingContainer.classList.add('hidden');
-                    await signOut(auth);
+                    signOut(auth).catch(err => console.error("SignOut error:", err));
                     return;
                 }
 
