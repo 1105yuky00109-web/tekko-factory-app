@@ -545,38 +545,43 @@ async function selectAdminCompany(companyId) {
 
     // 会社IDの表示セット
     const displayCompanyId = document.getElementById('display-company-id');
-    if (displayCompanyId) {
-        displayCompanyId.textContent = companyObj.companyId || companyObj.id;
+    if (displayCompanyId && companyObj) {
+        displayCompanyId.textContent = companyObj.companyId || companyObj.id || '';
     }
 
     // 管理者メールの表示セット
     const displayCompanyAdminEmail = document.getElementById('display-company-admin-email');
-    if (displayCompanyAdminEmail) {
+    if (displayCompanyAdminEmail && companyObj) {
         displayCompanyAdminEmail.textContent = (companyObj.adminEmails && companyObj.adminEmails[0]) || '(未設定)';
     }
 
     // 登録工事数の表示セット
     const displayCompanySchedulesCount = document.getElementById('display-company-schedules-count');
-    if (displayCompanySchedulesCount) {
-        const compSchedules = allSchedules.filter(s => (s.companyId === companyObj.companyId || s.companyId === companyObj.id));
+    if (displayCompanySchedulesCount && companyObj) {
+        const targetCid = companyObj.companyId || companyObj.id;
+        const compSchedules = allSchedules.filter(s => (s.companyId === targetCid || s.company === targetCid));
         displayCompanySchedulesCount.textContent = `${compSchedules.length} 件`;
     }
 
     // お支払い方法の初期セット
     const paymentMethodSelect = document.getElementById('edit-company-payment-method');
-    if (paymentMethodSelect) {
+    if (paymentMethodSelect && companyObj) {
         paymentMethodSelect.value = companyObj.paymentMethod || 'card';
     }
 
     // 初期値を退避（変更チェック用）
-    originalCompanyConfig = {
-        companyName: document.getElementById('edit-company-name').value || '',
-        maxUsers: document.getElementById('edit-company-max-users').value || '',
-        contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
-        planStatus: document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '',
-        trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '',
-        paymentMethod: document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card'
-    };
+    if (companyObj) {
+        originalCompanyConfig = {
+            companyName: document.getElementById('edit-company-name').value || '',
+            maxUsers: document.getElementById('edit-company-max-users').value || '',
+            contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
+            planStatus: document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '',
+            trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '',
+            paymentMethod: document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card'
+        };
+    } else {
+        originalCompanyConfig = null;
+    }
 
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="3" style="padding:30px; text-align:center; color:var(--text-muted);">⏳ 日報データを読み込み中...</td></tr>`;
