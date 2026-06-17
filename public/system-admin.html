@@ -657,6 +657,18 @@
                   <input type="number" id="edit-company-max-users" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="1" />
                 </div>
                 <div class="form-group" style="margin-top:15px;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">契約プラン状態</label>
+                  <select id="edit-company-plan-status" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);">
+                    <option value="trial_active">🔴 トライアル中（無料お試し）</option>
+                    <option value="trial_expired">⚫ トライアル期限切れ</option>
+                    <option value="active">🟢 本契約（有料）</option>
+                  </select>
+                </div>
+                <div id="trial-period-settings" class="form-group" style="margin-top:15px; display:none;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">トライアル残り日数</label>
+                  <input type="number" id="edit-company-trial-days" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="0" value="30" />
+                </div>
+                <div class="form-group" style="margin-top:15px;">
                   <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">登録日</label>
                   <div id="display-company-created-at" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem;">-</div>
                 </div>

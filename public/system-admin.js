@@ -525,11 +525,39 @@ async function selectAdminCompany(companyId) {
         }
     }
 
+    // 契約プラン状態の初期セット
+    const planStatusSelect = document.getElementById('edit-company-plan-status');
+    const trialPeriodSettings = document.getElementById('trial-period-settings');
+    const trialDaysInput = document.getElementById('edit-company-trial-days');
+    
+    if (planStatusSelect) {
+        const now = new Date();
+        const trialEnd = parseLocalFirestoreDate(companyObj.trialEnd);
+        
+        if (!trialEnd) {
+            planStatusSelect.value = 'active';
+            if (trialPeriodSettings) trialPeriodSettings.style.display = 'none';
+        } else if (trialEnd > now) {
+            planStatusSelect.value = 'trial_active';
+            if (trialPeriodSettings) {
+                trialPeriodSettings.style.display = 'block';
+                const diffTime = Math.abs(trialEnd - now);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (trialDaysInput) trialDaysInput.value = diffDays;
+            }
+        } else {
+            planStatusSelect.value = 'trial_expired';
+            if (trialPeriodSettings) trialPeriodSettings.style.display = 'none';
+        }
+    }
+
     // 初期値を退避（変更チェック用）
     originalCompanyConfig = {
         companyName: document.getElementById('edit-company-name').value || '',
         maxUsers: document.getElementById('edit-company-max-users').value || '',
-        contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : ''
+        contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
+        planStatus: document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '',
+        trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : ''
     };
 
     if (tbody) {
@@ -833,10 +861,14 @@ function closeDetailModal() {
         const currentName = document.getElementById('edit-company-name').value || '';
         const currentMaxUsers = document.getElementById('edit-company-max-users').value || '';
         const currentRenewalDate = document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '';
+        const currentPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '';
+        const currentTrialDays = document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '';
 
         const isChanged = currentName !== originalCompanyConfig.companyName ||
                           currentMaxUsers !== originalCompanyConfig.maxUsers ||
-                          currentRenewalDate !== originalCompanyConfig.contractRenewalDate;
+                          currentRenewalDate !== originalCompanyConfig.contractRenewalDate ||
+                          currentPlanStatus !== originalCompanyConfig.planStatus ||
+                          (currentPlanStatus === 'trial_active' && currentTrialDays !== originalCompanyConfig.trialDays);
 
         if (isChanged) {
             const leave = confirm("変更内容が保存されていません。破棄して閉じますか？");
@@ -862,6 +894,19 @@ function closeDetailModal() {
         filterSelect.value = "";
     }
     originalCompanyConfig = null; // 変数をクリア
+}
+
+// プランステータス変更時の表示制御
+const planStatusSelect = document.getElementById('edit-company-plan-status');
+const trialPeriodSettings = document.getElementById('trial-period-settings');
+if (planStatusSelect && trialPeriodSettings) {
+    planStatusSelect.addEventListener('change', () => {
+        if (planStatusSelect.value === 'trial_active') {
+            trialPeriodSettings.style.display = 'block';
+        } else {
+            trialPeriodSettings.style.display = 'none';
+        }
+    });
 }
 
 // 閉じるボタンと背景クリックのイベント追加
@@ -928,6 +973,7 @@ if (btnSaveCompanyConfig) {
 
         const newName = document.getElementById('edit-company-name').value.trim();
         const newMaxUsers = parseInt(document.getElementById('edit-company-max-users').value, 10);
+        const selectedPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : 'active';
 
         if (!newName) {
             alert('会社名を入力してください。');
@@ -943,9 +989,40 @@ if (btnSaveCompanyConfig) {
 
         try {
             const companyObj = allCompanies.find(c => (c.companyId || c.id) === selectedCompanyId);
+            
+            let newTrialStart = companyObj.trialStart || null;
+            let newTrialEnd = companyObj.trialEnd || null;
+            let newPlanName = companyObj.planName || '10名プラン';
+            
+            if (selectedPlanStatus === 'active') {
+                newTrialEnd = null;
+                if (newPlanName.includes('無料') || newPlanName.includes('トライアル')) {
+                    newPlanName = '10名パック追加プラン';
+                }
+            } else if (selectedPlanStatus === 'trial_expired') {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                yesterday.setHours(0, 0, 0, 0);
+                newTrialEnd = yesterday;
+            } else if (selectedPlanStatus === 'trial_active') {
+                const trialDays = parseInt(document.getElementById('edit-company-trial-days').value, 10) || 30;
+                const now = new Date();
+                if (!newTrialStart) {
+                    newTrialStart = now;
+                }
+                const trialEndDate = new Date();
+                trialEndDate.setDate(now.getDate() + trialDays);
+                trialEndDate.setHours(23, 59, 59, 999);
+                newTrialEnd = trialEndDate;
+                newPlanName = '10名プラン（無料トライアル）';
+            }
+
             const updateFields = {
                 companyName: newName,
-                maxUsers: newMaxUsers
+                maxUsers: newMaxUsers,
+                trialStart: newTrialStart,
+                trialEnd: newTrialEnd,
+                planName: newPlanName
             };
 
             if (companyObj && companyObj.paymentMethod === 'invoice') {
@@ -963,7 +1040,9 @@ if (btnSaveCompanyConfig) {
             originalCompanyConfig = {
                 companyName: newName,
                 maxUsers: String(newMaxUsers),
-                contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : ''
+                contractRenewalDate: document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '',
+                planStatus: selectedPlanStatus,
+                trialDays: document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : ''
             };
             
             // ローカルデータをリロードしてテーブルを更新
