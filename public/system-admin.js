@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // 開発者以外のログインを弾くためのメールリスト
-const DEVELOPER_EMAILS = ['steelworks@areva.co.jp', 'info@areva.co.jp'];
+const DEVELOPER_EMAILS = ['steelworks@areva.co.jp'];
 
 let currentUser = null;
 let allCompanies = [];
@@ -38,7 +38,7 @@ const currentEmailLabel = document.getElementById('current-user-email');
 const checkIsDeveloper = (user) => {
     if (!user) return false;
     const devUid = 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2';
-    const devEmails = ['steelworks@areva.co.jp', 'info@areva.co.jp'];
+    const devEmails = ['steelworks@areva.co.jp'];
     
     // UIDによる判定（最も確実）
     if (user.uid === devUid) return true;
@@ -66,15 +66,20 @@ onAuthStateChanged(auth, async (user) => {
             // 初回ロード
             await reloadData();
         } else {
-            // 開発者ではない場合は、一時的なメールアドレス未ロード状態でないことを確認した上で一般アプリへリダイレクト
-            // user.email が存在しない瞬間は、判定が確定するまでリダイレクトを保留する
+            // 開発者ではない場合は、一時的なメールアドレス未ロード状態でないことを確認した上で強制ログアウト
             if (user.email === undefined || user.email === null) {
                 console.log("onAuthStateChanged: user.email is not loaded yet in system-admin.js. Waiting...");
                 return;
             }
             
-            // 開発者ではないことが確定したため、一般アプリ画面へリダイレクト
-            window.location.href = "app.html";
+            // 開発者ではないため、システム管理者用画面からは強制サインアウトする
+            console.log("Non-developer account detected in system-admin.html. Forcing logout.");
+            const errorMsg = document.getElementById('login-error');
+            if (errorMsg) {
+                errorMsg.classList.remove('hidden');
+                errorMsg.textContent = '一般ユーザーはシステム管理者用画面にはログインできません。';
+            }
+            signOut(auth).catch(err => console.error("SignOut error:", err));
         }
     } else {
         currentUser = null;

@@ -329,19 +329,14 @@ function setupAuthListener() {
                 // ログイン成功時
                 currentUser = auth.currentUser;
                 if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
-                    if (window.matchMedia('(display-mode: standalone)').matches) {
-                        showDebugLog("Developer account detected in app PWA mode (login success). Forcing signout...");
-                        const errorMsg = document.getElementById('login-error');
-                        if (errorMsg) {
-                            errorMsg.classList.remove('hidden');
-                            errorMsg.textContent = '開発者アカウントはアプリ版ではご利用いただけません。通常のブラウザからアクセスしてください。';
-                        }
-                        if (loadingContainer) loadingContainer.classList.add('hidden');
-                        await signOut(auth);
-                        return;
+                    showDebugLog("Developer account detected in app.html (forbidden). Forcing signout...");
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = '開発者アカウントは一般社員用画面ではログインできません。専用の管理者画面からアクセスしてください。';
                     }
-                    showDebugLog("Developer account detected in app.html. Redirecting to system-admin.html...");
-                    window.location.href = "system-admin.html";
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    await signOut(auth);
                     return;
                 }
                 

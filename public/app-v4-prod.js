@@ -264,16 +264,21 @@ function setupAuthListener() {
 
             if (user) {
                 const isDeveloper = user && (
-                    (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') ||
-                    (user.uid === 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2')
-                );
-
-                // 開発者アカウントの場合は、他のチェックをすべてスキップして即座に管理画面へ遷移
-                if (isDeveloper) {
-                    showDebugLog("Developer account detected. Redirecting to system-admin.html...");
-                    window.location.href = "system-admin.html";
-                    return;
-                }
+                     (user.email && user.email.toLowerCase().trim() === 'steelworks@areva.co.jp') ||
+                     (user.uid === 'uQ2CTFIUMha6kxbXOWrpnIDjeRq2')
+                 );
+ 
+                 if (isDeveloper) {
+                     showDebugLog("Developer account detected in app.html (session check). Forcing signout...");
+                     const errorMsg = document.getElementById('login-error');
+                     if (errorMsg) {
+                         errorMsg.classList.remove('hidden');
+                         errorMsg.textContent = '開発者アカウントは一般社員用画面ではログインできません。専用の管理者画面からアクセスしてください。';
+                     }
+                     if (loadingContainer) loadingContainer.classList.add('hidden');
+                     await signOut(auth);
+                     return;
+                 }
 
                 // メールアドレスが一時的にロードされていない場合は処理を保留
                 if (user.email === undefined || user.email === null) {
@@ -335,8 +340,14 @@ function setupAuthListener() {
                 // ログイン成功時
                 currentUser = auth.currentUser;
                 if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
-                    showDebugLog("Developer account detected in app.html. Redirecting to system-admin.html...");
-                    window.location.href = "system-admin.html";
+                    showDebugLog("Developer account detected in app.html (forbidden). Forcing signout...");
+                    const errorMsg = document.getElementById('login-error');
+                    if (errorMsg) {
+                        errorMsg.classList.remove('hidden');
+                        errorMsg.textContent = '開発者アカウントは一般社員用画面ではログインできません。専用の管理者画面からアクセスしてください。';
+                    }
+                    if (loadingContainer) loadingContainer.classList.add('hidden');
+                    await signOut(auth);
                     return;
                 }
                 
