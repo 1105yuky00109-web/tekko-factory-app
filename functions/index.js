@@ -162,6 +162,22 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
         hasChanges = true;
       }
 
+      // 5. 管理者名の変更
+      if (changes.adminName) {
+        emailText += `■ 管理者名\n`;
+        emailText += `   変更前: ${changes.adminName.before}\n`;
+        emailText += `   変更後: ${changes.adminName.after}\n\n`;
+        hasChanges = true;
+      }
+
+      // 6. 管理者メールの変更
+      if (changes.adminEmail) {
+        emailText += `■ 管理者メールアドレス\n`;
+        emailText += `   変更前: ${changes.adminEmail.before}\n`;
+        emailText += `   変更後: ${changes.adminEmail.after}\n\n`;
+        hasChanges = true;
+      }
+
       if (!hasChanges) {
         return res.json({ success: true, message: 'No notification sent (no target changes)' });
       }
@@ -192,13 +208,75 @@ exports.api = functions.region('asia-northeast1').https.onRequest(async (req, re
     if (req.method !== 'POST') {
       return res.status(405).send('Method Not Allowed');
     }
-    const { invoiceId } = req.body;
-    if (!invoiceId) {
-      return res.status(400).json({ error: 'invoiceId is required' });
+    const { invoiceId, companyId } = req.body;
+    if (!invoiceId && !companyId) {
+      return res.status(400).json({ error: 'invoiceId or companyId is required' });
+    }
+
+    // companyId が渡された場合は、Firestoreから取得して自前でインボイスを作成する
+    if (companyId) {
+      try {
+        const companyDoc = await admin.firestore().collection('companies').doc(companyId).get();
+        if (!companyDoc.exists) {
+          return res.status(404).json({ error: 'Company not found' });
+        }
+        const companyData = companyDoc.data();
+        
+        // 料金計算: 10名ごとに5,000円 (税抜) -> 内税として処理されるよう、そのまま amountDue とする
+        // Stripe 請求書側と統一するため、amountDue = qty * 5000 * 1.10 (税込) にします
+        const maxUsers = companyData.maxUsers || 10;
+        const qty = Math.max(1, Math.floor(maxUsers / 10));
+        const amountDue = qty * 5500; // 税込 5500円
+        
+        // 請求書番号を生成 (会社ID + 更新月などを組み合わせる)
+        let renewalDate = null;
+        if (companyData.contractRenewalDate) {
+          if (typeof companyData.contractRenewalDate.toDate === 'function') {
+            renewalDate = companyData.contractRenewalDate.toDate();
+          } else {
+            renewalDate = new Date(companyData.contractRenewalDate);
+          }
+        } else {
+          renewalDate = new Date();
+        }
+        
+        const yyyy = renewalDate.getFullYear();
+        const mm = String(renewalDate.getMonth() + 1).padStart(2, '0');
+        // 先頭8文字の会社ID切り出し
+        const cidPrefix = companyId.replace('c_', '').substring(0, 6).toUpperCase();
+        const invoiceNumber = `INV-${yyyy}${mm}-${cidPrefix}`;
+        
+        // 発行日は更新日の1ヶ月前
+        const issueDate = new Date(renewalDate);
+        issueDate.setMonth(issueDate.getMonth() - 1);
+        
+        const bankDetails = {
+          bank_name: 'ＧＭＯあおぞらネット銀行',
+          bank_code: '0310',
+          branch_name: '法人営業部支店',
+          branch_code: '101',
+          account_type: 'normal',
+          account_number: '1273942',
+          account_holder_name: 'カ）アレバ',
+        };
+        
+        const resData = {
+          number: invoiceNumber,
+          date: Math.floor(issueDate.getTime() / 1000),
+          dueDate: Math.floor(renewalDate.getTime() / 1000),
+          customerName: `${companyData.companyName || 'お客様'} 御中`,
+          amountDue: amountDue,
+          bankDetails: bankDetails,
+        };
+        return res.json(resData);
+      } catch (err) {
+        console.error('get-invoice-details by companyId error', err);
+        return res.status(500).json({ error: err.message });
+      }
     }
 
     // テスト用のダミーIDの場合は、モックデータを返却する
-    if (invoiceId.startsWith('in_test')) {
+    if (invoiceId && invoiceId.startsWith('in_test')) {
       const mockData = {
         number: 'INV-20260603-TEST',
         date: Math.floor(Date.now() / 1000),

@@ -532,6 +532,123 @@
       flex-direction: column;
       height: 100%;
     }
+
+    /* 企業一覧のグリッドとカード風ボタンのスタイル */
+    .company-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    .btn-company-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      width: 100%;
+      color: var(--text);
+      font-weight: 600;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-company-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(79, 70, 229, 0.08), 0 2px 4px rgba(0, 0, 0, 0.02);
+      border-color: rgba(79, 70, 229, 0.4);
+      background: linear-gradient(to bottom right, #ffffff, #f5f3ff);
+    }
+
+    .btn-company-card:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 8px rgba(79, 70, 229, 0.04);
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* 稼働中 (本契約) */
+    .btn-company-card.status-active .status-indicator {
+      background-color: var(--success);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-company-card.status-active .status-indicator::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: var(--success);
+      opacity: 0.8;
+      animation: status-ping 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    /* トライアル中 */
+    .btn-company-card.status-trial .status-indicator {
+      background-color: var(--warning);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    }
+
+    .btn-company-card.status-trial .status-indicator::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: var(--warning);
+      opacity: 0.8;
+      animation: status-ping 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    /* 無効化 (停止中) */
+    .btn-company-card.status-disabled {
+      opacity: 0.6;
+      background-color: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .btn-company-card.status-disabled .status-indicator {
+      background-color: var(--text-muted);
+    }
+
+    .btn-company-card span {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1;
+    }
+
+    @keyframes status-ping {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(2.5);
+        opacity: 0;
+      }
+    }
   </style>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -636,6 +753,14 @@
                   <input type="text" id="edit-company-name" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" />
                 </div>
                 <div class="form-group" style="margin-top:15px;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">管理者名</label>
+                  <input type="text" id="edit-company-admin-name" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" placeholder="例: 大和田 太郎" />
+                </div>
+                <div class="form-group" style="margin-top:15px;">
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">管理者メール</label>
+                  <input type="email" id="edit-company-admin-email" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" placeholder="admin@example.com" />
+                </div>
+                <div class="form-group" style="margin-top:15px;">
                   <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">社員上限数 (名)</label>
                   <input type="number" id="edit-company-max-users" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="1" />
                 </div>
@@ -647,9 +772,16 @@
                     <option value="active">🟢 本契約（有料）</option>
                   </select>
                 </div>
-                <div id="trial-period-settings" class="form-group" style="margin-top:15px; display:none;">
-                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">トライアル残り日数</label>
-                  <input type="number" id="edit-company-trial-days" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="0" value="30" />
+                <!-- トライアル設定（期間と残り日数） -->
+                <div id="trial-period-settings" style="margin-top:15px; display:none; background:rgba(245,158,11,0.03); padding:12px; border:1px dashed var(--warning); border-radius:8px;">
+                  <div class="form-group">
+                    <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">トライアル残り日数 (日)</label>
+                    <input type="number" id="edit-company-trial-days" class="input-text" style="margin-top:5px; width:100%; border-color:var(--border);" min="0" value="30" />
+                  </div>
+                  <div class="form-group" style="margin-top:10px;">
+                    <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">トライアル期間 (自動計算)</label>
+                    <div id="display-company-trial-period" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem;">-</div>
+                  </div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
                   <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">お支払い方法</label>
@@ -667,20 +799,31 @@
                   <div id="display-company-id" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem; font-family: monospace;">-</div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
-                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">管理者メール</label>
-                  <div id="display-company-admin-email" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem; word-break:break-all;">-</div>
-                </div>
-                <div class="form-group" style="margin-top:15px;">
                   <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted);">登録工事数</label>
                   <div id="display-company-schedules-count" style="margin-top:5px; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size: 0.9rem;">0 件</div>
                 </div>
               </div>
               
-              <!-- 社員一覧 -->
-              <div style="display:flex; flex-direction:column;">
-                <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted); margin-bottom:5px;">社員一覧 (氏名)</label>
-                <div id="display-company-employees-list" style="flex:1; padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; overflow-y:auto; min-height:180px; max-height:220px; font-size:0.9rem; line-height:1.8; color:var(--text);">
-                  <!-- 氏名リスト -->
+              <!-- 社員一覧 & 代理ログイン -->
+              <div style="display:flex; flex-direction:column; gap:20px;">
+                <div>
+                  <label style="font-weight:bold; font-size: 0.85rem; color: var(--text-muted); margin-bottom:5px; display:block;">社員一覧 (氏名)</label>
+                  <div id="display-company-employees-list" style="padding:10px 12px; background:var(--background); border:1px solid var(--border); border-radius:6px; overflow-y:auto; min-height:180px; max-height:220px; font-size:0.9rem; line-height:1.8; color:var(--text);">
+                    <!-- 氏名リスト -->
+                  </div>
+                </div>
+                
+                <!-- 代理ログイン（デバッグ・なりすまし用） -->
+                <div style="background:rgba(79,70,229,0.04); border:1px dashed var(--primary); border-radius:8px; padding:16px; box-sizing:border-box;">
+                  <h4 style="margin-top:0; margin-bottom:8px; font-size:0.9rem; color:var(--primary); font-weight:bold; display:flex; align-items:center; gap:5px;">
+                    👁️ 代理ログイン機能 (テスト用)
+                  </h4>
+                  <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;">
+                    開発者権限のまま、この会社の入力・閲覧画面（一般画面）を代理で確認することができます。
+                  </p>
+                  <button id="btn-impersonate-company" class="btn" style="background:var(--primary); color:#fff; font-size:0.85rem; font-weight:bold; width:100%; border-radius:6px; cursor:pointer; padding:10px;">
+                    💻 この会社の入力画面を開く
+                  </button>
                 </div>
               </div>
             </div>
