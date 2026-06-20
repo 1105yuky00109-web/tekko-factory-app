@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, getDocs, query, where, doc, updateDoc, setDoc, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyATXg0kIf7_iYDcRslbH-C0zyCC_dtFmI4",
@@ -16,13 +16,26 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ローカル開発環境 (localhost / 127.0.0.1) の場合はエミュレータに自動接続
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log("Running on localhost. Connecting Firebase Emulators...");
+    try {
+        connectAuthEmulator(auth, "http://127.0.0.1:9100");
+        connectFirestoreEmulator(db, "127.0.0.1", 8082);
+        console.log("✅ Connected to Auth Emulator (9100) and Firestore Emulator (8082).");
+    } catch (err) {
+        console.error("Firebase Emulator connection failed:", err);
+    }
+}
+
 // 開発者以外のログインを弾くためのメールリスト
 const DEVELOPER_EMAILS = ['steelworks@areva.co.jp'];
+const ADMIN_SECURITY_CODE = "admin1234";
 
 let currentUser = null;
 let allCompanies = [];
 let allSchedules = [];
-let allCostRecords = []; // 全社の原価・契約データを格納
+let allSystemPayments = []; // 全社のシステム支払データを格納
 let selectedCompanyId = "";
 let currentCompanyReports = []; // 選択された会社の日報データ
 let originalCompanyConfig = null; // モーダルを開いた時点の初期設定値
@@ -32,7 +45,6 @@ let reportChartInstance = null; // Chart.jsのグラフインスタンス
 // DOM要素
 const loginContainer = document.getElementById('login-container');
 const appContainer = document.getElementById('app-container');
-const loginForm = document.getElementById('login-form');
 const btnLogout = document.getElementById('btn-logout');
 const currentEmailLabel = document.getElementById('current-user-email');
 
@@ -57,6 +69,12 @@ const checkIsDeveloper = (user) => {
 // 認証状態の監視
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        // メールアドレスが一時的にロードされていない場合は処理を保留
+        if (user.email === undefined || user.email === null) {
+            console.log("onAuthStateChanged: user.email is not loaded yet in system-admin.js. Waiting...");
+            return;
+        }
+
         const isDev = checkIsDeveloper(user);
         
         if (isDev) {
@@ -68,50 +86,13 @@ onAuthStateChanged(auth, async (user) => {
             // 初回ロード
             await reloadData();
         } else {
-            // 開発者ではない場合は、一時的なメールアドレス未ロード状態でないことを確認した上で強制ログアウト
-            if (!user.email || user.email.trim() === "") {
-                console.log("onAuthStateChanged: user.email is not loaded yet in system-admin.js. Waiting...");
-                return;
-            }
-            
-            // 開発者ではないため、システム管理者用画面からは強制サインアウトする
-            console.log("Non-developer account detected in system-admin.html. Forcing logout.");
-            const errorMsg = document.getElementById('login-error');
-            if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = '一般ユーザーはシステム管理者用画面にはログインできません。';
-            }
-            signOut(auth).catch(err => console.error("SignOut error:", err));
+            console.log("Non-developer account detected. Redirecting to app.html.");
+            window.location.replace('app.html');
         }
     } else {
-        currentUser = null;
-        loginContainer.classList.remove('hidden');
-        appContainer.classList.add('hidden');
+        console.log("No authenticated user. Redirecting to app.html for login.");
+        window.location.replace('app.html');
     }
-});
-
-// ログイン処理
-loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('login-email').value.trim();
-    const pass = document.getElementById('login-password').value;
-    const errorMsg = document.getElementById('login-error');
-    
-    if (!DEVELOPER_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase().trim())) {
-        errorMsg.classList.remove('hidden');
-        errorMsg.textContent = 'ログイン権限がありません。開発者のメールアドレスを入力してください。';
-        return;
-    }
-
-    signInWithEmailAndPassword(auth, email, pass)
-        .then(() => {
-            errorMsg.classList.add('hidden');
-        })
-        .catch((error) => {
-            console.error(error);
-            errorMsg.classList.remove('hidden');
-            errorMsg.textContent = 'ログインに失敗しました。認証情報を確認してください。';
-        });
 });
 
 // ログアウト処理
@@ -133,26 +114,12 @@ const adminLoadAllData = async () => {
     } catch(e) {
         console.error("Error loading schedules: ", e);
     }
-
-    // 各会社の costRecords を並行ロードして全社集計に備える
-    allCostRecords = [];
-    if (allCompanies.length > 0) {
-        try {
-            const costPromises = allCompanies.map(async (c) => {
-                const cid = c.companyId || c.id;
-                try {
-                    const costSnap = await getDocs(collection(db, 'companies', cid, 'costRecords'));
-                    costSnap.forEach(d => {
-                        allCostRecords.push({ id: d.id, companyId: cid, ...d.data() });
-                    });
-                } catch (err) {
-                    console.error(`Error loading costRecords for company ${cid}:`, err);
-                }
-            });
-            await Promise.all(costPromises);
-        } catch(e) {
-            console.error("Error batch loading cost records: ", e);
-        }
+    // システム月別売上・入金データをロード
+    try {
+        const paySnap = await getDocs(collection(db, "system_payments"));
+        allSystemPayments = paySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+        console.error("Error loading system payments: ", e);
     }
 };
 
@@ -165,9 +132,23 @@ async function reloadData() {
     }
     
     try {
+        // まず全データを一度ロード
         await adminLoadAllData();
+        
+        // 新規データの自動補完 (Firestoreに書き込み)
+        await generateSystemPaymentsForCompanies();
+        
+        // 補完されたデータも含めてシステム支払データを再ロード
+        try {
+            const paySnap = await getDocs(collection(db, "system_payments"));
+            allSystemPayments = paySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch(e) {
+            console.error("Error re-loading system payments after generation: ", e);
+        }
+
         renderAdminCompaniesTable();
-        aggregateMonthlySales(); // 月別売上・入金の集計表示
+        aggregateMonthlySales(); // システム利用料ベースの月別売上・入金の集計表示
+        
         if (selectedCompanyId) {
             await selectAdminCompany(selectedCompanyId);
         }
@@ -328,45 +309,178 @@ const renderAdminCompaniesTable = () => {
         const isTrial = c.trialEnd && c.trialEnd > new Date();
         const statusClass = isDisabled ? 'status-disabled' : (isTrial ? 'status-trial' : 'status-active');
         
-        return `<button class="btn-company-card ${statusClass}" data-company-id="${c.id}">
-            <span class="status-indicator"></span>
-            <span style="font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</span>
-        </button>`;
+        return `<div class="btn-company-card ${statusClass}" style="display: flex; justify-content: space-between; align-items: center; cursor: default; padding: 12px 16px;">
+            <div class="company-card-info" data-company-id="${c.id}" style="display: flex; align-items: center; gap: 14px; flex: 1; cursor: pointer; height: 100%;">
+                <span class="status-indicator"></span>
+                <span style="font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</span>
+            </div>
+            ${isDisabled ? '' : `
+            <button class="btn-impersonate-quick" data-company-id="${c.id}" style="background: var(--primary); color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer; transition: background 0.2s; font-weight: bold; z-index: 10;" onmouseover="this.style.background='var(--primary-hover)'" onmouseout="this.style.background='var(--primary)'">
+                👤 入力画面へ
+            </button>
+            `}
+        </div>`;
     }).join('');
 
-    // ボタンクリックイベントの付与
-    buttonsContainer.querySelectorAll('.btn-company-card').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const companyId = btn.getAttribute('data-company-id');
+    // 企業詳細表示イベントの付与
+    buttonsContainer.querySelectorAll('.company-card-info').forEach(info => {
+        info.addEventListener('click', () => {
+            const companyId = info.getAttribute('data-company-id');
             selectAdminCompany(companyId);
+        });
+    });
+
+    // 代理ログインボタンのイベントの付与
+    buttonsContainer.querySelectorAll('.btn-impersonate-quick').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const companyId = btn.getAttribute('data-company-id');
+            sessionStorage.setItem('impersonate_company_id', companyId);
+            window.open('app.html', '_blank');
         });
     });
 };
 
-// 月別売上・入金集計（全社合計）の計算と描画
+// システム利用料（月額料金）の算出ヘルパー
+function getPlanMonthlyFee(maxUsers, planStatus) {
+    if (planStatus === 'trial_active' || planStatus === 'trial_expired') {
+        return 0; // トライアル中は0円
+    }
+    const users = parseInt(maxUsers) || 0;
+    if (users >= 9999) {
+        return 0; // 無料無制限プランは0円
+    }
+    // 10名ごとに5,000円 (税別)
+    return Math.ceil(users / 10) * 5000;
+}
+
+// システム利用料の月別売上・入金履歴の一括補完
+async function generateSystemPaymentsForCompanies() {
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // すべてのシステム支払履歴を一括ロードしてメモリ上にキャッシュ
+    let existingPayments = {};
+    try {
+        const paySnap = await getDocs(collection(db, "system_payments"));
+        paySnap.forEach(d => {
+            existingPayments[d.id] = d.data();
+        });
+    } catch (err) {
+        console.error("Error loading system_payments for cache:", err);
+    }
+
+    const batchPromises = [];
+
+    // 堅牢な日付解析ヘルパー
+    const parseLocalFirestoreDate = (field) => {
+        if (!field) return null;
+        if (typeof field.toDate === 'function') return field.toDate();
+        if (typeof field.seconds === 'number') return new Date(field.seconds * 1000);
+        if (typeof field === 'number') return field > 9999999999 ? new Date(field) : new Date(field * 1000);
+        const d = new Date(field);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
+    for (const company of allCompanies) {
+        const cid = company.companyId || company.id;
+        if (!cid) continue;
+
+        // 作成日。なければ2026年5月とする
+        const createdAt = parseLocalFirestoreDate(company.createdAt) || new Date(2026, 4, 1);
+        const trialEnd = parseLocalFirestoreDate(company.trialEnd);
+
+        // 作成月から現在月までの各月をループ
+        let iterDate = new Date(createdAt);
+        iterDate.setDate(1); // 1日に固定
+
+        while (iterDate <= now) {
+            const y = iterDate.getFullYear();
+            const m = String(iterDate.getMonth() + 1).padStart(2, '0');
+            const ym = `${y}${m}`;
+            const payId = `${cid}_${ym}`;
+
+            // トライアル期限切れで、かつトライアル終了日より後の月は売上が発生しないためスキップ
+            if (company.planStatus === 'trial_expired' && trialEnd && iterDate > trialEnd) {
+                iterDate.setMonth(iterDate.getMonth() + 1);
+                continue;
+            }
+
+            // トライアル期間中かどうかの判定
+            const isTrial = (company.planStatus === 'trial_active' || company.planStatus === 'trial_expired') && trialEnd && iterDate <= trialEnd;
+            const amount = isTrial ? 0 : getPlanMonthlyFee(company.maxUsers, company.planStatus);
+
+            let status = 'unpaid';
+            if (amount === 0) {
+                status = 'paid'; // 0円は支払済み扱い
+            } else if (company.paymentMethod === 'card') {
+                status = 'paid'; // クレジットカード決済は自動入金扱い
+            } else if (company.paymentMethod === 'invoice') {
+                if (company.invoiceStatus === 'paid') {
+                    status = 'paid';
+                } else {
+                    // 最新の次回更新予定月、または現在月は unpaid
+                    const renewalDate = parseLocalFirestoreDate(company.contractRenewalDate);
+                    if (renewalDate) {
+                        const renewalYM = `${renewalDate.getFullYear()}${String(renewalDate.getMonth() + 1).padStart(2, '0')}`;
+                        status = (ym >= renewalYM) ? 'unpaid' : 'paid';
+                    } else {
+                        status = (ym === currentYearMonth) ? 'unpaid' : 'paid';
+                    }
+                }
+            }
+
+            // 未存在、あるいは未払い状態で最新が支払い済みに変わったものを更新
+            const existing = existingPayments[payId];
+            if (!existing || (existing.status === 'unpaid' && status === 'paid') || (existing.amount !== amount && status === 'unpaid')) {
+                const payRef = doc(db, "system_payments", payId);
+                const p = setDoc(payRef, {
+                    companyId: cid,
+                    companyName: company.companyName || '',
+                    yearMonth: ym,
+                    amount: amount,
+                    paymentMethod: company.paymentMethod || 'card',
+                    status: status,
+                    paidAt: status === 'paid' ? now : null,
+                    createdAt: company.createdAt || now
+                }, { merge: true });
+                batchPromises.push(p);
+            }
+
+            iterDate.setMonth(iterDate.getMonth() + 1);
+        }
+    }
+
+    if (batchPromises.length > 0) {
+        console.log(`自動生成・補完：${batchPromises.length} 件のシステム利用料データを同期中...`);
+        await Promise.all(batchPromises);
+    }
+}
+
+// 月別売上・入金集計（システム利用料ベース）の計算と描画
 const aggregateMonthlySales = () => {
     const monthlyMap = new Map(); // key: yyyymm
     
-    allCostRecords.forEach(rec => {
+    allSystemPayments.forEach(rec => {
         const yyyymm = rec.yearMonth;
         if (!yyyymm || yyyymm.length !== 6) return;
         
-        const contractAmt = rec.contract?.contractAmount || 0;
-        const additionalAmt = rec.additionalWorksTotal || 0;
-        const totalContract = contractAmt + additionalAmt; // 総契約金額
-        const paymentAmt = rec.revenue?.paymentAmount || 0; // 入金金額
+        const amount = rec.amount || 0;
+        const isPaid = rec.status === 'paid';
         
         if (!monthlyMap.has(yyyymm)) {
             monthlyMap.set(yyyymm, {
                 yearMonth: yyyymm,
-                totalContract: 0,
-                totalPayment: 0
+                totalContract: 0, // 総請求額（売上）
+                totalPayment: 0  // 入金済み額
             });
         }
         
         const m = monthlyMap.get(yyyymm);
-        m.totalContract += totalContract;
-        m.totalPayment += paymentAmt;
+        m.totalContract += amount;
+        if (isPaid) {
+            m.totalPayment += amount;
+        }
     });
     
     // 月順（降順：新しい月が上）でソート
@@ -376,7 +490,7 @@ const aggregateMonthlySales = () => {
     if (!tbody) return;
     
     if (sortedList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">契約・入金データはありません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">システム利用料データはありません。</td></tr>';
         return;
     }
     
@@ -647,7 +761,20 @@ async function selectAdminCompany(companyId) {
         // 既存のイベントリスナーを破棄するためクローンを作成
         const newBtn = btnImpersonate.cloneNode(true);
         btnImpersonate.parentNode.replaceChild(newBtn, btnImpersonate);
-        newBtn.addEventListener('click', () => {
+        newBtn.addEventListener('click', async () => {
+            // 未保存の変更があるかチェック
+            if (checkHasUnsavedConfigChanges()) {
+                const saveAndOpen = confirm("変更内容が保存されていません。保存して入力画面を開きますか？\n\n【OK】保存して開く\n【キャンセル】編集に戻る（開かない）");
+                if (saveAndOpen) {
+                    const result = await saveCompanyConfig();
+                    if (!result || !result.success) {
+                        return; // 保存に失敗した場合は開かない
+                    }
+                } else {
+                    return; // キャンセルした場合は開かない
+                }
+            }
+            
             const cid = companyObj.companyId || companyObj.id;
             sessionStorage.setItem('impersonate_company_id', cid);
             window.open('app.html', '_blank');
@@ -691,7 +818,8 @@ async function selectAdminCompany(companyId) {
 
 // 日報の集計と描画（およびグラフ描画）
 function aggregateAndRenderReports() {
-    const tbody = document.getElementById('admin-reports-tbody');
+    try {
+        const tbody = document.getElementById('admin-reports-tbody');
     const monthFilter = document.getElementById('admin-month-filter');
     if (!tbody) return;
 
@@ -871,11 +999,15 @@ function aggregateAndRenderReports() {
     });
 
     renderChart(projects, datasets);
+    } catch (err) {
+        alert("集計描画エラー:\n" + err.stack);
+    }
 }
 
 // Chart.jsによる積層棒グラフの描画
 function renderChart(labels, datasets) {
-    const ctx = document.getElementById('company-report-chart');
+    try {
+        const ctx = document.getElementById('company-report-chart');
     if (!ctx) return;
 
     if (reportChartInstance) {
@@ -962,33 +1094,40 @@ function renderChart(labels, datasets) {
             }
         }
     });
+    } catch (e) {
+        alert("グラフ描画中にエラーが発生しました:\n" + e.stack);
+    }
+}
+
+// 変更チェック用のヘルパー関数
+function checkHasUnsavedConfigChanges() {
+    if (!originalCompanyConfig) return false;
+    
+    const currentName = document.getElementById('edit-company-name').value || '';
+    const currentMaxUsers = document.getElementById('edit-company-max-users').value || '';
+    const currentRenewalDate = document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '';
+    const currentPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '';
+    const currentTrialDays = document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '';
+    const currentPaymentMethod = document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card';
+    const currentAdminName = document.getElementById('edit-company-admin-name') ? document.getElementById('edit-company-admin-name').value : '';
+    const currentAdminEmail = document.getElementById('edit-company-admin-email') ? document.getElementById('edit-company-admin-email').value : '';
+
+    return currentName !== originalCompanyConfig.companyName ||
+           currentMaxUsers !== originalCompanyConfig.maxUsers ||
+           currentRenewalDate !== originalCompanyConfig.contractRenewalDate ||
+           currentPlanStatus !== originalCompanyConfig.planStatus ||
+           (currentPlanStatus === 'trial_active' && currentTrialDays !== originalCompanyConfig.trialDays) ||
+           currentPaymentMethod !== originalCompanyConfig.paymentMethod ||
+           currentAdminName !== originalCompanyConfig.adminName ||
+           currentAdminEmail !== originalCompanyConfig.adminEmail;
 }
 
 // モーダルを閉じる処理
 async function closeDetailModal() {
     // 未保存の変更があるかチェック
     if (originalCompanyConfig) {
-        const currentName = document.getElementById('edit-company-name').value || '';
-        const currentMaxUsers = document.getElementById('edit-company-max-users').value || '';
-        const currentRenewalDate = document.getElementById('edit-contract-renewal-date') ? document.getElementById('edit-contract-renewal-date').value : '';
-        const currentPlanStatus = document.getElementById('edit-company-plan-status') ? document.getElementById('edit-company-plan-status').value : '';
-        const currentTrialDays = document.getElementById('edit-company-trial-days') ? document.getElementById('edit-company-trial-days').value : '';
-        const currentPaymentMethod = document.getElementById('edit-company-payment-method') ? document.getElementById('edit-company-payment-method').value : 'card';
-
-        const currentAdminName = document.getElementById('edit-company-admin-name') ? document.getElementById('edit-company-admin-name').value : '';
-        const currentAdminEmail = document.getElementById('edit-company-admin-email') ? document.getElementById('edit-company-admin-email').value : '';
-
-        const isChanged = currentName !== originalCompanyConfig.companyName ||
-                          currentMaxUsers !== originalCompanyConfig.maxUsers ||
-                          currentRenewalDate !== originalCompanyConfig.contractRenewalDate ||
-                          currentPlanStatus !== originalCompanyConfig.planStatus ||
-                          (currentPlanStatus === 'trial_active' && currentTrialDays !== originalCompanyConfig.trialDays) ||
-                          currentPaymentMethod !== originalCompanyConfig.paymentMethod ||
-                          currentAdminName !== originalCompanyConfig.adminName ||
-                          currentAdminEmail !== originalCompanyConfig.adminEmail;
-
-        if (isChanged) {
-            const saveAndClose = confirm("変更内容が保存されていません。保存して閉じますか？\n\n【OK】保存して閉じる\n【キャンセル】保存せずに閉じる");
+        if (checkHasUnsavedConfigChanges()) {
+            const saveAndClose = confirm("変更内容が保存されていません。保存して閉じますか？\n\n【OK】保存して閉じる\n【キャンセル】編集に戻る（閉じない）\n\n※変更を破棄して閉じたい場合は、ページを再読み込みしてください。");
             if (saveAndClose) {
                 // 保存を実行
                 const result = await saveCompanyConfig();
@@ -996,6 +1135,9 @@ async function closeDetailModal() {
                     // 保存に失敗した場合はモーダルを閉じずに中断
                     return;
                 }
+            } else {
+                // キャンセル時は閉じずに編集画面に戻る
+                return;
             }
         }
     }
@@ -1058,38 +1200,63 @@ if (detailModalOverlay) {
 }
 
 // モーダルのタブ切り替え
-function switchModalTab(tabName) {
-    const tabConfigBtn = document.getElementById('modal-tab-config');
-    const tabStatsBtn = document.getElementById('modal-tab-stats');
-    const contentConfig = document.getElementById('modal-content-config');
-    const contentStats = document.getElementById('modal-content-stats');
+async function switchModalTab(tabName) {
+    try {
+        // 「企業設定」タブから「稼働集計」など他タブへ切り替える際の変更チェック
+        const currentTab = document.getElementById('modal-tab-config')?.classList.contains('active') ? 'config' : 'stats';
+        if (currentTab === 'config' && tabName !== 'config') {
+            if (checkHasUnsavedConfigChanges()) {
+                const saveAndSwitch = confirm("変更内容が保存されていません。保存して切り替えますか？\n\n【OK】保存して切り替えます\n【キャンセル】編集に戻る（切り替えない）");
+                if (saveAndSwitch) {
+                    const result = await saveCompanyConfig();
+                    if (!result || !result.success) {
+                        // 保存失敗時は切り替えを中止
+                        return;
+                    }
+                } else {
+                    // 切り替えを中止
+                    return;
+                }
+            }
+        }
 
-    if (tabName === 'config') {
-        if (tabConfigBtn) {
-            tabConfigBtn.classList.add('active');
-            tabConfigBtn.style.borderBottomColor = 'var(--primary)';
-            tabConfigBtn.style.color = 'var(--primary)';
+        const tabConfigBtn = document.getElementById('modal-tab-config');
+        const tabStatsBtn = document.getElementById('modal-tab-stats');
+        const contentConfig = document.getElementById('modal-content-config');
+        const contentStats = document.getElementById('modal-content-stats');
+
+        if (tabName === 'config') {
+            if (tabConfigBtn) {
+                tabConfigBtn.classList.add('active');
+                tabConfigBtn.style.borderBottomColor = 'var(--primary)';
+                tabConfigBtn.style.color = 'var(--primary)';
+            }
+            if (tabStatsBtn) {
+                tabStatsBtn.classList.remove('active');
+                tabStatsBtn.style.borderBottomColor = 'transparent';
+                tabStatsBtn.style.color = 'var(--text-muted)';
+            }
+            if (contentConfig) contentConfig.classList.remove('hidden');
+            if (contentStats) contentStats.classList.add('hidden');
+        } else {
+            if (tabConfigBtn) {
+                tabConfigBtn.classList.remove('active');
+                tabConfigBtn.style.borderBottomColor = 'transparent';
+                tabConfigBtn.style.color = 'var(--text-muted)';
+            }
+            if (tabStatsBtn) {
+                tabStatsBtn.classList.add('active');
+                tabStatsBtn.style.borderBottomColor = 'var(--primary)';
+                tabStatsBtn.style.color = 'var(--primary)';
+            }
+            if (contentConfig) contentConfig.classList.add('hidden');
+            if (contentStats) contentStats.classList.remove('hidden');
+            
+            // 稼働集計タブ切り替え時に再集計・再描画を実行
+            aggregateAndRenderReports();
         }
-        if (tabStatsBtn) {
-            tabStatsBtn.classList.remove('active');
-            tabStatsBtn.style.borderBottomColor = 'transparent';
-            tabStatsBtn.style.color = 'var(--text-muted)';
-        }
-        if (contentConfig) contentConfig.classList.remove('hidden');
-        if (contentStats) contentStats.classList.add('hidden');
-    } else {
-        if (tabConfigBtn) {
-            tabConfigBtn.classList.remove('active');
-            tabConfigBtn.style.borderBottomColor = 'transparent';
-            tabConfigBtn.style.color = 'var(--text-muted)';
-        }
-        if (tabStatsBtn) {
-            tabStatsBtn.classList.add('active');
-            tabStatsBtn.style.borderBottomColor = 'var(--primary)';
-            tabStatsBtn.style.color = 'var(--primary)';
-        }
-        if (contentConfig) contentConfig.classList.add('hidden');
-        if (contentStats) contentStats.classList.remove('hidden');
+    } catch (err) {
+        alert("タブの切り替え中にエラーが発生しました:\n" + err.stack);
     }
 }
 
@@ -1112,6 +1279,14 @@ async function saveCompanyConfig() {
 
     if (!newName) {
         alert('会社名を入力してください。');
+        return false;
+    }
+    if (!newAdminName) {
+        alert('管理者名を入力してください。');
+        return false;
+    }
+    if (!newAdminEmail) {
+        alert('管理者メールを入力してください。');
         return false;
     }
     if (isNaN(newMaxUsers) || newMaxUsers < 1) {
@@ -1247,6 +1422,9 @@ async function saveCompanyConfig() {
 const btnSaveCompanyConfig = document.getElementById('btn-save-company-config');
 if (btnSaveCompanyConfig) {
     btnSaveCompanyConfig.addEventListener('click', async () => {
+        if (!confirm('企業設定の変更を保存しますか？\n（保存すると、対象企業の管理者へ変更案内メールが送信されます）')) {
+            return;
+        }
         const result = await saveCompanyConfig();
         if (result && result.success) {
             if (result.hasChanges) {
@@ -1327,6 +1505,8 @@ if (btnTogglePaymentStatus) {
         
         let confirmMsg = "";
         const updateFields = {};
+        let targetYearMonth = "";
+        let baseDateForYM = new Date();
 
         // 堅牢な日付解析ヘルパー関数（ローカルコピー）
         const parseLocalFirestoreDate = (field) => {
@@ -1341,6 +1521,14 @@ if (btnTogglePaymentStatus) {
         if (isPaid) {
             confirmMsg = 'この企業の支払い状況を「未払い」に戻しますか？';
             updateFields.invoiceStatus = 'unpaid';
+            
+            let refDate = null;
+            if (companyObj.contractRenewalDate) {
+                refDate = parseLocalFirestoreDate(companyObj.contractRenewalDate);
+            }
+            if (!refDate) refDate = new Date();
+            refDate.setMonth(refDate.getMonth() - 1);
+            baseDateForYM = refDate;
         } else {
             confirmMsg = 'この企業の支払い状況を「支払い済み」にしますか？\n最終支払日を本日に更新し、次回契約更新日を1ヶ月進めます。';
             updateFields.invoiceStatus = 'paid';
@@ -1362,10 +1550,16 @@ if (btnTogglePaymentStatus) {
                 baseDate.setMonth(baseDate.getMonth() + 1);
             }
             
+            baseDateForYM = baseDate;
+
             const nextRenewal = new Date(baseDate);
             nextRenewal.setMonth(nextRenewal.getMonth() + 1);
             updateFields.contractRenewalDate = nextRenewal;
         }
+
+        const y = baseDateForYM.getFullYear();
+        const m = String(baseDateForYM.getMonth() + 1).padStart(2, '0');
+        targetYearMonth = `${y}${m}`;
 
         if (!confirm(confirmMsg)) return;
 
@@ -1375,6 +1569,22 @@ if (btnTogglePaymentStatus) {
         try {
             const companyRef = doc(db, "companies", selectedCompanyId);
             await updateDoc(companyRef, updateFields);
+
+            // system_payments コレクションの該当月データも連動更新
+            const payId = `${selectedCompanyId}_${targetYearMonth}`;
+            const payRef = doc(db, "system_payments", payId);
+            const nowTime = new Date();
+            
+            await setDoc(payRef, {
+                companyId: selectedCompanyId,
+                companyName: companyObj.companyName || '',
+                yearMonth: targetYearMonth,
+                amount: getPlanMonthlyFee(companyObj.maxUsers, companyObj.planStatus),
+                paymentMethod: 'invoice',
+                status: isPaid ? 'unpaid' : 'paid',
+                paidAt: isPaid ? null : nowTime,
+                createdAt: companyObj.createdAt || nowTime
+            }, { merge: true });
 
             alert(isPaid ? '支払い状況を「未払い」に設定しました。' : '支払い状況を「支払い済み」に設定し、更新日を1ヶ月延長しました。');
 

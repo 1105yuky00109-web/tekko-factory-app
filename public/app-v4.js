@@ -1,6 +1,6 @@
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, onSnapshot, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, sendPasswordResetEmail, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, onSnapshot, getDoc, setDoc, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 const firebaseConfig = {
@@ -19,10 +19,27 @@ const showDebugLog = (msg) => {
 showDebugLog("1. Start loading imports...");
 showDebugLog("2. Imports completed. Initializing Firebase...");
 
+// ローカル開発環境 (localhost / 127.0.0.1) の場合は一時的にprojectIdをdemo用に書き換えてエミュレータ自動接続
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    firebaseConfig.projectId = 'demo-tekko-factory-app';
+}
+
 // Firebase初期化
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// ローカル開発環境 (localhost / 127.0.0.1) の場合はエミュレータに自動接続
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    showDebugLog("Running on localhost. Connecting Firebase Emulators...");
+    try {
+        connectAuthEmulator(auth, "http://127.0.0.1:9100");
+        connectFirestoreEmulator(db, "127.0.0.1", 8082);
+        showDebugLog("✅ Connected to Auth Emulator (9100) and Firestore Emulator (8082).");
+    } catch (err) {
+        console.error("Firebase Emulator connection failed:", err);
+    }
+}
 let messaging = null;
 
 // URLパラメータの確認 (新規登録後のログインなどで強制ログアウトするため)
@@ -349,7 +366,45 @@ function setupAuthListener() {
 
                 // ログイン成功時
                 currentUser = auth.currentUser;
-                if (currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
+
+                // 開発者アカウントの「🔧 開発管理画面へ」ボタンおよび代理ログイン制御
+                const btnDevAdmin = document.getElementById('btn-dev-admin');
+                const btnStopImpersonate = document.getElementById('btn-stop-impersonate');
+                const impersonateBadge = document.getElementById('impersonate-badge');
+                
+                const isDev = currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp';
+                const impCompanyId = sessionStorage.getItem('impersonate_company_id');
+
+                if (isDev) {
+                    showDebugLog("Developer account logged in. Enabling dev admin controls.");
+                    if (btnDevAdmin) {
+                        btnDevAdmin.style.display = 'inline-block';
+                        btnDevAdmin.onclick = () => {
+                            window.location.href = 'system-admin.html';
+                        };
+                    }
+                    if (impCompanyId) {
+                        if (btnStopImpersonate) {
+                            btnStopImpersonate.style.display = 'inline-block';
+                            btnStopImpersonate.onclick = () => {
+                                sessionStorage.removeItem('impersonate_company_id');
+                                window.location.href = 'system-admin.html';
+                            };
+                        }
+                        if (impersonateBadge) {
+                            impersonateBadge.style.display = 'inline-block';
+                        }
+                    } else {
+                        if (btnStopImpersonate) btnStopImpersonate.style.display = 'none';
+                        if (impersonateBadge) impersonateBadge.style.display = 'none';
+                    }
+                } else {
+                    if (btnDevAdmin) btnDevAdmin.style.display = 'none';
+                    if (btnStopImpersonate) btnStopImpersonate.style.display = 'none';
+                    if (impersonateBadge) impersonateBadge.style.display = 'none';
+                }
+
+                if (false && currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'steelworks@areva.co.jp') {
                     const impCompanyId = sessionStorage.getItem('impersonate_company_id');
                     if (impCompanyId) {
                         showDebugLog("Developer account active under impersonation. Skipping force signout.");
@@ -752,7 +807,7 @@ if (btnSendReset) {
             // Firebaseのパスワード再設定メールを送信（カスタムURL付き）
             await sendPasswordResetEmail(auth, email, {
                 // auth-action.html を再設定ページとして指定
-                url: 'https://weekly-report-93e5f.web.app/',
+                url: 'https://tekko-factory-app.web.app/',
                 handleCodeInApp: false
             });
             if (resetSuccess) {
@@ -3853,8 +3908,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://127.0.0.1:5001/weekly-report-93e5f/us-central1'
-                : 'https://us-central1-weekly-report-93e5f.cloudfunctions.net';
+                ? 'http://127.0.0.1:5003/demo-tekko-factory-app/asia-northeast1'
+                : 'https://asia-northeast1-tekko-factory-app.cloudfunctions.net';
                 
             const response = await fetch(`${baseUrl}/sendRemindNotification`, {
                 method: 'POST',

@@ -158,8 +158,11 @@
         <div class="header-top">
             <h1>工事管理システム</h1>
             <div class="user-info">
+                <span id="impersonate-badge" style="background:#f57c00;color:white;padding:3px 8px;border-radius:4px;font-size:0.8rem;margin-right:10px;font-weight:bold;display:none;">⚠️ 代理ログイン中</span>
                 <span id="current-company-name" style="margin-right:15px;font-weight:bold;color:var(--primary-color,#2563eb);"></span>
                 <span id="current-user-email"></span>
+                <button id="btn-stop-impersonate" class="btn btn-small" style="background:#d32f2f;color:white;display:none;margin-right:5px;border:none;" title="代理ログイン終了">❌ 代理ログイン終了</button>
+                <button id="btn-dev-admin" class="btn btn-primary btn-small" style="background:#4f46e5;color:white;display:none;margin-right:5px;" title="開発管理画面へ">🔧 開発管理画面へ</button>
                 <button id="btn-admin-settings" class="btn btn-secondary btn-small" style="background:#475569;margin-right:5px;" title="管理者設定">⚙️ 設定</button>
                 <button id="theme-toggle" class="btn btn-secondary btn-small" title="テーマ切り替え">🌙 テーマ切替</button>
                 <button id="btn-logout" class="btn btn-secondary btn-small">ログアウト</button>
@@ -1412,7 +1415,7 @@
 <div id="toast-container" class="toast-container no-print" style="position: fixed; bottom: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px;"></div>
 
 <!-- app.js（Firebase v10 モジュール対応） -->
-<script type="module" src="app-v4.js?v=20260617-05"></script>
+<script type="module" src="app-v4.js?v=20260620-005"></script>
 <!-- Service Workerの登録はapp-v4.js側で対応判定を行いながら安全に処理されます -->
 </body>
 </html>
